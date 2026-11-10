@@ -26,6 +26,7 @@ const user: Identity = {
   email: "synthetic@example.invalid",
   verified: true,
   coordinator: false,
+  ministerId,
 };
 const data = emptyData();
 data.ministers.push({
@@ -65,7 +66,11 @@ test("PDF e dados de visita exigem identidade verificada e designação", () => 
     false,
   );
   assert.equal(
-    canVisit({ ...user, email: "other@example.invalid" }, data, eventId),
+    canVisit(
+      { ...user, email: "other@example.invalid", ministerId: randomUUID() },
+      data,
+      eventId,
+    ),
     false,
   );
   assert.equal(
@@ -119,6 +124,8 @@ test("PDF gera páginas legíveis e não inclui contatos nem observações priva
     .toUpperCase();
   assert.ok(!streams.includes(encoded));
   assert.ok(
-    streams.includes(Buffer.from("Encontro").toString("hex").toUpperCase()),
+    streams.includes(
+      Buffer.from("Visita dominical").toString("hex").toUpperCase(),
+    ),
   );
 });

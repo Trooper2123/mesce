@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { advisories } from "@/lib/domain";
 import { coordinator } from "@/lib/auth";
 import { readData } from "@/lib/store";
 import { scheduleAction } from "@/app/actions";
@@ -20,7 +21,9 @@ export default async function Schedules({
     .sort((a, b) => b.revision - a.revision);
   const schedule = history[0];
   const labels = {
-    DRAFT: "Em revisão",
+    DRAFT: "Rascunho",
+    IN_REVIEW: "Em revisão",
+    CANCELLED: "Cancelada",
     APPROVED: "Aprovada",
     PUBLISHED: "Publicada",
   };
@@ -57,12 +60,12 @@ export default async function Schedules({
           <form action={scheduleAction}>
             {common}
             <button name="operation" value="generate">
-              {schedule && schedule.status !== "DRAFT"
+              {schedule && ["APPROVED", "PUBLISHED"].includes(schedule.status)
                 ? "Abrir nova revisão"
                 : "Gerar proposta"}
             </button>
           </form>
-          {schedule?.status === "DRAFT" && (
+          {schedule && ["DRAFT", "IN_REVIEW"].includes(schedule.status) && (
             <form action={scheduleAction}>
               {common}
               <button name="operation" value="approve" className="secondary">
@@ -78,7 +81,7 @@ export default async function Schedules({
               </button>
             </form>
           )}
-          {schedule && schedule.status !== "DRAFT" && (
+          {schedule && ["APPROVED", "PUBLISHED"].includes(schedule.status) && (
             <Link
               className="button secondary"
               href={`/api/schedules/${schedule.id}/pdf`}
@@ -86,13 +89,21 @@ export default async function Schedules({
               Baixar PDF aprovado
             </Link>
           )}
+          {schedule && ["DRAFT", "IN_REVIEW"].includes(schedule.status) && (
+            <form action={scheduleAction}>
+              {common}
+              <button className="secondary" name="operation" value="sync">
+                Sincronizar agenda e validar
+              </button>
+            </form>
+          )}
         </div>
         <p className="muted">
           Limite mensal considera celebrações e visitas em conjunto. O
-          equilíbrio considera separadamente cada modalidade e os últimos 12
-          meses de escalas publicadas. Sem impedimento registrado, o ministro é
-          considerado elegível; isso não representa disponibilidade confirmada.
-          Uma nova revisão preserva as versões aprovadas.
+          equilíbrio considera separadamente cada modalidade e o histórico
+          configurado. A política de não resposta é definida em Configuração;
+          ausência de impedimento não confirma disponibilidade. Uma nova revisão
+          preserva as versões aprovadas.
         </p>
       </div>
       {!schedule ? (
@@ -121,6 +132,16 @@ export default async function Schedules({
               </ul>
             </section>
           )}
+          {advisories(schedule).length > 0 && (
+            <div className="notice">
+              <strong>Avisos de distribuição (não bloqueiam aprovação)</strong>
+              <ul>
+                {advisories(schedule).map((note) => (
+                  <li key={note}>{note}</li>
+                ))}
+              </ul>
+            </div>
+          )}
           {schedule.events.map((event) => {
             const assigned = schedule.assignments.filter(
               (a) => a.eventId === event.id,
@@ -148,7 +169,7 @@ export default async function Schedules({
                 </ul>
                 {!assigned.length && <p>Vagas aguardando designação.</p>}
                 {event.notes && <p className="muted">{event.notes}</p>}
-                {schedule.status === "DRAFT" && (
+                {["DRAFT", "IN_REVIEW"].includes(schedule.status) && (
                   <details>
                     <summary>Ajustar ministros ou quantidade de vagas</summary>
                     <form action={scheduleAction} className="inline-form">
@@ -202,6 +223,32 @@ export default async function Schedules({
           })}
           <section className="panel">
             <h2>Distribuição de participações</h2>
+            {[false, true].map((visit) => {
+              const counts = schedule.ministers.map(
+                (m) =>
+                  schedule.assignments.filter(
+                    (a) =>
+                      a.ministerId === m.id &&
+                      (schedule.events.find((e) => e.id === a.eventId)?.kind ===
+                        "VISIT") ===
+                        visit,
+                  ).length,
+              );
+              const minimum = counts.length ? Math.min(...counts) : 0,
+                maximum = counts.length ? Math.max(...counts) : 0;
+              return (
+                <p className="muted" key={String(visit)}>
+                  {visit ? "Visitas" : "Celebrações"}: mínimo {minimum}, máximo{" "}
+                  {maximum}, média{" "}
+                  {counts.length
+                    ? (
+                        counts.reduce((a, b) => a + b, 0) / counts.length
+                      ).toFixed(1)
+                    : 0}
+                  , diferença {maximum - minimum}.
+                </p>
+              );
+            })}
             <div className="table-scroll">
               <table>
                 <thead>
@@ -242,7 +289,7 @@ export default async function Schedules({
                 <span>
                   Revisão {s.revision} · {labels[s.status]}
                 </span>
-                {s.status !== "DRAFT" && (
+                {["APPROVED", "PUBLISHED"].includes(s.status) && (
                   <Link href={`/api/schedules/${s.id}/pdf`}>
                     PDF desta versão
                   </Link>

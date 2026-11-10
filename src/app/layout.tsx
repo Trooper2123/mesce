@@ -1,3 +1,5 @@
+import { previewEnabled } from "@/lib/preview-session";
+import { previewLogout } from "@/app/onboarding-actions";
 import type { Metadata } from "next";
 import Link from "next/link";
 import {
@@ -18,10 +20,15 @@ export const metadata: Metadata = {
 };
 const links = [
   ["/", "Visão geral", LayoutDashboard],
+  ["/meus-dados", "Meus dados", UserRound],
+  ["/pre-cadastros", "Pré-cadastros", UsersRound],
   ["/ministros", "Ministros", UsersRound],
   ["/assistidos", "Assistidos", HeartHandshake],
   ["/celebracoes", "Celebrações e visitas", CalendarDays],
   ["/impedimentos", "Impedimentos", CalendarOff],
+  ["/visitas", "Visitas dominicais", HeartHandshake],
+  ["/respostas", "Respostas do mês", CalendarOff],
+  ["/configuracao", "Configuração", Church],
   ["/escalas", "Escalas", ClipboardList],
   ["/minhas-escalas", "Minhas escalas", UserRound],
 ] as const;
@@ -57,7 +64,13 @@ export default function RootLayout({
           <div className="aside-bottom">
             <span className="dot" /> Um ministério, muitas mãos.
             <p>Servir com cuidado e organização.</p>
-            <a href="/auth/logout">Sair da conta</a>
+            {previewEnabled() ? (
+              <form action={previewLogout}>
+                <button className="secondary">Sair do Preview</button>
+              </form>
+            ) : (
+              <a href="/auth/logout">Sair da conta</a>
+            )}
           </div>
         </aside>
         <div className="workspace">

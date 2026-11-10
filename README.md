@@ -46,7 +46,7 @@ Acesse `http://localhost:3000`. Sem Auth0 configurado, a aplicação apresenta a
 | `MESCE_COORDINATOR_EMAILS` | E-mails da coordenação, separados por vírgula; exige `email_verified=true` |
 | `MESCE_DATA_KEY_HEX`       | Chave AES de 32 bytes em hexadecimal (`openssl rand -hex 32`)              |
 
-No Auth0, configure **Allowed Callback URLs** com `<APP_BASE_URL>/auth/callback` e **Allowed Logout URLs** com `<APP_BASE_URL>`. Habilite o fluxo de verificação de e-mail. Cadastre os ministros com o mesmo e-mail verificado usado no login. Nenhum usuário recebe função de coordenador por parâmetro do navegador. Login sem vínculo não permite acessar dados de cadastros nem PDF.
+No Auth0, configure **Allowed Callback URLs** com `<APP_BASE_URL>/api/auth/callback` (ou o caminho definido em `MESCE_AUTH0_CALLBACK_PATH`) e **Allowed Logout URLs** com `<APP_BASE_URL>`. Habilite o fluxo de verificação de e-mail. Cadastre os ministros com o mesmo e-mail verificado usado no login. Nenhum usuário recebe função de coordenador por parâmetro do navegador. Login sem vínculo não permite acessar dados de cadastros nem PDF.
 
 Guarde a chave de dados separadamente dos backups. Perder essa chave inviabiliza recuperar os dados cifrados; trocar seu valor exige recifrar os registros antes. Não há rotação automática nesta versão.
 
@@ -87,8 +87,24 @@ Os testes usam apenas dados sintéticos. A integração SQL executa a migração
 - Alterações de cadastro/eventos não modificam snapshots já aprovados. Gere nova revisão, confira ajustes, aprove e publique novamente.
 - E-mail é a chave de vínculo com a identidade Auth0. Cadastros não são públicos.
 
-## Próximas etapas da especificação
+## MVP operacional em desenvolvimento
 
-Envio de convites por Resend, acompanhamento/revogação de convites, notificações push, lembretes, exceções/remarcações de séries, cálculo de deslocamento real, relatórios agregados com supressão, guia de visitas em PDF com escopo específico e rotação de chaves são evoluções ainda não implementadas. A fidelidade ao layout do PDF paroquial e validação com leitores de tela/dispositivos reais também precisam de homologação.
+A evolução da auditoria está rastreada em [TASKS.md](TASKS.md), com 43 issues no GitHub. Esta branch implementa:
 
-A política de retenção/base legal e os responsáveis pela operação devem ser definidos pela pastoral. Os dados pessoais da referência fornecida não são incluídos neste repositório.
+- Lista de e-mails autorizados pela coordenação, ativação após login com e-mail verificado e conclusão de cadastro; nenhum token, convite ou serviço Resend.
+- Vínculo persistido por Auth0 sub e revogação; coordenação legada ativa continua reconhecida.
+- Meus dados: edição pelo próprio ministro, com campos protegidos e validação no servidor.
+- Sessão de homologação somente em Preview, com senha server-side, cookie cifrado e limite de tentativas; nunca funciona em Production.
+- Agendamentos futuros em Brasília; cancelamento com justificativa e calendário de domingos.
+- Respostas mensais, inclusive sem impedimentos, e consolidação pela coordenação. A política inicial exige resposta/consolidação; a coordenação pode alterá-la em Configuração.
+- Sincronização da agenda no rascunho, preservação de vagas/alocações na nova revisão, revalidação na publicação e conflitos com eventos de meses vizinhos.
+- Prioridade por escassez e busca limitada para melhorar cobertura; vagas que excedam o orçamento de busca exigem revisão humana, sem promessa de ótimo global.
+- PDF geral sem campos livres das visitas e guia de visitas com contatos restrito aos responsáveis e à coordenação.
+
+**Migrações:** executar os arquivos SQL na ordem, primeiro em banco isolado. O script `db:migrate` é aditivo e transacional. A tela Configuração oferece importação não destrutiva de ministros/assistidos/celebrações legados. Ela exige a chave original; falha em decifrar ou presença de visitas/impedimentos/designações ainda não mapeadas reverte toda a importação. Os formatos cifrados Go e Next.js são diferentes.
+
+**Auth0 existente:** a callback padrão foi mantida em `/api/auth/callback` para compatibilidade com a aplicação já configurada. O login do SDK continua em `/auth/login`. Não é necessário criar outro tenant. Não copiar credenciais Production para Preview.
+
+**Estado de produção:** build/CI e testes não substituem homologação de login, acesso negado, migração e dados. Não executar promoção automática desta branch sem essa validação. Consulte `docs/MVP-RELEASE.md`.
+
+Campos personalizados, notificações push, relatórios avançados, contratos móveis, retenção e extensões adicionais estão nas issues correspondentes. Resend foi descontinuado e não é pendência.

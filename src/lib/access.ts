@@ -4,17 +4,15 @@ export type Identity = {
   email: string;
   verified: boolean;
   coordinator: boolean;
+  ministerId?: string;
 };
 export function linkedMinister(user: Identity, data: Data) {
   return data.ministers.find(
-    (m) =>
-      m.active &&
-      user.verified &&
-      m.email.toLowerCase() === user.email.toLowerCase(),
+    (m) => m.active && user.verified && m.id === user.ministerId,
   );
 }
 export function canDownload(user: Identity, data: Data, schedule: Schedule) {
-  if (schedule.status === "DRAFT") return false;
+  if (!["APPROVED", "PUBLISHED"].includes(schedule.status)) return false;
   if (user.coordinator) return true;
   const own = linkedMinister(user, data);
   return (
@@ -34,7 +32,7 @@ export function canVisit(user: Identity, data: Data, eventId: string) {
         !data.schedules.some(
           (other) =>
             other.month === s.month &&
-            other.status === "PUBLISHED" &&
+            ["PUBLISHED", "CANCELLED"].includes(other.status) &&
             other.revision > s.revision,
         ) &&
         s.events.some((e) => e.id === eventId && e.kind === "VISIT") &&

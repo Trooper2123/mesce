@@ -1,7 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { actor, coordinator } from "@/lib/auth";
+import { actor, coordinator, assertCurrentActor } from "@/lib/auth";
 import { transaction, write, audit } from "@/lib/store";
 import {
   ministerSchema,
@@ -12,6 +12,8 @@ import {
   validateSchedule,
   Minister,
   Schedule,
+  requireFuture,
+  syncSchedule,
 } from "@/lib/domain";
 import { z } from "zod";
 function value(form: FormData, key: string) {
@@ -63,6 +65,7 @@ export async function save(form: FormData) {
       required: Number(raw.required),
     };
     await transaction(async (client, current) => {
+      await assertCurrentActor(client, user, kind !== "absence");
       if (kind === "minister") {
         const minister = ministerSchema.parse(data);
         if (
@@ -105,6 +108,7 @@ export async function save(form: FormData) {
         await write(client, "assisted", assistedSchema.parse(data));
       else if (kind === "event") {
         const event = eventSchema.parse(data);
+        requireFuture(event);
         if (
           event.kind === "VISIT" &&
           !current.assisted.some((a) => a.id === event.assistedId && a.active)
@@ -139,6 +143,7 @@ export async function save(form: FormData) {
             id: index === 0 ? id : crypto.randomUUID(),
             date: date.toISOString().slice(0, 10),
           };
+          requireFuture(occurrence);
           if (
             current.events.some(
               (e) =>
@@ -160,7 +165,9 @@ export async function save(form: FormData) {
         if (
           !minister ||
           (!user.coordinator &&
-            (!user.verified || minister.email.toLowerCase() !== user.email))
+            (!user.verified ||
+              !minister.active ||
+              minister.id !== user.ministerId))
         )
           throw new Error("Você só pode informar seus impedimentos.");
         if (
@@ -229,17 +236,27 @@ export async function scheduleAction(form: FormData) {
     selected = month(form);
     const operation = value(form, "operation");
     await transaction(async (client, data) => {
+      await assertCurrentActor(client, user, true);
       const existing = data.schedules
         .filter((s) => s.month === selected)
         .sort((a, b) => b.revision - a.revision)[0];
       if (operation === "generate") {
-        if (existing?.status === "DRAFT")
+        if (existing?.status === "DRAFT" || existing?.status === "IN_REVIEW")
           throw new Error(
             "Já existe um rascunho. Revise ou aprove antes de gerar uma nova revisão.",
           );
         if (!data.events.some((e) => e.date.startsWith(selected)))
           throw new Error("Cadastre os eventos do mês antes de gerar.");
-        const schedule = generate(data, selected);
+        const schedule = existing
+          ? {
+              ...syncSchedule(existing, data),
+              id: crypto.randomUUID(),
+              status: "DRAFT" as const,
+              approvedAt: undefined,
+              approvedBy: undefined,
+              editVersion: 1,
+            }
+          : generate(data, selected);
         schedule.revision = (existing?.revision ?? 0) + 1;
         await write(client, "schedule", schedule);
         await audit(client, user.id, "schedule:generate", schedule.id);
@@ -252,8 +269,14 @@ export async function scheduleAction(form: FormData) {
       )
         throw new Error("A escala foi atualizada. Recarregue a página.");
       let updated: Schedule = { ...existing };
-      if (operation === "assign" || operation === "capacity") {
-        if (existing.status !== "DRAFT")
+      if (operation === "sync") {
+        if (!["DRAFT", "IN_REVIEW"].includes(existing.status))
+          throw new Error("Abra uma nova revisão.");
+        updated = syncSchedule(existing, data);
+        updated.status = "IN_REVIEW";
+        updated.warnings = validateSchedule(updated, data);
+      } else if (operation === "assign" || operation === "capacity") {
+        if (!["DRAFT", "IN_REVIEW"].includes(existing.status))
           throw new Error("Abra uma nova revisão para ajustar esta escala.");
         const reason = value(form, "reason");
         if (reason.length < 3) throw new Error("Informe uma justificativa.");
@@ -279,18 +302,25 @@ export async function scheduleAction(form: FormData) {
             (a) => !(a.eventId === eventId && a.ministerId === ministerId),
           );
           if (value(form, "mode") !== "remove")
-            assignments.push({ eventId, ministerId });
+            assignments.push({ eventId, ministerId, origin: "MANUAL" });
           updated = { ...updated, assignments };
         }
         updated.warnings = validateSchedule(updated, data);
       } else if (operation === "approve") {
-        if (existing.status !== "DRAFT")
+        if (!["DRAFT", "IN_REVIEW"].includes(existing.status))
           throw new Error("Apenas rascunhos podem ser aprovados.");
         const errors = validateSchedule(existing, data);
         if (errors.length) throw new Error(errors.join(" • "));
         updated = {
           ...existing,
           status: "APPROVED",
+          assistedSnapshot: data.assisted
+            .filter((p) =>
+              existing.events.some(
+                (e) => e.kind === "VISIT" && e.assistedId === p.id,
+              ),
+            )
+            .map((p) => ({ ...p, notes: "" })),
           warnings: [],
           approvedBy: user.id,
           approvedAt: new Date().toISOString(),
@@ -298,7 +328,12 @@ export async function scheduleAction(form: FormData) {
       } else if (operation === "publish") {
         if (existing.status !== "APPROVED")
           throw new Error("Aprove a escala primeiro.");
+        const errors = validateSchedule(existing, data);
+        if (errors.length) throw new Error(errors.join(" • "));
         updated.status = "PUBLISHED";
+      } else if (operation === "cancel") {
+        if (!value(form, "reason")) throw new Error("Informe a justificativa.");
+        updated.status = "CANCELLED";
       } else throw new Error("Operação inválida.");
       updated.editVersion = (existing.editVersion ?? 1) + 1;
       await write(client, "schedule", updated);
