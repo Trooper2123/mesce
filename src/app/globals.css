@@ -580,3 +580,7 @@ a.action {
 .calendar time {
   font-weight: bold;
 }
+
+aside {
+  overflow-y: auto;
+}

@@ -78,7 +78,9 @@ export async function schedulePdf(schedule: Schedule) {
         .join(", ");
       const lines = [
         ...wrap(
-          `${event.date} - ${event.time} | ${event.title} | ${event.location}`,
+          visit
+            ? `${event.date} - ${event.time} | Visita dominical (detalhes na área restrita)`
+            : `${event.date} - ${event.time} | ${event.title} | ${event.location}`,
           515,
           11,
         ),
@@ -107,4 +109,71 @@ export async function schedulePdf(schedule: Schedule) {
       { x: 38, y: 30, size: 9, font },
     );
   return document.save();
+}
+
+export async function visitGuidePdf(schedule: Schedule, ministerId?: string) {
+  const doc = await PDFDocument.create(),
+    font = await doc.embedFont(StandardFonts.Helvetica);
+  let page = doc.addPage([595, 842]),
+    y = 795;
+  const text = (value: string) => {
+    const words = value.replace(/[^\x20-\x7e\xa0-\xff]/g, " ").split(/\s+/);
+    let current = "";
+    for (const word of words) {
+      if (font.widthOfTextAtSize(current + " " + word, 11) > 510 && current) {
+        line(current);
+        current = "";
+      }
+      if (font.widthOfTextAtSize(word, 11) > 510) {
+        for (const char of word) {
+          if (font.widthOfTextAtSize(current + char, 11) > 510) {
+            line(current);
+            current = "";
+          }
+          current += char;
+        }
+      } else current += (current ? " " : "") + word;
+    }
+    if (current) line(current);
+  };
+  const line = (value: string) => {
+    if (y < 70) {
+      page = doc.addPage([595, 842]);
+      y = 795;
+    }
+    page.drawText(value, { x: 40, y, size: 11, font });
+    y -= 18;
+  };
+  text("MESCE - Guia restrito de visitas");
+  text(`${schedule.month} - Revisão ${schedule.revision}`);
+  text("Dados confidenciais: somente responsáveis pelas visitas.");
+  y -= 15;
+  for (const event of schedule.events.filter(
+    (e) =>
+      e.kind === "VISIT" &&
+      (!ministerId ||
+        schedule.assignments.some(
+          (a) => a.eventId === e.id && a.ministerId === ministerId,
+        )),
+  )) {
+    const person = schedule.assistedSnapshot?.find(
+      (p) => p.id === event.assistedId,
+    );
+    if (!person) continue;
+    text(`${event.date} ${event.time} - ${person.name}`);
+    text(
+      `${person.address}, ${person.neighborhood}, ${person.city}/${person.state} - CEP ${person.postalCode}`,
+    );
+    text(`Telefone fixo: ${person.landline} | Móvel: ${person.mobile}`);
+    text(`Familiar: ${person.familyName} | Contato: ${person.familyPhone}`);
+    y -= 16;
+  }
+  const pages = doc.getPages();
+  pages.forEach((p, i) =>
+    p.drawText(
+      `Uso restrito | v${schedule.revision} | ${i + 1}/${pages.length}`,
+      { x: 40, y: 30, size: 9, font },
+    ),
+  );
+  return doc.save();
 }

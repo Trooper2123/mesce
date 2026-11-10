@@ -14,7 +14,7 @@ export default async function Mine() {
         !data.schedules.some(
           (other) =>
             other.month === s.month &&
-            other.status === "PUBLISHED" &&
+            ["PUBLISHED", "CANCELLED"].includes(other.status) &&
             other.revision > s.revision,
         ),
     );
@@ -53,6 +53,19 @@ export default async function Mine() {
                 </h2>
                 <Link href={`/api/schedules/${s.id}/pdf`}>PDF da escala</Link>
               </div>
+              {s.assistedSnapshot &&
+                own.some((a) =>
+                  s.events.some(
+                    (e) => e.id === a.eventId && e.kind === "VISIT",
+                  ),
+                ) && (
+                  <Link
+                    className="button secondary"
+                    href={`/api/schedules/${s.id}/visitas`}
+                  >
+                    Meu guia restrito de visitas
+                  </Link>
+                )}
               {own.map((a) => {
                 const e = s.events.find((e) => e.id === a.eventId)!;
                 const assisted =

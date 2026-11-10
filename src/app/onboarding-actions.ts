@@ -1,0 +1,164 @@
+"use server";
+import { redirect } from "next/navigation";
+import { cookies, headers } from "next/headers";
+import { revalidatePath } from "next/cache";
+import { createHmac } from "node:crypto";
+import { z } from "zod";
+import { identity, actor, coordinator, assertCurrentActor } from "@/lib/auth";
+import { pool, transaction, write, audit } from "@/lib/store";
+import {
+  addEmails,
+  parseEmails,
+  findAccess,
+  completeRegistration,
+  rateLimit,
+} from "@/lib/registration";
+import { blankMinister, ownProfile, validateSpouse } from "@/lib/profile";
+import {
+  previewEnabled,
+  passwordMatches,
+  createPreviewSession,
+} from "@/lib/preview-session";
+function failure(error: unknown) {
+  return error instanceof z.ZodError
+    ? error.issues.map((i) => i.message).join(" • ")
+    : error instanceof Error && !("code" in error)
+      ? error.message
+      : "Não foi possível salvar. Tente novamente.";
+}
+export async function allowlistAction(form: FormData) {
+  const user = await coordinator();
+  try {
+    await rateLimit(pool(), "allowlist:" + user.id, 30);
+    await transaction(async (client, data) => {
+      await assertCurrentActor(client, user, true);
+      const operation = String(form.get("operation"));
+      if (operation === "add") {
+        await addEmails(
+          client,
+          user.id,
+          parseEmails(String(form.get("emails") ?? "")),
+        );
+        return;
+      }
+      const id = z.string().uuid().parse(form.get("id"));
+      const result = await client.query(
+        "SELECT * FROM mesce_access WHERE id=$1 FOR UPDATE",
+        [id],
+      );
+      const access = result.rows[0];
+      if (!access || access.role !== "MINISTER")
+        throw new Error("Pré-cadastro não encontrado.");
+      if (operation !== "revoke" && operation !== "restore")
+        throw new Error("Operação inválida.");
+      await client.query(
+        "UPDATE mesce_access SET status=$1,updated_at=now() WHERE id=$2",
+        [operation === "revoke" ? "REVOKED" : "PENDING", id],
+      );
+      const minister = data.ministers.find((m) => m.id === access.minister_id);
+      if (minister && operation === "revoke")
+        await write(client, "minister", { ...minister, active: false });
+      await audit(client, user.id, "allowlist:" + operation, id);
+    });
+  } catch (e) {
+    redirect("/pre-cadastros?error=" + encodeURIComponent(failure(e)));
+  }
+  revalidatePath("/", "layout");
+  redirect("/pre-cadastros?saved=1");
+}
+export async function saveOwnProfile(form: FormData) {
+  const user = await actor();
+  try {
+    await transaction(async (client, data) => {
+      const current = await assertCurrentActor(client, user);
+      const previous = data.ministers.find((m) => m.id === current.ministerId);
+      if (!previous || !previous.active)
+        throw new Error("Cadastro indisponível. Procure a coordenação.");
+      const minister = ownProfile(Object.fromEntries(form.entries()), previous);
+      validateSpouse(minister, data.ministers);
+      if (previous.spouseId && previous.spouseId !== minister.spouseId) {
+        const old = data.ministers.find((m) => m.id === previous.spouseId);
+        if (old)
+          await write(client, "minister", {
+            ...old,
+            spouseId: "",
+            couplePreference: "NONE",
+          });
+      }
+      const spouse = data.ministers.find((m) => m.id === minister.spouseId);
+      if (spouse)
+        await write(client, "minister", {
+          ...spouse,
+          spouseId: minister.id,
+          couplePreference: minister.couplePreference,
+        });
+      await write(client, "minister", minister);
+      await audit(client, user.id, "profile:update", minister.id, {
+        before: previous,
+        after: minister,
+      });
+    });
+  } catch (e) {
+    redirect("/meus-dados?error=" + encodeURIComponent(failure(e)));
+  }
+  revalidatePath("/", "layout");
+  redirect("/meus-dados?saved=1");
+}
+export async function finishRegistration(form: FormData) {
+  const user = await identity();
+  try {
+    await rateLimit(pool(), "registration:" + user.id, 20);
+    await transaction(async (client, data) => {
+      const access = await findAccess(client, user);
+      if (!access || access.status === "REVOKED")
+        throw new Error("Cadastro não autorizado. Procure a coordenação.");
+      const prior =
+        data.ministers.find((m) => m.id === access.minister_id) ??
+        blankMinister(access.minister_id, user.email);
+      const profile = ownProfile(Object.fromEntries(form.entries()), {
+        ...prior,
+        email: user.email,
+      });
+      validateSpouse(profile, data.ministers);
+      await completeRegistration(client, user, profile);
+    });
+  } catch (e) {
+    redirect("/cadastro?error=" + encodeURIComponent(failure(e)));
+  }
+  revalidatePath("/", "layout");
+  redirect("/meus-dados?saved=1");
+}
+export async function previewLogin(form: FormData) {
+  if (!previewEnabled()) redirect("/");
+  const h = await headers();
+  const fingerprint = createHmac(
+    "sha256",
+    process.env.MESCE_DEV_SESSION_SECRET!,
+  )
+    .update(h.get("x-forwarded-for")?.split(",")[0].slice(0, 100) ?? "unknown")
+    .digest("hex");
+  try {
+    await rateLimit(pool(), "preview:" + fingerprint, 10);
+    if (
+      !passwordMatches(
+        String(form.get("password") ?? ""),
+        process.env.MESCE_DEV_PASSWORD!,
+      )
+    )
+      throw new Error("Credenciais inválidas.");
+  } catch (e) {
+    redirect("/acesso-dev?error=" + encodeURIComponent(failure(e)));
+  }
+  (await cookies()).set("mesce_preview", createPreviewSession(), {
+    httpOnly: true,
+    secure: true,
+    sameSite: "strict",
+    path: "/",
+    maxAge: 3600,
+  });
+  redirect("/");
+}
+export async function previewLogout() {
+  (await cookies()).delete("mesce_preview");
+  redirect("/acesso-dev");
+}
