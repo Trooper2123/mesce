@@ -325,6 +325,18 @@ export default async function Registry({
                       type="tel"
                       value={assisted?.familyPhone}
                     />
+                    <Field
+                      name="ministersRequired"
+                      label="Quantidade de ministros indicados por visita"
+                      type="number"
+                      value={assisted?.ministersRequired ?? 1}
+                      required
+                    />
+                    <p className="muted">
+                      Padrão: 1 ministro. Para Altevita, indique 3; aumente
+                      conforme a necessidade. O valor será usado nas novas
+                      visitas e nas visitas editadas.
+                    </p>
                     <Check
                       name="active"
                       label="Assistido ativo"
@@ -345,7 +357,11 @@ export default async function Registry({
                       visit={query.type === "VISIT"}
                       assisted={data.assisted
                         .filter((a) => a.active || a.id === event?.assistedId)
-                        .map((a) => ({ id: a.id, name: a.name }))}
+                        .map((a) => ({
+                          id: a.id,
+                          name: a.name,
+                          ministersRequired: a.ministersRequired ?? 1,
+                        }))}
                     />
                     <Field
                       name="date"
@@ -513,6 +529,9 @@ export default async function Registry({
                         <>
                           {r.neighborhood}
                           <small>{r.mobile || r.landline}</small>
+                          <small>
+                            {r.ministersRequired ?? 1} ministro(s) por visita
+                          </small>
                         </>
                       ) : "time" in r ? (
                         <>

@@ -48,6 +48,7 @@ export const assistedSchema = z.object({
   mobile: text,
   familyName: text,
   familyPhone: text,
+  ministersRequired: z.number().int().min(1).max(100).optional(),
   notes: text,
   active: z.boolean(),
 });
@@ -67,15 +68,6 @@ export const eventSchema = z
     cancelled: z.boolean().optional(),
   })
   .superRefine((v, ctx) => {
-    if (
-      v.kind === "VISIT" &&
-      v.visitSite &&
-      (v.visitSite === "ALTEVITA" ? v.required < 3 : v.required !== 1)
-    )
-      ctx.addIssue({
-        code: "custom",
-        message: "Visita comum exige 1 ministro; Altevita exige pelo menos 3.",
-      });
     if (
       v.kind === "VISIT" &&
       (new Date(v.date + "T12:00:00Z").getUTCDay() !== 0 || !v.assistedId)

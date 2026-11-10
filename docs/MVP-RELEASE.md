@@ -42,7 +42,7 @@
 - A importação converte os formatos cifrados Go para o formato Next.js, preserva UUIDs e não apaga o legado. Campos sem correspondência temporal/funcional não devem ser preenchidos silenciosamente. A duração das celebrações legadas recebe o padrão de 60 minutos e precisa de revisão antes de agendamento operacional.
 - A cópia das tabelas novas em homologação não comprova que a chave de dados daquele ambiente decifra registros legados. Essa homologação exige o runtime que contém a chave correta.
 - Ainda há incrementos nas tasks de notificações, personalização, relatórios, histórico completo, séries com exceções, retenção/restauração e UX/acessibilidade em dispositivos físicos.
-- Pontuação, saldo e frequência por assistido foram retirados do escopo em 10/11/2026. Visitas comuns exigem 1 ministro; Altevita começa com 3 e permite aumento manual. Exceções de casal e vínculo de vários assistidos permanecem evoluções independentes.
+- Pontuação, saldo e frequência por assistido foram retirados do escopo em 10/11/2026. A quantidade vem do cadastro de cada assistido (padrão 1; configurar Altevita como 3), com aumento manual pela coordenação. Exceções de casal e vínculo de vários assistidos permanecem evoluções independentes.
 - Não foi feito teste de login real com credenciais pessoais. Testes locais e build não substituem esse passo.
 
 ## Fluxo de código

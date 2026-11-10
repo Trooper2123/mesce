@@ -7,7 +7,11 @@ export async function GET() {
     await audit(client, user.id, "assisted:options");
     return data.assisted
       .filter((a) => a.active)
-      .map((a) => ({ id: a.id, name: a.name }));
+      .map((a) => ({
+        id: a.id,
+        name: a.name,
+        ministersRequired: a.ministersRequired ?? 1,
+      }));
   });
   return Response.json(options, { headers: { "Cache-Control": "no-store" } });
 }

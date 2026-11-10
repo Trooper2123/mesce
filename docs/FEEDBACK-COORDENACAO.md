@@ -55,10 +55,12 @@ Auth0 continua dependendo da homologação com identidade autorizada.
 A mudança de código não importa dados legados automaticamente, não troca chaves e
 não promove produção. Cada issue permanece aberta até aceite funcional.
 
-## Regra de visitas confirmada em 10/11/2026
+## Quantidade por assistido — revisão posterior de 10/11/2026
 
-Visitas comuns exigem exatamente 1 ministro. O destino Altevita é selecionado explicitamente, começa com 3 ministros e aceita aumento manual pela coordenação conforme a quantidade de assistidos. Não existe cálculo automático por quantidade de pessoas. A validação também acontece no servidor.
+O cadastro do assistido passa a ter “Quantidade de ministros indicados por visita”, inteiro de 1 a 100 e padrão 1. Para Altevita, configurar 3 nesse cadastro, aumentando quando necessário. A regra é configurável para qualquer assistido: não há mais seletor ou exceção exclusiva de Altevita.
 
-Pontuação, saldo e frequência por assistido foram removidos do escopo. O histórico de participações permanece para distribuição equilibrada. A issue #15 foi encerrada como não planejada e a #27 revisada. Registros e publicações anteriores não são alterados automaticamente; ao editar um registro antigo do Altevita, selecionar esse destino explicitamente. O vínculo de múltiplos assistidos numa única visita continua pendente.
+Ao escolher o assistido, a visita mostra sua quantidade cadastrada. O servidor consulta o registro ativo dentro da transação e usa a quantidade atual, mesmo que o formulário esteja desatualizado. Recorrências recebem a mesma quantidade. Celebrações mantêm quantidade própria.
 
-Validação desta revisão: 53 testes passaram, incluindo envio direto de quantidades inválidas, mínimo de 3 no Altevita e aumento para 4 ou mais. Homologação autenticada permanece pendente.
+Alterar o cadastro não reescreve visitas ou publicações existentes. Novas visitas e visitas editadas usam o valor atual; a coordenação deve editar as visitas futuras que deseja atualizar e revisar as escalas afetadas. Cadastros antigos sem o campo assumem 1 até edição explícita; Altevita precisa ser configurado como 3 pela coordenação, sem identificação por nome ou endereço. Não há migração de dados em produção nem nova DDL: o campo fica no payload cifrado.
+
+Validação da revisão: 54 testes, TypeScript, formatação e build aprovados. Homologação autenticada permanece pendente.

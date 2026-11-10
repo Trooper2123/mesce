@@ -17,7 +17,7 @@ import {
 import { z } from "zod";
 import { requireCompleteMinister } from "@/lib/profile";
 import { emailHash } from "@/lib/registration";
-import { parseEventForm } from "@/lib/event-input";
+import { parseEventForm, applyVisitStaffing } from "@/lib/event-input";
 import {
   parseAbsenceBatch,
   validateAbsenceSubmission,
@@ -164,15 +164,20 @@ export async function save(form: FormData) {
           } as Minister);
         await write(client, "minister", minister);
       } else if (kind === "assisted")
-        await write(client, "assisted", assistedSchema.parse(data));
+        await write(
+          client,
+          "assisted",
+          assistedSchema.parse({
+            ...data,
+            ministersRequired: Number(form.get("ministersRequired")),
+          }),
+        );
       else if (kind === "event") {
-        const event = parseEventForm(form, id);
+        const event = applyVisitStaffing(
+          parseEventForm(form, id),
+          current.assisted,
+        );
         requireFuture(event);
-        if (
-          event.kind === "VISIT" &&
-          !current.assisted.some((a) => a.id === event.assistedId && a.active)
-        )
-          throw new Error("Selecione um assistido ativo.");
         if (
           current.events.some(
             (e) =>

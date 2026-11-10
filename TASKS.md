@@ -33,7 +33,7 @@ Allowlist → login → conclusão de cadastro; ministro edita o próprio cadast
 | A-23      | [#24 — Cancelamento de versão e validação separada](https://github.com/Trooper2123/mesce/issues/24)           | P1         | Parcial; detalhes em MVP-RELEASE      |
 | A-24      | [#25 — Origem das alocações e parâmetros aplicados](https://github.com/Trooper2123/mesce/issues/25)           | P1         | Parcial; detalhes em MVP-RELEASE      |
 | A-25      | [#26 — Calendário próprio de visitas dominicais](https://github.com/Trooper2123/mesce/issues/26)              | P1         | Implementada; homologação pendente    |
-| A-26      | [#27 — Equipe de visitas: comum 1; Altevita 3 ou mais](https://github.com/Trooper2123/mesce/issues/27)        | P1         | Equipe implementada; grupos pendentes |
+| A-26      | [#27 — Quantidade de ministros por assistido](https://github.com/Trooper2123/mesce/issues/27)                 | P1         | Equipe implementada; grupos pendentes |
 | A-27      | [#29 — Proximidade e tempo de deslocamento](https://github.com/Trooper2123/mesce/issues/29)                   | P1         | Pendente / evolução                   |
 | A-28      | [#31 — Pré-cadastro por lista de e-mails autorizados](https://github.com/Trooper2123/mesce/issues/31)         | P1         | Implementada; homologação pendente    |
 | A-29      | [#28 — Conclusão, vínculo e revogação da allowlist](https://github.com/Trooper2123/mesce/issues/28)           | P1         | Implementada; homologação pendente    |
@@ -71,4 +71,4 @@ Implementação na branch `feat/ux-feedback`; aceite no Preview ainda necessári
 
 Detalhes e limites em [FEEDBACK-COORDENACAO](docs/FEEDBACK-COORDENACAO.md).
 
-Regra confirmada em 10/11/2026: sem pontuação, saldo ou frequência por assistido. Visita comum exige 1 ministro; Altevita exige no mínimo 3, ajustável pela coordenação conforme assistidos, sem proporção automática. Alterações valem para novos cadastros/edições; publicações históricas são preservadas.
+Revisão posterior: a quantidade passa a ser definida no cadastro de cada assistido (padrão 1; configurar Altevita como 3). Novas visitas e visitas editadas usam esse valor atual validado pelo servidor. Publicações existentes são preservadas; não há mais regra exclusiva por local.

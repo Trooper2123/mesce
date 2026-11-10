@@ -1,4 +1,4 @@
-import { eventSchema } from "./domain";
+import { eventSchema, type Event, type Assisted } from "./domain";
 export function parseEventForm(form: FormData, id: string) {
   if (
     form.getAll("kind").length !== 1 ||
@@ -11,10 +11,19 @@ export function parseEventForm(form: FormData, id: string) {
     ...raw,
     id,
     kind: raw.eventKind,
-    visitSite:
-      raw.eventKind === "VISIT" ? (raw.visitSite ?? "HOME") : undefined,
+    visitSite: undefined,
     assistedId: raw.eventKind === "VISIT" ? raw.assistedId : "",
     duration: Number(raw.duration),
     required: Number(raw.required),
+  });
+}
+
+export function applyVisitStaffing(event: Event, assisted: Assisted[]): Event {
+  if (event.kind !== "VISIT") return event;
+  const person = assisted.find((a) => a.id === event.assistedId && a.active);
+  if (!person) throw new Error("Selecione um assistido ativo.");
+  return eventSchema.parse({
+    ...event,
+    required: person.ministersRequired ?? 1,
   });
 }

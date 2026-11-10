@@ -202,8 +202,8 @@
   {
     "id": "A-26",
     "priority": "P1",
-    "title": "Equipe de visitas: 1 ministro; Altevita com 3 ou mais",
-    "acceptance": "Sem frequência por assistido. Visitas comuns exigem 1 ministro; Altevita começa com 3, com aumento manual pela coordenação conforme assistidos. Sem razão automática. Vínculo de múltiplos assistidos permanece evolução separada.",
+    "title": "Quantidade de ministros por assistido",
+    "acceptance": "Campo editável pela coordenação no cadastro do assistido: inteiro 1–100, padrão 1; Altevita configurado como 3. Novas visitas e edições usam cadastro atual no servidor. Sem frequência por assistido, exceção por nome ou reescrita automática de publicações. Múltiplos assistidos por visita permanecem evolução.",
     "url": "https://github.com/Trooper2123/mesce/issues/27",
     "number": 27
   },

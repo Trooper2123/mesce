@@ -9,11 +9,13 @@ import {
 } from "../src/lib/profile";
 import {
   blocked,
+  assistedSchema,
+  type Assisted,
   defaultSettings,
   emptyData,
   type Event,
 } from "../src/lib/domain";
-import { parseEventForm } from "../src/lib/event-input";
+import { parseEventForm, applyVisitStaffing } from "../src/lib/event-input";
 import {
   parseAbsenceBatch,
   validateAbsenceSubmission,
@@ -283,21 +285,52 @@ test("CSV resolve casal no mesmo arquivo e rejeita referência inexistente ou tr
   );
 });
 
-test("visitas comuns exigem um ministro; Altevita permite três ou mais", () => {
-  const e = event({ kind: "VISIT", assistedId: randomUUID() });
+test("quantidade vem do cadastro do assistido, inclusive para novos casos como Altevita", () => {
+  const id = randomUUID();
+  const person: Assisted = {
+    id,
+    name: "Assistido sintético",
+    address: "",
+    neighborhood: "",
+    city: "",
+    state: "",
+    postalCode: "",
+    landline: "",
+    mobile: "",
+    familyName: "",
+    familyPhone: "",
+    notes: "",
+    active: true,
+  };
+  const e = event({ kind: "VISIT", assistedId: id, required: 99 });
+  assert.equal(applyVisitStaffing(e, [person]).required, 1);
+  for (const n of [2, 3, 4, 10, 100]) {
+    const updated = assistedSchema.parse({ ...person, ministersRequired: n });
+    assert.equal(applyVisitStaffing(e, [updated]).required, n);
+  }
+  for (const n of [0, -1, 1.5, 101, NaN])
+    assert.throws(() =>
+      assistedSchema.parse({ ...person, ministersRequired: n }),
+    );
+  assert.throws(() => applyVisitStaffing(e, []), /assistido ativo/);
+  assert.throws(
+    () => applyVisitStaffing(e, [{ ...person, active: false }]),
+    /assistido ativo/,
+  );
+  const mass = event({ required: 5 });
+  assert.equal(applyVisitStaffing(mass, []).required, 5);
+  assert.equal(e.required, 99); // Não reescreve registros ou publicações anteriores.
+});
+test("salvar visita usa cadastro atual mesmo quando a quantidade enviada está desatualizada", () => {
+  const id = randomUUID();
+  const person = { id, active: true, ministersRequired: 4 } as Assisted;
+  const e = event({ kind: "VISIT", assistedId: id, required: 1 });
   const f = new FormData();
   for (const [k, v] of Object.entries(e)) f.set(k, String(v));
   f.set("kind", "event");
   f.set("eventKind", "VISIT");
-  assert.equal(parseEventForm(f, e.id).required, 1);
-  f.set("required", "2");
-  assert.throws(() => parseEventForm(f, e.id), /1 ministro/);
-  f.set("visitSite", "ALTEVITA");
-  assert.throws(() => parseEventForm(f, e.id), /pelo menos 3/);
-  for (const n of [3, 4, 10]) {
-    f.set("required", String(n));
-    assert.equal(parseEventForm(f, e.id).required, n);
-  }
-  f.set("visitSite", "OUTRO");
-  assert.throws(() => parseEventForm(f, e.id));
+  assert.equal(
+    applyVisitStaffing(parseEventForm(f, e.id), [person]).required,
+    4,
+  );
 });
