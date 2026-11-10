@@ -13,6 +13,7 @@ export function EventFields({
   visit?: boolean;
 }) {
   const [kind, setKind] = useState(event?.kind ?? (visit ? "VISIT" : "MASS"));
+  const [site, setSite] = useState(event?.visitSite ?? "HOME");
   const [options, setOptions] = useState(assisted);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -49,6 +50,61 @@ export function EventFields({
           <option value="VISIT">Visita dominical</option>
         </select>
       </label>
+      {kind === "VISIT" && (
+        <label className="field">
+          Destino da visita
+          <select
+            name="visitSite"
+            value={site}
+            onChange={(e) => setSite(e.target.value as "HOME" | "ALTEVITA")}
+          >
+            <option value="HOME">Visita comum</option>
+            <option value="ALTEVITA">Altevita</option>
+          </select>
+        </label>
+      )}
+      <label className="field">
+        Quantidade de ministros
+        <input
+          key={kind + site}
+          name="required"
+          type="number"
+          required
+          min={kind === "VISIT" && site === "ALTEVITA" ? 3 : 1}
+          max={100}
+          readOnly={kind === "VISIT" && site === "HOME"}
+          defaultValue={
+            kind === "VISIT"
+              ? site === "ALTEVITA"
+                ? Math.max(
+                    3,
+                    event?.visitSite === "ALTEVITA" ? event.required : 3,
+                  )
+                : 1
+              : event?.kind !== "VISIT"
+                ? (event?.required ?? 2)
+                : 2
+          }
+        />
+      </label>
+      {kind === "VISIT" && (
+        <p className="muted">
+          Visitas comuns: 1 ministro. Altevita: 3 inicialmente; a coordenação
+          pode aumentar a equipe conforme a quantidade de assistidos, sem
+          proporção automática.
+        </p>
+      )}
+      <Field
+        key={"location-" + kind + site}
+        name="location"
+        label="Local"
+        value={
+          kind === "VISIT" && site === "ALTEVITA"
+            ? "Altevita"
+            : (event?.location ?? (kind === "VISIT" ? "" : "Matriz"))
+        }
+        required
+      />
       {kind === "VISIT" ? (
         <div className="wide">
           <p>

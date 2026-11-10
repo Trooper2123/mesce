@@ -377,19 +377,6 @@ export default async function Registry({
                       value={event?.duration ?? 60}
                       required
                     />
-                    <Field
-                      name="required"
-                      label="Quantidade de ministros"
-                      type="number"
-                      value={event?.required ?? 2}
-                      required
-                    />
-                    <Field
-                      name="location"
-                      label="Local"
-                      value={event?.location ?? "Matriz"}
-                      required
-                    />
                   </>
                 )}
                 {kind === "absence" &&

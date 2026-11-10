@@ -61,11 +61,21 @@ export const eventSchema = z
     kind: z.enum(["MASS", "ADORATION", "WEDDING", "SPECIAL", "VISIT"]),
     location: text.min(1),
     required: z.number().int().min(1).max(100),
+    visitSite: z.enum(["HOME", "ALTEVITA"]).optional(),
     assistedId: z.union([z.string().uuid(), z.literal("")]),
     notes: text,
     cancelled: z.boolean().optional(),
   })
   .superRefine((v, ctx) => {
+    if (
+      v.kind === "VISIT" &&
+      v.visitSite &&
+      (v.visitSite === "ALTEVITA" ? v.required < 3 : v.required !== 1)
+    )
+      ctx.addIssue({
+        code: "custom",
+        message: "Visita comum exige 1 ministro; Altevita exige pelo menos 3.",
+      });
     if (
       v.kind === "VISIT" &&
       (new Date(v.date + "T12:00:00Z").getUTCDay() !== 0 || !v.assistedId)

@@ -11,6 +11,8 @@ export function parseEventForm(form: FormData, id: string) {
     ...raw,
     id,
     kind: raw.eventKind,
+    visitSite:
+      raw.eventKind === "VISIT" ? (raw.visitSite ?? "HOME") : undefined,
     assistedId: raw.eventKind === "VISIT" ? raw.assistedId : "",
     duration: Number(raw.duration),
     required: Number(raw.required),

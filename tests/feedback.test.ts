@@ -282,3 +282,22 @@ test("CSV resolve casal no mesmo arquivo e rejeita referência inexistente ou tr
     /Cônjuge/,
   );
 });
+
+test("visitas comuns exigem um ministro; Altevita permite três ou mais", () => {
+  const e = event({ kind: "VISIT", assistedId: randomUUID() });
+  const f = new FormData();
+  for (const [k, v] of Object.entries(e)) f.set(k, String(v));
+  f.set("kind", "event");
+  f.set("eventKind", "VISIT");
+  assert.equal(parseEventForm(f, e.id).required, 1);
+  f.set("required", "2");
+  assert.throws(() => parseEventForm(f, e.id), /1 ministro/);
+  f.set("visitSite", "ALTEVITA");
+  assert.throws(() => parseEventForm(f, e.id), /pelo menos 3/);
+  for (const n of [3, 4, 10]) {
+    f.set("required", String(n));
+    assert.equal(parseEventForm(f, e.id).required, n);
+  }
+  f.set("visitSite", "OUTRO");
+  assert.throws(() => parseEventForm(f, e.id));
+});
