@@ -71,7 +71,7 @@ export async function importLegacy(client: PoolClient, by: string) {
       phone: openLegacy(row.phone_ciphertext),
       ministryStart: ymd(row.started_on),
       birthDate: ymd(row.birth_date) || details.birthDate || "",
-      monthlyLimit: row.monthly_limit ?? 6,
+      monthlyLimit: row.monthly_limit ?? null,
       active: row.active && row.actor_active !== false,
       address: details.address ?? "",
       neighborhood: details.neighborhood ?? "",

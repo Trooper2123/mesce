@@ -46,7 +46,10 @@ export default async function Home() {
   const stats = [
     [
       "Ministros ativos",
-      data.ministers.filter((m) => m.active && !m.away).length,
+      data.ministers.filter(
+        (m) =>
+          m.active && !m.away && !m.former && m.registrationStatus !== "DRAFT",
+      ).length,
       "Pessoas a serviço",
       UsersRound,
     ],

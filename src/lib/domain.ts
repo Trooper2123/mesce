@@ -29,7 +29,10 @@ export const ministerSchema = z
     ...address,
     active: z.boolean(),
     away: z.boolean(),
-    monthlyLimit: z.number().int().min(1).max(100),
+    monthlyLimit: z.number().int().min(1).max(100).nullable(),
+    former: z.boolean().optional(),
+    registrationStatus: z.enum(["DRAFT", "COMPLETE"]).optional(),
+    servicePreference: z.enum(["BOTH", "CELEBRATIONS", "VISITS"]).optional(),
     spouseId: z.union([z.string().uuid(), z.literal("")]),
     couplePreference: z.enum(["TOGETHER", "SEPARATE", "NONE"]),
     location: text,
@@ -132,12 +135,12 @@ export type Data = {
 };
 export type Settings = {
   unansweredPolicy: "REVIEW" | "ELIGIBLE";
-  monthlyLimit: number;
+  monthlyLimit: number | null;
   historyMonths: number;
 };
 export const defaultSettings: Settings = {
   unansweredPolicy: "REVIEW",
-  monthlyLimit: 6,
+  monthlyLimit: null,
   historyMonths: 12,
 };
 export type MonthlyResponse = {
@@ -185,8 +188,19 @@ export function blocked(
   )
     return "Resposta mensal pendente de consolidação";
   if (e.cancelled) return "Evento cancelado";
+  if (m.former) return "Ex-ministro";
+  if (m.registrationStatus === "DRAFT") return "Cadastro pendente";
   if (!m.active || m.away) return "Ministro inativo ou afastado";
-  if (m.locationPreference === "EXCLUSIVE" && m.location !== e.location)
+  if (
+    (m.servicePreference === "VISITS" && e.kind !== "VISIT") ||
+    (m.servicePreference === "CELEBRATIONS" && e.kind === "VISIT")
+  )
+    return "Atividade fora da preferência de serviço";
+  if (
+    e.kind !== "VISIT" &&
+    m.locationPreference === "EXCLUSIVE" &&
+    m.location !== e.location
+  )
     return "Local fora da preferência exclusiva";
   if (
     data.absences.some(
@@ -214,8 +228,9 @@ export function blocked(
   if ([...ownEvents, ...outside].some((x) => overlaps(x, e)))
     return "Conflito de horário";
   if (
+    m.monthlyLimit != null &&
     ownEvents.filter((x) => x.date.slice(0, 7) === e.date.slice(0, 7)).length >=
-    m.monthlyLimit
+      m.monthlyLimit
   )
     return "Limite mensal atingido";
   return "";

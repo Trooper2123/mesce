@@ -1,4 +1,9 @@
 import Link from "next/link";
+import { ServicePreferences } from "@/components/service-preferences";
+import { EventFields } from "@/components/event-fields";
+import { AbsenceFields, AbsenceBatch } from "@/components/absence-fields";
+import { ActionForm } from "@/components/action-form";
+import { missingMinisterFields } from "@/lib/profile";
 import { cancelEvent } from "@/app/operations";
 import { Calendar } from "@/components/calendar";
 import { notFound } from "next/navigation";
@@ -30,12 +35,6 @@ const sections = {
     "absence",
   ],
 } as const;
-const locations = [
-  ["Matriz", "Matriz"],
-  ["Carmelo Nossa Senhora do Carmo", "Carmelo Nossa Senhora do Carmo"],
-  ["Capela Nossa Senhora Aparecida", "Capela Nossa Senhora Aparecida"],
-  ["Eventos Externos", "Eventos Externos"],
-] as const;
 export default async function Registry({
   params,
   searchParams,
@@ -124,6 +123,13 @@ export default async function Registry({
         </p>
       )}
       <Notice error={query.error} saved={query.saved} />
+      {kind === "minister" && user.coordinator && (
+        <p>
+          <Link className="button secondary" href="/ministros/importar">
+            Importar ministros por CSV
+          </Link>
+        </p>
+      )}
       {!user.coordinator && !ministers.length ? (
         <p className="notice">
           Seu e-mail ainda não está vinculado a um ministro ativo. Procure a
@@ -131,13 +137,20 @@ export default async function Registry({
         </p>
       ) : (
         <section className="panel">
-          <details open={!!editing || query.new === "1" || rows.length === 0}>
+          <details
+            open={
+              !!editing ||
+              query.new === "1" ||
+              query.type === "VISIT" ||
+              rows.length === 0
+            }
+          >
             <summary>
               {editing
                 ? "Editar cadastro"
                 : `+ ${kind === "absence" ? "Informar impedimento" : kind === "event" ? "Cadastrar celebração ou visita" : "Adicionar cadastro"}`}
             </summary>
-            <form action={save}>
+            <ActionForm key={editing?.id ?? "new"} action={save}>
               <input type="hidden" name="kind" value={kind} />
               <input type="hidden" name="id" value={editing?.id ?? ""} />
               <div className="form-grid">
@@ -174,17 +187,6 @@ export default async function Registry({
                           label="Início no ministério"
                           type="date"
                           value={minister?.ministryStart}
-                        />
-                        <Field
-                          name="monthlyLimit"
-                          label="Limite mensal de participações"
-                          type="number"
-                          value={
-                            minister?.monthlyLimit ??
-                            data.settings?.monthlyLimit ??
-                            6
-                          }
-                          required
                         />
                       </>
                     )}
@@ -230,32 +232,72 @@ export default async function Registry({
                         ["SEPARATE", "Servir separados"],
                       ]}
                     />
+                    <ServicePreferences minister={minister} />
                     <Field
-                      name="location"
-                      label="Local de preferência"
-                      value={minister?.location ?? "Matriz"}
-                      options={locations}
-                    />
-                    <Field
-                      name="locationPreference"
-                      label="Tipo de preferência"
-                      value={minister?.locationPreference ?? "ACCEPT"}
+                      name="participationStatus"
+                      label="Situação no ministério"
+                      value={
+                        minister?.former
+                          ? "FORMER"
+                          : minister?.away
+                            ? "AWAY"
+                            : minister?.active === false
+                              ? "INACTIVE"
+                              : "ACTIVE"
+                      }
                       options={[
-                        ["ACCEPT", "Aceita outros locais"],
-                        ["PREFER", "Preferencial"],
-                        ["EXCLUSIVE", "Exclusiva"],
+                        ["ACTIVE", "Ativo"],
+                        ["AWAY", "Afastado temporariamente"],
+                        ["INACTIVE", "Inativo"],
+                        ["FORMER", "Ex-ministro"],
                       ]}
                     />
-                    <Check
-                      name="active"
-                      label="Ministro ativo"
-                      checked={minister?.active ?? true}
+                    <Field
+                      name="registrationStatus"
+                      label="Situação do cadastro"
+                      value={
+                        minister?.registrationStatus ??
+                        (minister && !missingMinisterFields(minister).length
+                          ? "COMPLETE"
+                          : "DRAFT")
+                      }
+                      options={[
+                        ["DRAFT", "Pendente — preencher dados depois"],
+                        ["COMPLETE", "Concluído — validar dados obrigatórios"],
+                      ]}
                     />
-                    <Check
-                      name="away"
-                      label="Afastado do ministério"
-                      checked={minister?.away}
-                    />
+                    <p className="muted">
+                      Para concluir: nome completo, nascimento, telefone, início
+                      no ministério, endereço, bairro, cidade e UF. Cadastro
+                      pendente não entra em novas escalas.
+                    </p>
+                    {minister && missingMinisterFields(minister).length > 0 && (
+                      <p className="notice">
+                        Dados faltantes:{" "}
+                        {missingMinisterFields(minister).join(", ")}. Registros
+                        antigos devem ser revisados pela coordenação.
+                      </p>
+                    )}
+                    <details className="wide">
+                      <summary>
+                        Configuração avançada de participações (opcional)
+                      </summary>
+                      <Field
+                        name="monthlyLimit"
+                        label="Limite mensal (vazio = sem limite)"
+                        type="number"
+                        value={
+                          minister?.monthlyLimit ??
+                          (minister ? "" : (data.settings?.monthlyLimit ?? ""))
+                        }
+                      />
+                      <p>
+                        Conta celebrações e visitas juntas. Sem limite, a escala
+                        continua equilibrando a participação pelo histórico.
+                        Limites já existentes são preservados até alteração
+                        explícita.
+                      </p>
+                    </details>
                   </>
                 )}
                 {kind === "assisted" && (
@@ -298,20 +340,12 @@ export default async function Registry({
                       value={event?.title}
                       required
                     />
-                    <Field
-                      name="kind"
-                      label="Tipo"
-                      value={
-                        event?.kind ??
-                        (query.type === "VISIT" ? "VISIT" : "MASS")
-                      }
-                      options={[
-                        ["MASS", "Missa"],
-                        ["ADORATION", "Adoração"],
-                        ["WEDDING", "Casamento"],
-                        ["SPECIAL", "Evento especial"],
-                        ["VISIT", "Visita dominical"],
-                      ]}
+                    <EventFields
+                      event={event}
+                      visit={query.type === "VISIT"}
+                      assisted={data.assisted
+                        .filter((a) => a.active || a.id === event?.assistedId)
+                        .map((a) => ({ id: a.id, name: a.name }))}
                     />
                     <Field
                       name="date"
@@ -356,75 +390,42 @@ export default async function Registry({
                       value={event?.location ?? "Matriz"}
                       required
                     />
-                    <Field
-                      name="assistedId"
-                      label="Assistido (obrigatório para visitas)"
-                      value={event?.assistedId}
-                      options={[
-                        ["", "Não se aplica"],
-                        ...data.assisted
-                          .filter((a) => a.active || a.id === event?.assistedId)
-                          .map((a) => [a.id, a.name] as const),
-                      ]}
-                    />
                   </>
                 )}
-                {kind === "absence" && (
-                  <>
-                    <Field
-                      name="ministerId"
-                      label="Ministro"
-                      value={absence?.ministerId ?? ministers[0]?.id}
-                      required
-                      options={ministers.map((m) => [m.id, m.name])}
+                {kind === "absence" &&
+                  (absence ? (
+                    <>
+                      <Field
+                        name="ministerId"
+                        label="Ministro"
+                        value={absence.ministerId}
+                        required
+                        options={ministers.map((m) => [m.id, m.name] as const)}
+                      />
+                      <AbsenceFields
+                        absence={absence}
+                        events={data.events
+                          .filter((e) => e.kind !== "VISIT" && !e.cancelled)
+                          .map((e) => ({
+                            id: e.id,
+                            label: `${e.date} ${e.time} • ${e.title}`,
+                          }))}
+                      />
+                    </>
+                  ) : (
+                    <AbsenceBatch
+                      ministers={ministers.map((m) => ({
+                        id: m.id,
+                        name: m.name,
+                      }))}
+                      events={data.events
+                        .filter((e) => e.kind !== "VISIT" && !e.cancelled)
+                        .map((e) => ({
+                          id: e.id,
+                          label: `${e.date} ${e.time} • ${e.title}`,
+                        }))}
                     />
-                    <Field
-                      name="scope"
-                      label="Abrangência do impedimento"
-                      value={absence?.scope ?? "DAY"}
-                      options={[
-                        ["DAY", "Dia inteiro"],
-                        ["PERIOD", "Período de datas"],
-                        ["CELEBRATION", "Celebração específica"],
-                      ]}
-                    />
-                    <Field
-                      name="start"
-                      label="Data inicial (dia ou período)"
-                      type="date"
-                      value={absence?.start}
-                    />
-                    <Field
-                      name="end"
-                      label="Data final (repita a data para dia inteiro)"
-                      type="date"
-                      value={absence?.end}
-                    />
-                    <Field
-                      name="eventId"
-                      label="Celebração (apenas para impedimento específico)"
-                      value={absence?.eventId}
-                      options={[
-                        ["", "Não se aplica"],
-                        ...data.events
-                          .filter((e) => e.kind !== "VISIT")
-                          .map(
-                            (e) =>
-                              [
-                                e.id,
-                                `${e.date} ${e.time} • ${e.title}`,
-                              ] as const,
-                          ),
-                      ]}
-                    />
-                    <Field
-                      name="reason"
-                      label="Motivo opcional (restrito à coordenação)"
-                      type="textarea"
-                      value={absence?.reason}
-                    />
-                  </>
-                )}
+                  ))}
                 {kind !== "absence" && (
                   <Field
                     name="notes"
@@ -434,13 +435,15 @@ export default async function Registry({
                   />
                 )}
               </div>
-              <div className="form-actions">
-                <button type="submit">
-                  {editing ? "Salvar alterações" : "Salvar cadastro"}
-                </button>
-                {editing && <Link href={`/${section}`}>Cancelar edição</Link>}
-              </div>
-            </form>
+              {(kind !== "absence" || !!absence) && (
+                <div className="form-actions">
+                  <button type="submit">
+                    {editing ? "Salvar alterações" : "Salvar cadastro"}
+                  </button>
+                  {editing && <Link href={`/${section}`}>Cancelar edição</Link>}
+                </div>
+              )}
+            </ActionForm>
           </details>
           {event && !event.cancelled && (
             <form action={cancelEvent} className="toolbar">
@@ -548,19 +551,24 @@ export default async function Registry({
                     </td>
                     <td>
                       <span className="tag">
-                        {"cancelled" in r && r.cancelled
-                          ? "Cancelado"
-                          : "active" in r
-                            ? r.active
-                              ? "away" in r && r.away
-                                ? "Afastado"
-                                : "Ativo"
-                              : "Inativo"
-                            : "kind" in r
-                              ? r.kind === "VISIT"
-                                ? "Visita"
-                                : "Celebração"
-                              : "Registrado"}
+                        {"former" in r && r.former
+                          ? "Ex-ministro"
+                          : "registrationStatus" in r &&
+                              r.registrationStatus === "DRAFT"
+                            ? "Cadastro pendente"
+                            : "cancelled" in r && r.cancelled
+                              ? "Cancelado"
+                              : "active" in r
+                                ? r.active
+                                  ? "away" in r && r.away
+                                    ? "Afastado"
+                                    : "Ativo"
+                                  : "Inativo"
+                                : "kind" in r
+                                  ? r.kind === "VISIT"
+                                    ? "Visita"
+                                    : "Celebração"
+                                  : "Registrado"}
                       </span>
                     </td>
                     <td>

@@ -10,7 +10,7 @@ export const editableFields = [
   "state",
   "postalCode",
   "notes",
-  "monthlyLimit",
+  "servicePreference",
   "location",
   "locationPreference",
   "spouseId",
@@ -31,7 +31,7 @@ export function blankMinister(id: string, email: string): Minister {
     postalCode: "",
     active: true,
     away: false,
-    monthlyLimit: 6,
+    monthlyLimit: null,
     spouseId: "",
     couplePreference: "NONE",
     location: "Matriz",
@@ -44,11 +44,34 @@ export function ownProfile(
   existing: Minister,
 ): Minister {
   const changed = Object.fromEntries(
-    editableFields
-      .filter((k) => k in input)
-      .map((k) => [k, k === "monthlyLimit" ? Number(input[k]) : input[k]]),
+    editableFields.filter((k) => k in input).map((k) => [k, input[k]]),
   );
   return ministerSchema.parse({ ...existing, ...changed });
+}
+export function missingMinisterFields(m: Minister): string[] {
+  const fields = {
+    name: "nome completo",
+    birthDate: "data de nascimento",
+    phone: "telefone",
+    ministryStart: "início no ministério",
+    address: "endereço",
+    neighborhood: "bairro",
+    city: "cidade",
+    state: "UF",
+  } as const;
+  return Object.entries(fields)
+    .filter(([key]) => !String(m[key as keyof typeof fields] ?? "").trim())
+    .map(([, label]) => label);
+}
+export function requireCompleteMinister(m: Minister): Minister {
+  const missing = missingMinisterFields(m);
+  if (missing.length)
+    throw new Error(
+      "Complete os campos: " +
+        missing.join(", ") +
+        ". Para preencher depois, salve como pendente.",
+    );
+  return { ...m, registrationStatus: "COMPLETE" };
 }
 export function validateSpouse(m: Minister, all: Minister[]) {
   if (!m.spouseId) return;

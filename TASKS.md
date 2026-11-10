@@ -53,3 +53,20 @@ Allowlist → login → conclusão de cadastro; ministro edita o próprio cadast
 | A-43      | [#44 — Agendamentos exclusivamente futuros](https://github.com/Trooper2123/mesce/issues/44)                   | P1         | Implementada; homologação pendente |
 
 Ver [MVP-RELEASE.md](docs/MVP-RELEASE.md) para evidências, limitações e ordem de promoção. Não encerrar tasks de ponta a ponta apenas com testes unitários.
+
+## Feedback da coordenação
+
+Implementação na branch `feat/ux-feedback`; aceite no Preview ainda necessário.
+
+| Task                                                                                   | Situação                           |
+| -------------------------------------------------------------------------------------- | ---------------------------------- |
+| [#48 — Visita a assistidos](https://github.com/Trooper2123/mesce/issues/48)            | Implementada; homologação pendente |
+| [#50 — Clareza das preferências](https://github.com/Trooper2123/mesce/issues/50)       | Implementada; homologação pendente |
+| [#53 — Ex-ministro](https://github.com/Trooper2123/mesce/issues/53)                    | Implementada; homologação pendente |
+| [#49 — Assistidos/celebrações/visitas](https://github.com/Trooper2123/mesce/issues/49) | Implementada; homologação pendente |
+| [#54 — Limite opcional](https://github.com/Trooper2123/mesce/issues/54)                | Implementada; homologação pendente |
+| [#51 — Impedimentos em lote](https://github.com/Trooper2123/mesce/issues/51)           | Implementada; homologação pendente |
+| [#52 — CSV](https://github.com/Trooper2123/mesce/issues/52)                            | Implementada; homologação pendente |
+| [#55 — Completude](https://github.com/Trooper2123/mesce/issues/55)                     | Implementada; homologação pendente |
+
+Detalhes e limites em [FEEDBACK-COORDENACAO](docs/FEEDBACK-COORDENACAO.md).

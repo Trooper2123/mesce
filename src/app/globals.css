@@ -584,3 +584,8 @@ a.action {
 aside {
   overflow-y: auto;
 }
+
+.form-grid > .wide {
+  grid-column: 1 / -1;
+  min-width: 0;
+}

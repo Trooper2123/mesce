@@ -64,11 +64,10 @@ export async function addEmails(
   emails: string[],
 ) {
   const result: string[] = [];
+  const ministers = (await readData(client)).ministers;
   for (const email of emails) {
     const id = crypto.randomUUID();
-    const existing = (await readData(client)).ministers.find(
-      (m) => m.email.toLowerCase() === email,
-    );
+    const existing = ministers.find((m) => m.email.toLowerCase() === email);
     const row = await client.query<Access>(
       "INSERT INTO mesce_access(id,email_hmac,email_ciphertext,minister_id,status) VALUES($1,$2,$3,$4,'PENDING') ON CONFLICT(email_hmac) DO NOTHING RETURNING *",
       [
@@ -101,12 +100,18 @@ export async function completeRegistration(
     throw new Error("Vínculo incompleto. Procure a coordenação.");
   }
   const raw = typeof input === "object" && input !== null ? input : {};
+  const prior = (await readData(client)).ministers.find(
+    (m) => m.id === access.minister_id,
+  );
+  if (prior?.former)
+    throw new Error("Cadastro de ex-ministro. Procure a coordenação.");
   const minister = ministerSchema.parse({
     ...raw,
     id: access.minister_id,
     email: normalizeEmail(identity.email),
-    active: true,
-    away: false,
+    active: prior?.active ?? true,
+    away: prior?.away ?? false,
+    former: prior?.former ?? false,
   });
   await write(client, "minister", minister);
   await client.query(

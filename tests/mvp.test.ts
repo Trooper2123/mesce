@@ -13,6 +13,7 @@ import {
   rateLimit,
 } from "../src/lib/registration";
 import { blankMinister, ownProfile } from "../src/lib/profile";
+import { write } from "../src/lib/store";
 import {
   generate,
   emptyData,
@@ -148,6 +149,29 @@ test("revogação entre login e conclusão impede cadastro; revogação invalida
     await db.close();
   }
 });
+test("ex-ministro perde acesso pessoal mas preserva papel independente de coordenador", async () => {
+  const { db, client } = await setup();
+  try {
+    const user = {
+      id: "auth0|former",
+      email: "former@example.invalid",
+      verified: true,
+    };
+    await addEmails(client, "coord", [user.email]);
+    const member = await completeRegistration(client, user, m());
+    await write(client, "minister", { ...member, former: true, active: false });
+    assert.equal(await resolveActor(client, user), null);
+    await client.query(
+      "UPDATE mesce_access SET role='COORDINATOR' WHERE minister_id=$1",
+      [member.id],
+    );
+    const coordinator = await resolveActor(client, user);
+    assert.equal(coordinator?.coordinator, true);
+    assert.equal(coordinator?.ministerId, undefined);
+  } finally {
+    await db.close();
+  }
+});
 test("edição própria ignora tentativa de mudar ID, e-mail, atividade e privilégios", () => {
   const original = m();
   const changed = ownProfile(
@@ -165,7 +189,7 @@ test("edição própria ignora tentativa de mudar ID, e-mail, atividade e privil
   assert.equal(changed.email, original.email);
   assert.equal(changed.active, true);
   assert.equal(changed.name, "Nome Atualizado");
-  assert.equal(changed.monthlyLimit, 4);
+  assert.equal(changed.monthlyLimit, original.monthlyLimit);
   assert.ok(!("role" in changed));
 });
 test("agendamentos futuros usam horário de Brasília e preservam leitura de históricos", () => {
