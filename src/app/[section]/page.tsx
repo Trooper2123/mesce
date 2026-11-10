@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { cancelEvent } from "@/app/operations";
 import { Calendar } from "@/components/calendar";
 import { notFound } from "next/navigation";
 import { actor } from "@/lib/auth";
@@ -46,6 +47,7 @@ export default async function Registry({
     saved?: string;
     q?: string;
     month?: string;
+    type?: string;
   }>;
 }) {
   const { section } = await params;
@@ -67,8 +69,7 @@ export default async function Registry({
   const ministers = user.coordinator
     ? data.ministers
     : data.ministers.filter(
-        (m) =>
-          m.active && user.verified && m.email.toLowerCase() === user.email,
+        (m) => m.active && user.verified && m.id === user.ministerId,
       );
   const rows =
     kind === "minister"
@@ -283,7 +284,10 @@ export default async function Registry({
                     <Field
                       name="kind"
                       label="Tipo"
-                      value={event?.kind ?? "MASS"}
+                      value={
+                        event?.kind ??
+                        (query.type === "VISIT" ? "VISIT" : "MASS")
+                      }
                       options={[
                         ["MASS", "Missa"],
                         ["ADORATION", "Adoração"],
@@ -421,6 +425,17 @@ export default async function Registry({
               </div>
             </form>
           </details>
+          {event && !event.cancelled && (
+            <form action={cancelEvent} className="toolbar">
+              <input type="hidden" name="id" value={event.id} />
+              <Field
+                name="reason"
+                label="Justificativa do cancelamento"
+                required
+              />
+              <button className="secondary">Cancelar este agendamento</button>
+            </form>
+          )}
         </section>
       )}
       {kind === "event" && (
@@ -516,17 +531,19 @@ export default async function Registry({
                     </td>
                     <td>
                       <span className="tag">
-                        {"active" in r
-                          ? r.active
-                            ? "away" in r && r.away
-                              ? "Afastado"
-                              : "Ativo"
-                            : "Inativo"
-                          : "kind" in r
-                            ? r.kind === "VISIT"
-                              ? "Visita"
-                              : "Celebração"
-                            : "Registrado"}
+                        {"cancelled" in r && r.cancelled
+                          ? "Cancelado"
+                          : "active" in r
+                            ? r.active
+                              ? "away" in r && r.away
+                                ? "Afastado"
+                                : "Ativo"
+                              : "Inativo"
+                            : "kind" in r
+                              ? r.kind === "VISIT"
+                                ? "Visita"
+                                : "Celebração"
+                              : "Registrado"}
                       </span>
                     </td>
                     <td>

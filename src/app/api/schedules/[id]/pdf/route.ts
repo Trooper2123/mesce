@@ -11,7 +11,7 @@ export async function GET(
   const { id } = await params;
   const data = await readData();
   const schedule = data.schedules.find((s) => s.id === id);
-  if (!schedule || schedule.status === "DRAFT")
+  if (!schedule || !["APPROVED", "PUBLISHED"].includes(schedule.status))
     return Response.json(
       { error: "Versão aprovada não encontrada." },
       { status: 404 },

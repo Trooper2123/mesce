@@ -1,0 +1,346 @@
+[
+  {
+    "id": "A-01",
+    "priority": "P0",
+    "title": "Preservação de perfis e identidade existentes",
+    "acceptance": "CONFIG/FLUXO/ALLOWLIST: vínculo ativo por `auth0_sub`, papel e revogação no servidor; não depender exclusivamente de e-mail ou lista de ambiente",
+    "url": "https://github.com/Trooper2123/mesce/issues/3",
+    "number": 3
+  },
+  {
+    "id": "A-02",
+    "priority": "P0",
+    "title": "Fluxo de homologação configurado",
+    "acceptance": "ENVIRONMENTS: dar tratamento às variáveis Preview existentes ou revisar formalmente a decisão; impedir qualquer modo de desenvolvimento em Production",
+    "url": "https://github.com/Trooper2123/mesce/issues/5",
+    "number": 5
+  },
+  {
+    "id": "A-03",
+    "priority": "P0",
+    "title": "Migração e reconciliação dos dados Go → Next.js",
+    "acceptance": "TASKS/CONFIG: o legado usa `mesce_dev.*`; o novo SQL cria `mesce_records` e `mesce_audit`. Mapear UUIDs, casais, identidades, convites, histórico e formatos cifrados, com validação e rollback",
+    "url": "https://github.com/Trooper2123/mesce/issues/6",
+    "number": 6
+  },
+  {
+    "id": "A-04",
+    "priority": "P0",
+    "title": "Agenda adicionada/alterada durante revisão",
+    "acceptance": "SPEC §§10 e 15: sincronizar o rascunho com eventos correntes, sinalizar diferenças e revalidar antes de aprovação",
+    "url": "https://github.com/Trooper2123/mesce/issues/4",
+    "number": 4
+  },
+  {
+    "id": "A-05",
+    "priority": "P0",
+    "title": "Maior cobertura possível de vagas",
+    "acceptance": "SPEC §3.2: considerar candidatos escassos e realocação, sem deixar vaga desnecessária por escolha anterior",
+    "url": "https://github.com/Trooper2123/mesce/issues/2",
+    "number": 2
+  },
+  {
+    "id": "A-06",
+    "priority": "P0",
+    "title": "Conflitos entre meses e escalas vigentes",
+    "acceptance": "SPEC §§2.3 e 3.1: considerar eventos já publicados que se sobreponham, mesmo com início no mês anterior",
+    "url": "https://github.com/Trooper2123/mesce/issues/11",
+    "number": 11
+  },
+  {
+    "id": "A-07",
+    "priority": "P0",
+    "title": "Minimização do PDF por destinatário",
+    "acceptance": "PRIVACIDADE/SPEC §16: impedir que local/título livre de visita leve identificação residencial ao PDF geral; separar local público de endereço restrito",
+    "url": "https://github.com/Trooper2123/mesce/issues/7",
+    "number": 7
+  },
+  {
+    "id": "A-08",
+    "priority": "P0",
+    "title": "Mudanças entre aprovação e publicação",
+    "acceptance": "SPEC §§10 e 15: novos impedimentos/alterações relevantes devem exigir revisão ou revalidação. `publish` hoje só verifica o estado APPROVED",
+    "url": "https://github.com/Trooper2123/mesce/issues/10",
+    "number": 10
+  },
+  {
+    "id": "A-09",
+    "priority": "P1",
+    "title": "Configurações gerais da pastoral",
+    "acceptance": "Projeto p. 2/SPEC §9.1: limite mensal padrão, meses de histórico, competência, data da solicitação, política de não resposta e regras de geração. Hoje há valores fixos em código/formulário",
+    "url": "https://github.com/Trooper2123/mesce/issues/8",
+    "number": 8
+  },
+  {
+    "id": "A-10",
+    "priority": "P1",
+    "title": "Cadastro e múltiplas preferências de locais",
+    "acceptance": "SPEC §§9.2 e 11.2: catálogo editável de locais e preferências por local. Ministro seleciona um local entre quatro opções; evento usa texto livre",
+    "url": "https://github.com/Trooper2123/mesce/issues/9",
+    "number": 9
+  },
+  {
+    "id": "A-11",
+    "priority": "P1",
+    "title": "Evitar dois dias seguidos ou duas missas no mesmo dia",
+    "acceptance": "Projeto p. 6/SPEC §§9.3 e 9.9: pontuação de preferência e avisos, sem inventar bloqueio absoluto",
+    "url": "https://github.com/Trooper2123/mesce/issues/12",
+    "number": 12
+  },
+  {
+    "id": "A-12",
+    "priority": "P1",
+    "title": "Métricas de equilíbrio e histórico consultável",
+    "acceptance": "Projeto p. 4/SPEC §§3.2 e 9.4: mínimo, máximo, média, diferença, visão mensal/12 meses e contagens separadas. Há apenas tabela de contagens da revisão",
+    "url": "https://github.com/Trooper2123/mesce/issues/16",
+    "number": 16
+  },
+  {
+    "id": "A-13",
+    "priority": "P1",
+    "title": "Pontuação e saldo histórico",
+    "acceptance": "Projeto p. 4/SPEC §9.4: fórmula não foi definida. Registrar decisão, sem inventar equivalência entre missa e visita",
+    "url": "https://github.com/Trooper2123/mesce/issues/15",
+    "number": 15
+  },
+  {
+    "id": "A-14",
+    "priority": "P2",
+    "title": "Campos personalizados",
+    "acceptance": "Projeto p. 5/SPEC §9.7: definições por entidade, tipo, obrigatoriedade e permissões; exemplos profissão/comunidade, transporte e celebrante",
+    "url": "https://github.com/Trooper2123/mesce/issues/13",
+    "number": 13
+  },
+  {
+    "id": "A-15",
+    "priority": "P1",
+    "title": "Ministro edita o próprio cadastro",
+    "acceptance": "Criar acesso Meus dados com formulário preenchido e salvamento dos dados cadastrais do ministro autenticado. Derivar o vínculo pelo auth0_sub/registro autorizado no servidor; rejeitar tentativa de editar outro ministro. Manter validações de negócio e auditoria. Papéis, permissões e allowlist não são campos autoeditáveis. A coordenação mantém a gestão dos cadastros",
+    "url": "https://github.com/Trooper2123/mesce/issues/14",
+    "number": 14
+  },
+  {
+    "id": "A-16",
+    "priority": "P1",
+    "title": "Conclusão da resposta mensal de impedimentos",
+    "acceptance": "SPEC §§3.5, 10 e 12: distinguir “não respondeu” de “respondeu sem impedimentos”; permitir conclusão explícita sem criar impedimento fictício",
+    "url": "https://github.com/Trooper2123/mesce/issues/18",
+    "number": 18
+  },
+  {
+    "id": "A-17",
+    "priority": "P1",
+    "title": "Vários dias avulsos no mesmo envio",
+    "acceptance": "SPEC §15.2: selecionar dias não consecutivos e salvar em uma operação idempotente, com mensagem do escopo bloqueado",
+    "url": "https://github.com/Trooper2123/mesce/issues/19",
+    "number": 19
+  },
+  {
+    "id": "A-18",
+    "priority": "P1",
+    "title": "Impedimentos com campos condicionais",
+    "acceptance": "SPEC §15.2: mostrar somente campos correspondentes a missa, dias ou período. Hoje todos aparecem simultaneamente",
+    "url": "https://github.com/Trooper2123/mesce/issues/17",
+    "number": 17
+  },
+  {
+    "id": "A-19",
+    "priority": "P1",
+    "title": "Retirar/cancelar impedimento próprio",
+    "acceptance": "Jornada de atualização e exceções: adicionar remoção/revogação auditada e regras de prazo, preservando histórico quando já considerado em escala",
+    "url": "https://github.com/Trooper2123/mesce/issues/20",
+    "number": 20
+  },
+  {
+    "id": "A-20",
+    "priority": "P1",
+    "title": "Solicitar impedimentos e consolidar respostas",
+    "acceptance": "SPEC §§3.5, 10 e 12: ação da coordenação, acompanhamento de recebidos/não respondidos, fechamento do prazo e consolidação",
+    "url": "https://github.com/Trooper2123/mesce/issues/21",
+    "number": 21
+  },
+  {
+    "id": "A-21",
+    "priority": "P1",
+    "title": "Cancelar/remarcar eventos e séries com exceções",
+    "acceptance": "SPEC §§2.2, 10 e 15: preservar histórico, sinalizar impedimento específico ao remarcar, evitar contagem de evento cancelado e comunicar afetados",
+    "url": "https://github.com/Trooper2123/mesce/issues/22",
+    "number": 22
+  },
+  {
+    "id": "A-22",
+    "priority": "P1",
+    "title": "Revisão pontual preservando alocações e vagas",
+    "acceptance": "SPEC §§15.1 e 16: nova revisão hoje executa geração do zero; preservar alterações manuais e quantitativo efetivo, quando possível, e destacar diferenças",
+    "url": "https://github.com/Trooper2123/mesce/issues/23",
+    "number": 23
+  },
+  {
+    "id": "A-23",
+    "priority": "P1",
+    "title": "Cancelamento de versão e validação separada",
+    "acceptance": "SPEC §10.3: estados IN_REVIEW/CANCELLED e ação de validar sem aprovar. A implementação só tem DRAFT/APPROVED/PUBLISHED",
+    "url": "https://github.com/Trooper2123/mesce/issues/24",
+    "number": 24
+  },
+  {
+    "id": "A-24",
+    "priority": "P1",
+    "title": "Origem das alocações e parâmetros aplicados",
+    "acceptance": "SPEC §§2.6 e 9.2: registrar automática/manual e snapshot de limites/preferências/versão do algoritmo para explicar uma geração posteriormente",
+    "url": "https://github.com/Trooper2123/mesce/issues/25",
+    "number": 25
+  },
+  {
+    "id": "A-25",
+    "priority": "P1",
+    "title": "Calendário próprio de visitas dominicais",
+    "acceptance": "SPEC §§2.5 e 4: visitas são eventos no calendário comum; criar visualização só de domingos e assistidos vinculados",
+    "url": "https://github.com/Trooper2123/mesce/issues/26",
+    "number": 26
+  },
+  {
+    "id": "A-26",
+    "priority": "P1",
+    "title": "Frequência e grupos de assistidos",
+    "acceptance": "SPEC §2.5 e modelo PDF: frequência por assistido, um ou vários assistidos por atendimento e quantidade por visita. Hoje cada evento vincula um único assistido",
+    "url": "https://github.com/Trooper2123/mesce/issues/27",
+    "number": 27
+  },
+  {
+    "id": "A-27",
+    "priority": "P1",
+    "title": "Proximidade e tempo de deslocamento",
+    "acceptance": "SPEC §3.4: só existe desempate por bairro igual. Não há distância, tempo de viagem ou margem entre compromissos; tratar ausência de dados sem inventar números",
+    "url": "https://github.com/Trooper2123/mesce/issues/29",
+    "number": 29
+  },
+  {
+    "id": "A-28",
+    "priority": "P1",
+    "title": "Pré-cadastro por lista de e-mails autorizados",
+    "acceptance": "Coordenador insere e-mails; validar formato, normalizar e deduplicar. Criar autorizações pendentes. Ministro autentica no Auth0 e o servidor verifica o e-mail verificado da sessão na allowlist antes de liberar o formulário e novamente ao concluir. Fora da lista, negar cadastro no servidor",
+    "url": "https://github.com/Trooper2123/mesce/issues/31",
+    "number": 31
+  },
+  {
+    "id": "A-29",
+    "priority": "P1",
+    "title": "Conclusão, vínculo e revogação da allowlist",
+    "acceptance": "Após conclusão válida, vincular o pré-cadastro ao auth0_sub e ao mesmo registro de ministro, em transação idempotente. Controlar pendente/ativo/revogado, impedir duplicidades e acesso por identidade divergente. Revogação deve valer também se ocorrer entre login e conclusão; auditar ações sem expor dados sensíveis",
+    "url": "https://github.com/Trooper2123/mesce/issues/28",
+    "number": 28
+  },
+  {
+    "id": "A-30",
+    "priority": "P1",
+    "title": "Notificações internas e lembretes",
+    "acceptance": "SPEC §12: caixa autenticada, lida/não lida, solicitação e recebimento de impedimentos, publicação, alteração, cancelamento e lembrete de compromisso",
+    "url": "https://github.com/Trooper2123/mesce/issues/30",
+    "number": 30
+  },
+  {
+    "id": "A-31",
+    "priority": "P2",
+    "title": "Web Push resiliente",
+    "acceptance": "SPEC §§12–13: inscrição, permissão, preferências, horários silenciosos, deduplicação/outbox, tentativas e remoção de inscrição inválida; sem dados pessoais no payload",
+    "url": "https://github.com/Trooper2123/mesce/issues/32",
+    "number": 32
+  },
+  {
+    "id": "A-32",
+    "priority": "P1",
+    "title": "PDF conforme modelo paroquial",
+    "acceptance": "SPEC §16/PDF: tabelas, observações gerais, identidade paroquial, dia da semana, metadados de aprovação/emissão e cabeçalhos repetidos. Hoje é texto linear com paginação",
+    "url": "https://github.com/Trooper2123/mesce/issues/33",
+    "number": 33
+  },
+  {
+    "id": "A-33",
+    "priority": "P1",
+    "title": "Guia de visitas restrito em PDF",
+    "acceptance": "PRIVACIDADE/SPEC §16: assistido, contatos e endereço só para responsáveis autorizados, com download auditado; não adicionar esses dados ao PDF geral",
+    "url": "https://github.com/Trooper2123/mesce/issues/34",
+    "number": 34
+  },
+  {
+    "id": "A-34",
+    "priority": "P1",
+    "title": "Relatórios operacionais",
+    "acceptance": "Projeto p. 9/SPEC §9.7: escalas, assistidos/responsáveis/contatos e participação/histórico, com escopo de acesso. PDF da escala não substitui todos os relatórios",
+    "url": "https://github.com/Trooper2123/mesce/issues/36",
+    "number": 36
+  },
+  {
+    "id": "A-35",
+    "priority": "P2",
+    "title": "Dashboard completo e gráficos",
+    "acceptance": "Projeto p. 8/SPEC §9.7: escalas pendentes/aprovadas e participação por ministro/casal/mês/distribuição; indicadores agregados devem seguir a política de supressão",
+    "url": "https://github.com/Trooper2123/mesce/issues/35",
+    "number": 35
+  },
+  {
+    "id": "A-36",
+    "priority": "P1",
+    "title": "Consulta e rastreabilidade de auditoria",
+    "acceptance": "Projeto pp. 7–8/SPEC §9.6: tela de consulta e detalhes de criação/edição/exclusão/aprovação/PDF. Registros gerais de cadastro não guardam diffs completos; leituras não individualizam sempre o assistido",
+    "url": "https://github.com/Trooper2123/mesce/issues/37",
+    "number": 37
+  },
+  {
+    "id": "A-37",
+    "priority": "P0",
+    "title": "Revogação de acesso e testes negativos reais",
+    "acceptance": "ALLOWLIST/PRIVACIDADE/TASKS: usar ator ativo e identidade persistida; testar sessão sem vínculo, inativo, troca de IDs e acessos diretos. A ação de impedimento não repete a condição de ministro ativo usada na listagem",
+    "url": "https://github.com/Trooper2123/mesce/issues/38",
+    "number": 38
+  },
+  {
+    "id": "A-38",
+    "priority": "P1",
+    "title": "Recuperação, limites e observabilidade",
+    "acceptance": "GO-OPERACAO/TASKS: portar o comportamento, não o Go: timeouts, recuperação de falha inicial, limites, logs categorizados sem dados pessoais e teste de indisponibilidade. Pool atual define apenas máximo de conexões",
+    "url": "https://github.com/Trooper2123/mesce/issues/39",
+    "number": 39
+  },
+  {
+    "id": "A-39",
+    "priority": "P1",
+    "title": "Retenção, backup/restauração e correção/eliminação",
+    "acceptance": "PRIVACIDADE/TASKS: processo e testes de restauração, retenção e tratamento de solicitações, preservando obrigações de histórico; rotação de chaves e reindexação planejadas",
+    "url": "https://github.com/Trooper2123/mesce/issues/40",
+    "number": 40
+  },
+  {
+    "id": "A-40",
+    "priority": "P2",
+    "title": "PWA e acessibilidade homologadas",
+    "acceptance": "GUIA-PWA/ACESSIBILIDADE: manifesto/ícone/layout existem; faltam compatibilidade de ícones, instalação/dispositivos, guia de uso atualizado, sessão móvel, testes de teclado/zoom/leitores e auditoria de cache",
+    "url": "https://github.com/Trooper2123/mesce/issues/41",
+    "number": 41
+  },
+  {
+    "id": "A-41",
+    "priority": "P2",
+    "title": "Contratos para futuros clientes móveis",
+    "acceptance": "SPEC §11.3: regras já estão no servidor, mas não há API de domínio versionada reutilizável por Android/iOS; Server Actions sozinhas não são esse contrato",
+    "url": "https://github.com/Trooper2123/mesce/issues/42",
+    "number": 42
+  },
+  {
+    "id": "A-42",
+    "priority": "P1",
+    "title": "Documentação e fluxo de branches atuais",
+    "acceptance": "ENVIRONMENTS/TASKS: documentam feature → dev → main; a PR atual aponta diretamente a main. Atualizar ADR, tarefas, manuais e pipeline conforme a decisão atual, sem restaurar KofLang/Go",
+    "url": "https://github.com/Trooper2123/mesce/issues/43",
+    "number": 43
+  },
+  {
+    "id": "A-43",
+    "priority": "P1",
+    "title": "Agendamentos exclusivamente futuros",
+    "acceptance": "Criação e remarcação de celebrações/visitas exigem início futuro, validado no servidor, considerando fuso e recorrências. Preservar leitura e auditoria dos eventos históricos",
+    "url": "https://github.com/Trooper2123/mesce/issues/44",
+    "number": 44
+  }
+]

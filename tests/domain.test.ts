@@ -81,7 +81,7 @@ test("impedimento específico mantém elegibilidade em outra missa no mesmo dia"
   );
   const s = generate(d, "2026-11");
   assert.deepEqual(s.assignments, [
-    { eventId: second.id, ministerId: minister.id },
+    { eventId: second.id, ministerId: minister.id, origin: "AUTO" },
   ]);
 });
 test("dia e período inclusivo bloqueiam todas as atividades aplicáveis", () => {

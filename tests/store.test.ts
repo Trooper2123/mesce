@@ -10,6 +10,7 @@ test("migração PostgreSQL, persistência cifrada, atualização e rollback at�
   const db = new PGlite();
   try {
     await db.exec(await readFile("migrations/001_initial.sql", "utf8"));
+    await db.exec(await readFile("migrations/002_access.sql", "utf8"));
     const client = {
       query: (sql: string, params?: unknown[]) => db.query(sql, params),
     } as unknown as PoolClient;
