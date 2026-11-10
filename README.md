@@ -1,5 +1,94 @@
-# MESCE
+# MESCE — Gestão pastoral
 
-Aplicação de gestão pastoral em Next.js, React, TypeScript e PostgreSQL.
+Aplicação em **Next.js (App Router), React, TypeScript e PostgreSQL**, com Auth0 para autenticação. A interface é em português e o backend roda no próprio Next.js; não depende de Go nem KofLang.
 
-Repositório inicializado para receber a implementação e integração Vercel em uma pull request.
+## Funcionalidades implementadas
+
+- Painel mensal com indicadores e agenda.
+- Cadastro e edição de ministros: nascimento, início no ministério, endereço, contatos, situação, afastamento, limite mensal, cônjuge recíproco e preferência de local/casal.
+- Cadastro e edição de assistidos, telefones fixo/móvel, familiar de referência, endereço, situação e observações.
+- Celebrações extraordinárias e recorrência semanal (até 53 ocorrências), horários, duração, vagas e calendário mensal. Editar uma ocorrência não altera as demais.
+- Visitas vinculadas a assistidos ativos, exclusivamente aos domingos.
+- Impedimentos por celebração, dia ou período inclusivo. Ministro informa os próprios impedimentos do próximo mês até o dia 25; coordenação pode complementar fora do prazo.
+- Proposta determinística de escala, impedimentos, conflito de horários, inatividade, afastamento, limite mensal combinado, local exclusivo e casal como unidade.
+- Equilíbrio separado de celebrações/visitas considerando os últimos 12 meses publicados, sem duplicar revisões do histórico. Bairro igual desempata visitas após equilíbrio e preferência; não representa distância calculada.
+- Ajustes manuais de pessoas/vagas com justificativa e revalidação. Reduzir vagas mantém excedentes para retirada explícita.
+- Aprovação e publicação distintas; histórico de versões e snapshot aprovado preservado.
+- PDF interno das versões aprovadas/publicadas, com paginação e sem dados domiciliares, telefones, nomes de assistidos ou observações privadas.
+- Área do ministro: compromissos publicados e dados do assistido somente nas próprias visitas da última revisão publicada.
+- Dados pessoais cifrados com AES-256-GCM, consultas parametrizadas, auditoria e autorização no servidor. Sem cache offline de cadastros. Manifesto e ícone para identificação do aplicativo; não há service worker nem promessa de suporte offline.
+
+## Executar localmente
+
+Requisito: Node.js 24 e PostgreSQL 17+ (ou conexão PostgreSQL gerenciada).
+
+```sh
+npm ci
+cp .env.example .env.local
+docker compose up -d
+# Preencha .env.local antes dos próximos comandos
+npm run db:migrate
+npm run dev
+```
+
+Acesse `http://localhost:3000`. Sem Auth0 configurado, a aplicação apresenta a página de configuração e não libera dados.
+
+### Variáveis do servidor
+
+| Variável                   | Uso                                                                        |
+| -------------------------- | -------------------------------------------------------------------------- |
+| `DATABASE_URL`             | Conexão PostgreSQL; use a URL com TLS fornecida pelo provedor em produção  |
+| `AUTH0_DOMAIN`             | Domínio do tenant Auth0                                                    |
+| `AUTH0_CLIENT_ID`          | Aplicação Regular Web Application                                          |
+| `AUTH0_CLIENT_SECRET`      | Segredo do cliente, somente servidor                                       |
+| `AUTH0_SECRET`             | Segredo de sessão (`openssl rand -hex 32`)                                 |
+| `APP_BASE_URL`             | Origem do aplicativo, por exemplo `http://localhost:3000`                  |
+| `MESCE_COORDINATOR_EMAILS` | E-mails da coordenação, separados por vírgula; exige `email_verified=true` |
+| `MESCE_DATA_KEY_HEX`       | Chave AES de 32 bytes em hexadecimal (`openssl rand -hex 32`)              |
+
+No Auth0, configure **Allowed Callback URLs** com `<APP_BASE_URL>/auth/callback` e **Allowed Logout URLs** com `<APP_BASE_URL>`. Habilite o fluxo de verificação de e-mail. Cadastre os ministros com o mesmo e-mail verificado usado no login. Nenhum usuário recebe função de coordenador por parâmetro do navegador. Login sem vínculo não permite acessar dados de cadastros nem PDF.
+
+Guarde a chave de dados separadamente dos backups. Perder essa chave inviabiliza recuperar os dados cifrados; trocar seu valor exige recifrar os registros antes. Não há rotação automática nesta versão.
+
+### Banco e concorrência
+
+A migração é explícita e transacional; o build nunca cria tabelas. Os registros do MVP ficam em `mesce_records`, com tipo, payload cifrado, versão e timestamps. A auditoria em `mesce_audit` guarda identidade do usuário, operação e UUID, sem contatos ou motivos em claro. Justificativas e alterações detalhadas ficam em um campo cifrado. Uma alteração do casal e sua auditoria são atômicas. Ações de escrita usam advisory lock transacional para serializar geração e revisão concorrentes.
+
+A modelagem cifrada exige ler os registros para aplicar regras no servidor. É adequada como implementação inicial de uma pastoral; para alto volume, separar índices operacionais e relações normalizadas, preservando a proteção dos campos pessoais. Use uma role de runtime sem DDL e uma credencial separada para migrações.
+
+Veja também [o estado e os ajustes da integração existente](docs/INTEGRACAO-GITHUB-VERCEL.md). O código aceita as URLs `NEON_MESCE_*` já cadastradas; Preview exige o override isolado `MESCE_DATABASE_URL`.
+
+## Publicar na Vercel
+
+1. Importe este repositório como projeto Next.js.
+2. Configure as variáveis acima no ambiente correto. Nenhuma delas deve usar prefixo `NEXT_PUBLIC_`.
+3. Configure no Auth0 as URLs exatas da produção e de cada preview que será testado.
+4. Aplique a migração ao PostgreSQL de destino de forma explícita, a partir de ambiente controlado. `npm run db:migrate` lê `.env.local`; com variáveis já injetadas, execute `node --import tsx scripts/migrate.ts`.
+5. Execute o build e valide login/logout, coordenação, conta de ministro e download negado antes de cadastrar dados reais.
+
+O código está preparado para implantação; esta entrega não provisiona serviços, altera DNS ou executa migração em produção.
+
+## Verificações
+
+```sh
+npm run typecheck
+npm test
+npm run build
+npm run format:check
+```
+
+Os testes usam apenas dados sintéticos. A integração SQL executa a migração e operações de persistência no motor PostgreSQL embarcado PGlite. Ela não substitui teste de conexão/TLS, advisory locks e concorrência em um servidor PostgreSQL externo.
+
+## Decisões operacionais desta versão
+
+- Sem impedimento registrado, ministro ativo é elegível, sem alegar disponibilidade confirmada.
+- Limite mensal conta celebrações e visitas em conjunto; equilíbrio mantém contagens separadas.
+- Preferência de casal junto é obrigatória como unidade. Separado também impede designação conjunta nesta versão.
+- Alterações de cadastro/eventos não modificam snapshots já aprovados. Gere nova revisão, confira ajustes, aprove e publique novamente.
+- E-mail é a chave de vínculo com a identidade Auth0. Cadastros não são públicos.
+
+## Próximas etapas da especificação
+
+Envio de convites por Resend, acompanhamento/revogação de convites, notificações push, lembretes, exceções/remarcações de séries, cálculo de deslocamento real, relatórios agregados com supressão, guia de visitas em PDF com escopo específico e rotação de chaves são evoluções ainda não implementadas. A fidelidade ao layout do PDF paroquial e validação com leitores de tela/dispositivos reais também precisam de homologação.
+
+A política de retenção/base legal e os responsáveis pela operação devem ser definidos pela pastoral. Os dados pessoais da referência fornecida não são incluídos neste repositório.
