@@ -76,13 +76,35 @@ export default async function Home() {
           <span className="eyebrow">Cuidar · Organizar · Servir</span>
           <h1>Visão geral do ministério</h1>
           <p className="subtitle">
-            Tudo pronto para organizar os próximos encontros.
+            Gerencie os cadastros, impedimentos e escalas de todo o ministério.
           </p>
         </div>
         <Link className="button" href="/escalas">
           Preparar escala <ArrowUpRight size={18} />
         </Link>
       </div>
+      <section className="panel" aria-labelledby="coordinator-actions">
+        <h2 id="coordinator-actions">Gestão da coordenação</h2>
+        <p>
+          Cadastre e atualize as informações diretamente, sem depender do
+          primeiro acesso do ministro. Você também pode registrar e corrigir
+          impedimentos de qualquer ministro fora do prazo mensal.
+        </p>
+        <div className="hero-actions">
+          <Link className="button" href="/ministros?new=1">
+            Cadastrar ministro
+          </Link>
+          <Link className="button secondary" href="/assistidos?new=1">
+            Cadastrar assistido
+          </Link>
+          <Link className="button secondary" href="/impedimentos?new=1">
+            Registrar impedimento
+          </Link>
+          <Link className="button secondary" href="/pre-cadastros">
+            Autorizar acesso de ministros
+          </Link>
+        </div>
+      </section>
       <div className="cards">
         {stats.map(([label, total, note, Icon]) => (
           <article className="card" key={label}>

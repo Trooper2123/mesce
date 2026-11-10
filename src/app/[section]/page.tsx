@@ -48,6 +48,7 @@ export default async function Registry({
     q?: string;
     month?: string;
     type?: string;
+    new?: string;
   }>;
 }) {
   const { section } = await params;
@@ -109,7 +110,19 @@ export default async function Registry({
     <>
       <span className="eyebrow">Organização pastoral</span>
       <h1>{title}</h1>
-      <p className="subtitle">{subtitle}</p>
+      <p className="subtitle">
+        {user.coordinator && kind === "absence"
+          ? "Registre e corrija impedimentos de qualquer ministro, inclusive fora do prazo mensal."
+          : subtitle}
+      </p>
+      {user.coordinator && kind === "minister" && (
+        <p className="notice">
+          A coordenação pode preencher e editar todo o cadastro. Para permitir
+          que o ministro entre no aplicativo, autorize seu e-mail em{" "}
+          <Link href="/pre-cadastros">Pré-cadastros</Link>. O cadastro pode
+          participar das escalas sem depender do primeiro login.
+        </p>
+      )}
       <Notice error={query.error} saved={query.saved} />
       {!user.coordinator && !ministers.length ? (
         <p className="notice">
@@ -118,7 +131,7 @@ export default async function Registry({
         </p>
       ) : (
         <section className="panel">
-          <details open={!!editing || rows.length === 0}>
+          <details open={!!editing || query.new === "1" || rows.length === 0}>
             <summary>
               {editing
                 ? "Editar cadastro"
@@ -166,7 +179,11 @@ export default async function Registry({
                           name="monthlyLimit"
                           label="Limite mensal de participações"
                           type="number"
-                          value={minister?.monthlyLimit ?? 6}
+                          value={
+                            minister?.monthlyLimit ??
+                            data.settings?.monthlyLimit ??
+                            6
+                          }
                           required
                         />
                       </>
