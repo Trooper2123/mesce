@@ -31,6 +31,7 @@ const links = [
   ["/configuracao", "Configuração", Church],
   ["/escalas", "Escalas", ClipboardList],
   ["/minhas-escalas", "Minhas escalas", UserRound],
+  ["/relatorios", "Relatórios e histórico", ClipboardList],
 ] as const;
 export default function RootLayout({
   children,
