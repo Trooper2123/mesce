@@ -3,6 +3,7 @@ import { previewLogout } from "@/app/onboarding-actions";
 import type { Metadata } from "next";
 import Link from "next/link";
 import {
+  Bell,
   Church,
   LayoutDashboard,
   UsersRound,
@@ -20,6 +21,7 @@ export const metadata: Metadata = {
 };
 const links = [
   ["/", "Visão geral", LayoutDashboard],
+  ["/notificacoes", "Notificações", Bell],
   ["/meus-dados", "Meus dados", UserRound],
   ["/pre-cadastros", "Pré-cadastros", UsersRound],
   ["/ministros", "Ministros", UsersRound],

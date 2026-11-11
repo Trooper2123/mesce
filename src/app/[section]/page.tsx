@@ -11,7 +11,7 @@ import { actor } from "@/lib/auth";
 import { readData, transaction, audit } from "@/lib/store";
 import { save } from "@/app/actions";
 import { Field, Check, Notice } from "@/components/fields";
-import { Minister, Assisted, Event, Absence } from "@/lib/domain";
+import { impeded, Minister, Assisted, Event, Absence } from "@/lib/domain";
 export const dynamic = "force-dynamic";
 const sections = {
   ministros: [
@@ -491,6 +491,14 @@ export default async function Registry({
           </form>
           <Calendar
             month={month}
+            impediments={Object.fromEntries(
+              data.events.map((e) => [
+                e.id,
+                ministers
+                  .filter((m) => impeded(m.id, e, data.absences))
+                  .map((m) => m.name),
+              ]),
+            )}
             events={data.events.filter((e) => e.date.startsWith(month))}
           />
         </>

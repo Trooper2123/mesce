@@ -1,0 +1,33 @@
+# Correções das falhas relatadas pelo TestSprite — 11/11/2026
+
+Base: branch `dev` de `Trooper2123/mesce`, commit `77f2a0b0f66eeb11878e460f5339fdce0e5beb5f`. Relatório recebido: 17 testes, 16 grupos. As explicações de hospedagem do relatório são hipóteses, não diagnósticos comprovados.
+
+| Grupos         | Diagnóstico e ajuste                                                                                                                                                                        | Validação / limite                                                                                                                                                                                                                                                             |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1, 2, 3, 6 e 7 | Central de notificações não existia. Nova rota `/notificacoes`, com links no menu e painel, avisos de publicação, revisão, cancelamento e lembretes de compromissos nos próximos sete dias. | Feed derivado das versões persistidas, IDs estáveis e deduplicação por versão/evento. Ministro vê somente avisos autorizados; detalhes e destino passam novamente por autenticação. Não implementa push, agendamento de envio nem confirmação de leitura.                      |
+| 4              | Adicionar ministro já designado era uma operação sem efeito apresentada como sucesso. A revisão também podia manter snapshot de nomes anterior aos novos cadastros.                         | Listas de adicionar/retirar separadas, rejeição explícita de operações sem efeito, atualização do snapshot ao sincronizar, transição para revisão e revalidação. Persistência em transação e controle de versão já existiam; não foi comprovada falha de commit na hospedagem. |
+| 5, 9, 10 e 14  | `ActionForm` capturava indiscriminadamente exceções, inclusive redirecionamento de sucesso do Next.js. Isso explica cadastro aparecendo junto de mensagem de falha.                         | `unstable_rethrow` deixa o framework tratar redirecionamentos; falhas de aplicação mantêm o formulário. Persistência e esquema de período já eram implementados. Teste de navegador continua necessário para confirmar feedback e datas com a conta usada pelo TestSprite.     |
+| 8              | Validação podia informar apenas resposta mensal pendente e esconder um conflito de horário da mesma designação. Rascunhos também exibiam somente avisos gravados anteriormente.             | Sobreposição validada independentemente de outras pendências; validação atual no carregamento e avisos de eventos com horários sobrepostos. Eventos simultâneos sem pessoa duplicada não são tratados como conflito obrigatório.                                               |
+| 11             | Não reproduzida no código de `dev`: a série já é materializada em ocorrências independentes.                                                                                                | Extraída a criação semanal para função compartilhada; regressão comprova que mover 01/12/2026 para 02/12 preserva 08/12 e 15/12 e rejeita tentar recriar série a partir da edição. Não é evidência de que o deploy examinado pelo TestSprite tinha o mesmo código.             |
+| 12, 13 e 16    | O motor já considera ocorrência exata e extremos inclusivos, mas o calendário mostrava apenas quantidade de vagas.                                                                          | Calendário passa a indicar os ministros impedidos por ocorrência, sem expor justificativas privadas. Impedimento pessoal não cancela atividade nem zera vagas para outros ministros. Testes verificam duas missas no mesmo dia e intervalo inclusivo.                          |
+| 15             | Escalas são snapshots e eventos novos precisam de sincronização explícita; atualizar a página não deve alterar publicação aprovada.                                                         | Tela sinaliza agenda alterada e oferece sincronização do rascunho. Sincronização inclui visita com demanda de três ministros e atualiza nomes disponíveis sem modificar a publicação anterior. Teste valida três designações distintas.                                        |
+
+## Verificações
+
+- `npm run typecheck` e `npm run format:check`.
+- Testes automatizados incluindo PostgreSQL descartável/PGlite, cifragem, rollback, autorização e sete novas regressões.
+- `npm run build`, incluindo a rota `/notificacoes`.
+- Neste runtime, a primeira execução padrão encontrou falha nativa de V8/Wasm no PGlite. A execução com `node --no-wasm-tier-up --max-old-space-size=2048 --import tsx --test --test-concurrency=1 tests/*.test.ts` evita a compilação Wasm em tiers e permite validar a suíte; não foi necessário alterar dependências do projeto.
+- E2E local com Playwright foi preparado, mas não concluído: Chromium falhou com `socket() failed: Operation not permitted`, e a conexão TCP ao banco local não ficou acessível entre os processos de teste. Isso é uma limitação do ambiente de execução, não aprovação do fluxo no navegador.
+- Nenhum dado real ou segredo de produção foi usado, nenhuma migration nova é necessária e não houve deploy, merge ou reexecução da run original do TestSprite.
+
+## Revalidação em homologação
+
+1. Publicar a branch de correção em Preview com banco sintético isolado e acesso de teste autorizado.
+2. Confirmar cadastro completo de ministro, impedimentos de dia/período/celebração e feedback único após persistência e recarga.
+3. Abrir uma revisão, selecionar um ministro ainda não designado, completar a capacidade, validar/aprovar/publicar e conferir a preservação do PDF anterior.
+4. Criar uma visita com demanda três, abrir Escalas, sincronizar a revisão e designar três ministros distintos.
+5. Conferir aviso de sobreposição sem confundir vagas abertas com pessoa designada duas vezes.
+6. Remarcar apenas uma ocorrência semanal e verificar as próximas terças-feiras.
+7. Abrir Notificações como coordenador e ministro, conferir destinos, deduplicação e ausência de dados de assistidos. Lembretes aparecem somente para compromissos publicados dentro dos próximos sete dias.
+8. Reexecutar os 17 testes no mesmo commit do Preview. Usar o fluxo real de login e URLs funcionais; `/acesso-dev` é a entrada de homologação e redireciona ao painel após autenticação.

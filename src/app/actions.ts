@@ -15,6 +15,7 @@ import {
   syncSchedule,
 } from "@/lib/domain";
 import { z } from "zod";
+import { weeklyOccurrences } from "@/lib/recurrence";
 import { requireCompleteMinister } from "@/lib/profile";
 import { emailHash } from "@/lib/registration";
 import { parseEventForm, applyVisitStaffing } from "@/lib/event-input";
@@ -195,18 +196,11 @@ export async function save(form: FormData) {
           .min(1)
           .max(53)
           .parse(form.get("occurrences") ?? 1);
-        if (current.events.some((e) => e.id === id) && occurrences !== 1)
-          throw new Error(
-            "Edite apenas esta ocorrência; recorrência é criada no cadastro inicial.",
-          );
-        for (let index = 0; index < occurrences; index++) {
-          const date = new Date(event.date + "T12:00:00Z");
-          date.setUTCDate(date.getUTCDate() + index * 7);
-          const occurrence = {
-            ...event,
-            id: index === 0 ? id : crypto.randomUUID(),
-            date: date.toISOString().slice(0, 10),
-          };
+        for (const occurrence of weeklyOccurrences(
+          event,
+          occurrences,
+          current.events,
+        )) {
           requireFuture(occurrence);
           if (
             current.events.some(
@@ -285,6 +279,7 @@ export async function scheduleAction(form: FormData) {
             }
           : generate(data, selected);
         schedule.revision = (existing?.revision ?? 0) + 1;
+        schedule.warnings = validateSchedule(schedule, data);
         await write(client, "schedule", schedule);
         await audit(client, user.id, "schedule:generate", schedule.id);
         return;
@@ -325,6 +320,15 @@ export async function scheduleAction(form: FormData) {
           };
         } else {
           const ministerId = z.string().uuid().parse(form.get("ministerId"));
+          const alreadyAssigned = updated.assignments.some(
+            (a) => a.eventId === eventId && a.ministerId === ministerId,
+          );
+          if (value(form, "mode") !== "remove" && alreadyAssigned)
+            throw new Error(
+              "Este ministro já está designado. Selecione outro ministro para preencher a vaga.",
+            );
+          if (value(form, "mode") === "remove" && !alreadyAssigned)
+            throw new Error("Este ministro não está designado neste encontro.");
           const assignments = updated.assignments.filter(
             (a) => !(a.eventId === eventId && a.ministerId === ministerId),
           );
@@ -342,6 +346,7 @@ export async function scheduleAction(form: FormData) {
           }
           updated = { ...updated, assignments };
         }
+        updated.status = "IN_REVIEW";
         updated.warnings = validateSchedule(updated, data);
       } else if (operation === "approve") {
         if (!["DRAFT", "IN_REVIEW"].includes(existing.status))
