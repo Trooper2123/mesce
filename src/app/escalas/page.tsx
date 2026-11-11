@@ -98,6 +98,15 @@ export default async function Schedules({
               Baixar PDF aprovado
             </Link>
           )}
+          {schedule?.assistedSnapshot &&
+            ["APPROVED", "PUBLISHED"].includes(schedule.status) && (
+              <Link
+                className="button secondary"
+                href={`/api/schedules/${schedule.id}/visitas`}
+              >
+                Baixar escala completa com contatos (restrita)
+              </Link>
+            )}
           {schedule && ["DRAFT", "IN_REVIEW"].includes(schedule.status) && (
             <form action={scheduleAction}>
               {common}
