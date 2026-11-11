@@ -143,12 +143,12 @@ export default async function Home() {
           </div>
           {events.length ? (
             events.slice(0, 5).map((e) => (
-              <div className="row" key={e.id}>
-                <div className="datebox">
+              <div className="row agenda-row" key={e.id}>
+                <time className="datebox" dateTime={`${e.date}T${e.time}`}>
                   {e.date.slice(8)}
                   <small>{e.time}</small>
-                </div>
-                <div style={{ flex: 1 }}>
+                </time>
+                <div className="agenda-details">
                   <strong>{e.title}</strong>
                   <div className="muted">{e.location}</div>
                 </div>

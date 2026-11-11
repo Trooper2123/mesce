@@ -65,12 +65,14 @@ export function AbsenceFields({
           <input type="hidden" name={name("eventId")} value="" />
         </>
       )}
-      <Field
-        name={name("reason")}
-        label="Motivo opcional"
-        type="textarea"
-        value={absence?.reason}
-      />
+      <div className="wide">
+        <Field
+          name={name("reason")}
+          label="Motivo opcional"
+          type="textarea"
+          value={absence?.reason}
+        />
+      </div>
     </>
   );
 }
@@ -84,7 +86,7 @@ export function AbsenceBatch({
   const [rows, setRows] = useState([0]);
   const [next, setNext] = useState(1);
   return (
-    <>
+    <div className="absence-batch wide">
       <Field
         name="ministerId"
         label="Ministro"
@@ -101,7 +103,7 @@ export function AbsenceBatch({
         separados para preservar a informação.
       </p>
       {rows.map((id, index) => (
-        <section className="panel" key={id}>
+        <section className="panel absence-item" key={id}>
           <h3>Impedimento {index + 1}</h3>
           <input type="hidden" name="rows" value={id} />
           <div className="form-grid">
@@ -118,19 +120,21 @@ export function AbsenceBatch({
           )}
         </section>
       ))}
-      <button
-        type="button"
-        className="secondary"
-        disabled={rows.length >= 100}
-        onClick={() => {
-          setRows([...rows, next]);
-          setNext(next + 1);
-        }}
-      >
-        Adicionar outro impedimento
-      </button>
-      <p role="status">{rows.length} impedimento(s) para validar e salvar.</p>
-      <button>Salvar todos os impedimentos</button>
-    </>
+      <div className="absence-actions">
+        <button
+          type="button"
+          className="secondary"
+          disabled={rows.length >= 100}
+          onClick={() => {
+            setRows([...rows, next]);
+            setNext(next + 1);
+          }}
+        >
+          Adicionar outro impedimento
+        </button>
+        <p role="status">{rows.length} impedimento(s) para validar e salvar.</p>
+        <button>Salvar todos os impedimentos</button>
+      </div>
+    </div>
   );
 }
