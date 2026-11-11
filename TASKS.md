@@ -19,13 +19,13 @@ Allowlist → login → conclusão de cadastro; ministro edita o próprio cadast
 | A-09      | [#8 — Configurações gerais da pastoral](https://github.com/Trooper2123/mesce/issues/8)                        | P1         | Parcial; detalhes em MVP-RELEASE      |
 | A-10      | [#9 — Cadastro e múltiplas preferências de locais](https://github.com/Trooper2123/mesce/issues/9)             | P1         | Pendente / evolução                   |
 | A-11      | [#12 — Evitar dois dias seguidos ou duas missas no mesmo dia](https://github.com/Trooper2123/mesce/issues/12) | P1         | Implementada; homologação pendente    |
-| A-12      | [#16 — Métricas de equilíbrio e histórico consultável](https://github.com/Trooper2123/mesce/issues/16)        | P1         | Parcial; detalhes em MVP-RELEASE      |
+| A-12      | [#16 — Métricas de equilíbrio e histórico consultável](https://github.com/Trooper2123/mesce/issues/16)        | P1         | Implementada; homologação pendente    |
 | A-13      | [#15 — Pontuação e saldo histórico](https://github.com/Trooper2123/mesce/issues/15)                           | P1         | Retirado do escopo                    |
 | A-14      | [#13 — Campos personalizados](https://github.com/Trooper2123/mesce/issues/13)                                 | P2         | Pendente / evolução                   |
 | A-15      | [#14 — Ministro edita o próprio cadastro](https://github.com/Trooper2123/mesce/issues/14)                     | P1         | Implementada; homologação pendente    |
 | A-16      | [#18 — Conclusão da resposta mensal de impedimentos](https://github.com/Trooper2123/mesce/issues/18)          | P1         | Implementada; homologação pendente    |
-| A-17      | [#19 — Vários dias avulsos no mesmo envio](https://github.com/Trooper2123/mesce/issues/19)                    | P1         | Pendente / evolução                   |
-| A-18      | [#17 — Impedimentos com campos condicionais](https://github.com/Trooper2123/mesce/issues/17)                  | P1         | Pendente / evolução                   |
+| A-17      | [#19 — Vários dias avulsos no mesmo envio](https://github.com/Trooper2123/mesce/issues/19)                    | P1         | Implementada no PR #56; homologar     |
+| A-18      | [#17 — Impedimentos com campos condicionais](https://github.com/Trooper2123/mesce/issues/17)                  | P1         | Implementada no PR #56; homologar     |
 | A-19      | [#20 — Retirar/cancelar impedimento próprio](https://github.com/Trooper2123/mesce/issues/20)                  | P1         | Parcial; detalhes em MVP-RELEASE      |
 | A-20      | [#21 — Solicitar impedimentos e consolidar respostas](https://github.com/Trooper2123/mesce/issues/21)         | P1         | Parcial; detalhes em MVP-RELEASE      |
 | A-21      | [#22 — Cancelar/remarcar eventos e séries com exceções](https://github.com/Trooper2123/mesce/issues/22)       | P1         | Parcial; detalhes em MVP-RELEASE      |
@@ -41,7 +41,7 @@ Allowlist → login → conclusão de cadastro; ministro edita o próprio cadast
 | A-31      | [#32 — Web Push resiliente](https://github.com/Trooper2123/mesce/issues/32)                                   | P2         | Pendente / evolução                   |
 | A-32      | [#33 — PDF conforme modelo paroquial](https://github.com/Trooper2123/mesce/issues/33)                         | P1         | Parcial; detalhes em MVP-RELEASE      |
 | A-33      | [#34 — Guia de visitas restrito em PDF](https://github.com/Trooper2123/mesce/issues/34)                       | P1         | Implementada; homologação pendente    |
-| A-34      | [#36 — Relatórios operacionais](https://github.com/Trooper2123/mesce/issues/36)                               | P1         | Pendente / evolução                   |
+| A-34      | [#36 — Relatórios operacionais](https://github.com/Trooper2123/mesce/issues/36)                               | P1         | Implementada; homologação pendente    |
 | A-35      | [#35 — Dashboard completo e gráficos](https://github.com/Trooper2123/mesce/issues/35)                         | P2         | Pendente / evolução                   |
 | A-36      | [#37 — Consulta e rastreabilidade de auditoria](https://github.com/Trooper2123/mesce/issues/37)               | P1         | Parcial; detalhes em MVP-RELEASE      |
 | A-37      | [#38 — Revogação de acesso e testes negativos reais](https://github.com/Trooper2123/mesce/issues/38)          | P0         | Parcial; detalhes em MVP-RELEASE      |
@@ -76,3 +76,6 @@ Revisão posterior: a quantidade passa a ser definida no cadastro de cada assist
 ## Importação de assistidos e exemplos CSV
 
 [#58](https://github.com/Trooper2123/mesce/issues/58): importador de assistidos com prévia/validação/confirmacão, identificação por ID e quantidade de ministros; downloads de exemplos sintéticos nas duas listagens e nas páginas de importação. Implementação na branch feat/assisted-csv; homologação pendente. Detalhes em [IMPORTACAO-CSV.md](docs/IMPORTACAO-CSV.md).
+## Relatórios e histórico
+
+Tasks #16 e #36 implementadas na branch feat/operational-reports: consultas mensais/12 meses, contagens por modalidade, histórico detalhado, atividades/vagas e assistidos/responsáveis com contatos publicados. Acesso exclusivo da coordenação, revalidado no servidor e auditado. Critérios e limites em [RELATORIOS.md](docs/RELATORIOS.md). Homologação pendente.
