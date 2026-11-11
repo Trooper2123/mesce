@@ -1,23 +1,28 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { coordinator, assertCurrentActor } from "@/lib/auth";
-import { readData, transaction, write, audit } from "@/lib/store";
+import { transaction, write, audit } from "@/lib/store";
 import { csvState, planMinisterCsv } from "@/lib/minister-csv";
 import { addEmails, emailHash } from "@/lib/registration";
 export async function previewCsv(form: FormData) {
-  await coordinator();
+  const user = await coordinator();
   try {
-    const data = await readData();
-    const plan = planMinisterCsv(
-      String(form.get("source") ?? ""),
-      data.ministers,
-      form.get("update") === "true",
-    );
-    return {
-      summary: plan.summary,
-      expectedState: csvState(data.ministers),
-      error: "",
-    };
+    return await transaction(async (client, data) => {
+      await assertCurrentActor(client, user, true);
+      const plan = planMinisterCsv(
+        String(form.get("source") ?? ""),
+        data.ministers,
+        form.get("update") === "true",
+      );
+      await audit(client, user.id, "minister:csv-preview", undefined, {
+        rows: plan.summary.length,
+      });
+      return {
+        summary: plan.summary,
+        expectedState: csvState(data.ministers),
+        error: "",
+      };
+    });
   } catch (e) {
     return {
       summary: [],

@@ -13,9 +13,7 @@ export default async function ImportMinisters() {
         podem ser completados depois.
       </p>
       <p>
-        <a href="/api/ministers/template">
-          Baixar modelo CSV com dados fictícios
-        </a>{" "}
+        <a href="/api/ministers/template">Baixar CSV de exemplo de ministros</a>{" "}
         · <Link href="/ministros">Voltar aos ministros</Link>
       </p>
       <details>
