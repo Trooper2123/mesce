@@ -175,6 +175,16 @@ export function overlaps(a: Event, b: Event) {
     start(b) < start(a) + a.duration * 60000
   );
 }
+export function impeded(ministerId: string, event: Event, absences: Absence[]) {
+  return absences.some(
+    (a) =>
+      a.ministerId === ministerId &&
+      (a.scope === "CELEBRATION"
+        ? a.eventId === event.id
+        : a.start <= event.date && event.date <= a.end),
+  );
+}
+
 export function blocked(
   m: Minister,
   e: Event,
@@ -204,16 +214,7 @@ export function blocked(
     m.location !== e.location
   )
     return "Local fora da preferência exclusiva";
-  if (
-    data.absences.some(
-      (a) =>
-        a.ministerId === m.id &&
-        (a.scope === "CELEBRATION"
-          ? a.eventId === e.id
-          : a.start <= e.date && a.end >= e.date),
-    )
-  )
-    return "Impedimento informado";
+  if (impeded(m.id, e, data.absences)) return "Impedimento informado";
   const own = assignments.filter((a) => a.ministerId === m.id);
   if (own.some((a) => a.eventId === e.id)) return "Ministro já alocado";
   const ownEvents = own
@@ -301,6 +302,7 @@ export function syncSchedule(s: Schedule, data: Data): Schedule {
     assignments: s.assignments.filter((a) =>
       events.some((e) => e.id === a.eventId),
     ),
+    ministers: data.ministers.map(({ id, name }) => ({ id, name })),
     warnings: [],
   };
 }
@@ -499,6 +501,19 @@ export function validateSchedule(s: Schedule, data: Data): string[] {
       errors.push("Designação sem ministro ou evento.");
       continue;
     }
+    if (
+      checked.some(
+        (previous) =>
+          previous.ministerId === m.id &&
+          s.events.some(
+            (other) =>
+              other.id === previous.eventId &&
+              other.id !== e.id &&
+              overlaps(other, e),
+          ),
+      )
+    )
+      errors.push(`${m.name}: Conflito de horário.`);
     const reason = blocked(m, e, data, checked, s.events);
     if (reason) errors.push(`${m.name}: ${reason}.`);
     const spouse = data.ministers.find((x) => x.id === m.spouseId);
@@ -541,4 +556,19 @@ export function advisories(s: Schedule) {
     }
   }
   return [...new Set(result)];
+}
+
+export function overlappingAgenda(s: Schedule) {
+  return s.events.flatMap((event, index) =>
+    s.events
+      .slice(index + 1)
+      .filter(
+        (other) =>
+          !event.cancelled && !other.cancelled && overlaps(event, other),
+      )
+      .map(
+        (other) =>
+          `${event.date} ${event.time} • ${event.title} e ${other.title}: horários sobrepostos; revisar a disponibilidade das equipes.`,
+      ),
+  );
 }

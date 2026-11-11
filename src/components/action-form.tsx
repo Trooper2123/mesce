@@ -1,4 +1,5 @@
 "use client";
+import { unstable_rethrow } from "next/navigation";
 import { useState, useTransition, type ReactNode, type FormEvent } from "react";
 export type SaveResult = { error: string } | void;
 export function ActionForm({
@@ -20,7 +21,8 @@ export function ActionForm({
       try {
         const result = await action(form);
         if (result) setError(result.error);
-      } catch {
+      } catch (error) {
+        unstable_rethrow(error);
         setError(
           "Não foi possível salvar. Seus dados foram mantidos; tente novamente.",
         );

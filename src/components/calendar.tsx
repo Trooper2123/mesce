@@ -2,9 +2,11 @@ import type { Event } from "@/lib/domain";
 export function Calendar({
   month,
   events,
+  impediments = {},
 }: {
   month: string;
   events: Event[];
+  impediments?: Record<string, string[]>;
 }) {
   const [year, number] = month.split("-").map(Number);
   const first = new Date(Date.UTC(year, number - 1, 1)).getUTCDay();
@@ -59,6 +61,9 @@ export function Calendar({
                                   : e.location}{" "}
                                 · {e.required} vagas
                               </small>
+                              {(impediments[e.id] ?? []).map((name) => (
+                                <small key={name}>Impedido: {name}</small>
+                              ))}
                             </p>
                           ))}
                       </>

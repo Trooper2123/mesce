@@ -46,7 +46,12 @@ export default async function Mine() {
           const own = s.assignments.filter((a) => a.ministerId === minister.id);
           if (!own.length) return null;
           return (
-            <section className="panel" key={s.id} style={{ marginTop: 24 }}>
+            <section
+              id={`escala-${s.id}`}
+              className="panel"
+              key={s.id}
+              style={{ marginTop: 24 }}
+            >
               <div className="panel-head">
                 <h2>
                   {s.month} · Revisão {s.revision}

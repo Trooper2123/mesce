@@ -76,6 +76,7 @@ Revisão posterior: a quantidade passa a ser definida no cadastro de cada assist
 ## Importação de assistidos e exemplos CSV
 
 [#58](https://github.com/Trooper2123/mesce/issues/58): importador de assistidos com prévia/validação/confirmacão, identificação por ID e quantidade de ministros; downloads de exemplos sintéticos nas duas listagens e nas páginas de importação. Implementação na branch feat/assisted-csv; homologação pendente. Detalhes em [IMPORTACAO-CSV.md](docs/IMPORTACAO-CSV.md).
+
 ## Relatórios e histórico
 
 Tasks #16 e #36 implementadas na branch feat/operational-reports: consultas mensais/12 meses, contagens por modalidade, histórico detalhado, atividades/vagas e assistidos/responsáveis com contatos publicados. Acesso exclusivo da coordenação, revalidado no servidor e auditado. Critérios e limites em [RELATORIOS.md](docs/RELATORIOS.md). Homologação pendente.
