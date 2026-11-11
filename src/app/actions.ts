@@ -6,7 +6,6 @@ import { transaction, write, audit } from "@/lib/store";
 import {
   ministerSchema,
   assistedSchema,
-  eventSchema,
   absenceSchema,
   generate,
   validateSchedule,
@@ -16,6 +15,13 @@ import {
   syncSchedule,
 } from "@/lib/domain";
 import { z } from "zod";
+import { requireCompleteMinister } from "@/lib/profile";
+import { emailHash } from "@/lib/registration";
+import { parseEventForm, applyVisitStaffing } from "@/lib/event-input";
+import {
+  parseAbsenceBatch,
+  validateAbsenceSubmission,
+} from "@/lib/absence-input";
 function value(form: FormData, key: string) {
   return String(form.get(key) ?? "").trim();
 }
@@ -54,20 +60,73 @@ export async function save(form: FormData) {
     if (kind !== "absence" && !user.coordinator)
       throw new Error("Acesso exclusivo da coordenação.");
     const raw = Object.fromEntries(form.entries());
-    const id = value(form, "id") || crypto.randomUUID();
+    let id = value(form, "id") || crypto.randomUUID();
     const data = {
       ...raw,
       id,
       active: form.has("active"),
       away: form.has("away"),
-      monthlyLimit: Number(raw.monthlyLimit),
+      monthlyLimit: value(form, "monthlyLimit")
+        ? Number(raw.monthlyLimit)
+        : null,
+      kind: kind === "event" ? value(form, "eventKind") : kind,
+      assistedId:
+        kind === "event" && value(form, "eventKind") !== "VISIT"
+          ? ""
+          : raw.assistedId,
       duration: Number(raw.duration),
       required: Number(raw.required),
     };
     await transaction(async (client, current) => {
-      await assertCurrentActor(client, user, kind !== "absence");
+      const currentUser = await assertCurrentActor(
+        client,
+        user,
+        kind !== "absence",
+      );
       if (kind === "minister") {
-        const minister = ministerSchema.parse(data);
+        if (!value(form, "id") && value(form, "email")) {
+          const reserved = await client.query(
+            "SELECT minister_id FROM mesce_access WHERE email_hmac=$1",
+            [emailHash(value(form, "email"))],
+          );
+          if (reserved.rows[0]) {
+            if (
+              current.ministers.some(
+                (m) => m.id === reserved.rows[0].minister_id,
+              )
+            )
+              throw new Error(
+                "E-mail já cadastrado. Edite o cadastro existente.",
+              );
+            id = reserved.rows[0].minister_id;
+            data.id = id;
+          }
+        }
+        const existingMinister = current.ministers.find((m) => m.id === id);
+        const status = z
+          .enum(["ACTIVE", "AWAY", "INACTIVE", "FORMER"])
+          .parse(value(form, "participationStatus"));
+        const parsed = ministerSchema.parse({
+          ...data,
+          active: status
+            ? status === "ACTIVE" || status === "AWAY"
+            : data.active,
+          away: status ? status === "AWAY" : data.away,
+          former: status
+            ? status === "FORMER"
+            : (existingMinister?.former ?? false),
+          monthlyLimit: form.has("monthlyLimit")
+            ? data.monthlyLimit
+            : (existingMinister?.monthlyLimit ?? null),
+          registrationStatus:
+            value(form, "registrationStatus") === "DRAFT"
+              ? "DRAFT"
+              : "COMPLETE",
+        });
+        const minister =
+          parsed.registrationStatus === "DRAFT"
+            ? parsed
+            : requireCompleteMinister(parsed);
         if (
           minister.email &&
           current.ministers.some(
@@ -105,15 +164,20 @@ export async function save(form: FormData) {
           } as Minister);
         await write(client, "minister", minister);
       } else if (kind === "assisted")
-        await write(client, "assisted", assistedSchema.parse(data));
+        await write(
+          client,
+          "assisted",
+          assistedSchema.parse({
+            ...data,
+            ministersRequired: Number(form.get("ministersRequired")),
+          }),
+        );
       else if (kind === "event") {
-        const event = eventSchema.parse(data);
+        const event = applyVisitStaffing(
+          parseEventForm(form, id),
+          current.assisted,
+        );
         requireFuture(event);
-        if (
-          event.kind === "VISIT" &&
-          !current.assisted.some((a) => a.id === event.assistedId && a.active)
-        )
-          throw new Error("Selecione um assistido ativo.");
         if (
           current.events.some(
             (e) =>
@@ -158,73 +222,36 @@ export async function save(form: FormData) {
           await write(client, "event", occurrence);
         }
       } else if (kind === "absence") {
-        const absence = absenceSchema.parse(data);
-        const minister = current.ministers.find(
-          (m) => m.id === absence.ministerId,
-        );
-        if (
-          !minister ||
-          (!user.coordinator &&
-            (!user.verified ||
-              !minister.active ||
-              minister.id !== user.ministerId))
-        )
-          throw new Error("Você só pode informar seus impedimentos.");
-        if (
-          absence.scope === "CELEBRATION" &&
-          !current.events.some((e) => e.id === absence.eventId)
-        )
-          throw new Error("Celebração inexistente.");
-        const previous = current.absences.find((a) => a.id === id);
-        if (
-          previous &&
-          !user.coordinator &&
-          previous.ministerId !== minister.id
-        )
-          throw new Error("Impedimento de outro ministro.");
-        if (!user.coordinator) {
-          const now = new Date();
-          const local = new Intl.DateTimeFormat("en-CA", {
-            timeZone: "America/Sao_Paulo",
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit",
-          }).format(now);
-          const parts = local.split("-").map(Number);
-          const next = new Date(Date.UTC(parts[0], parts[1], 1))
-            .toISOString()
-            .slice(0, 7);
-          const date =
-            absence.scope === "CELEBRATION"
-              ? current.events.find((e) => e.id === absence.eventId)!.date
-              : absence.start;
+        const entries = form.getAll("rows").length
+          ? parseAbsenceBatch(form)
+          : [
+              absenceSchema.parse({
+                ...data,
+                end: raw.scope === "DAY" ? raw.start : raw.end,
+              }),
+            ];
+        for (const absence of entries) {
+          validateAbsenceSubmission(absence, currentUser, current);
           if (
-            parts[2] > 25 ||
-            !date.startsWith(next) ||
-            (absence.scope !== "CELEBRATION" && !absence.end.startsWith(next))
+            current.absences.some(
+              (a) =>
+                a.id !== absence.id &&
+                a.ministerId === absence.ministerId &&
+                a.scope === absence.scope &&
+                a.start === absence.start &&
+                a.end === absence.end &&
+                a.eventId === absence.eventId,
+            )
           )
-            throw new Error(
-              "Informe impedimentos do próximo mês até o dia 25. Fora do prazo, procure a coordenação.",
-            );
+            continue;
+          await write(client, "absence", absence);
+          await audit(client, user.id, "absence:save", absence.id);
         }
-        if (
-          current.absences.some(
-            (a) =>
-              a.id !== id &&
-              a.ministerId === absence.ministerId &&
-              a.scope === absence.scope &&
-              a.start === absence.start &&
-              a.end === absence.end &&
-              a.eventId === absence.eventId,
-          )
-        )
-          throw new Error("Impedimento já informado.");
-        await write(client, "absence", absence);
       } else throw new Error("Cadastro inválido.");
       await audit(client, user.id, `save:${kind}`, id);
     });
   } catch (error) {
-    redirect(`/${page}?error=${encodeURIComponent(message(error))}`);
+    return { error: message(error) };
   }
   revalidatePath("/", "layout");
   redirect(`/${page}?saved=1`);
@@ -301,8 +328,18 @@ export async function scheduleAction(form: FormData) {
           const assignments = updated.assignments.filter(
             (a) => !(a.eventId === eventId && a.ministerId === ministerId),
           );
-          if (value(form, "mode") !== "remove")
+          if (value(form, "mode") !== "remove") {
+            const minister = data.ministers.find((m) => m.id === ministerId);
+            if (
+              !minister ||
+              minister.former ||
+              minister.registrationStatus === "DRAFT"
+            )
+              throw new Error(
+                "Ministro inexistente, desligado ou com cadastro pendente.",
+              );
             assignments.push({ eventId, ministerId, origin: "MANUAL" });
+          }
           updated = { ...updated, assignments };
         }
         updated.warnings = validateSchedule(updated, data);

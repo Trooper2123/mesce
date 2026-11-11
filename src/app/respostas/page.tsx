@@ -21,7 +21,11 @@ export default async function Responses({
     ? query.month!
     : next;
   const ministers = data.ministers.filter(
-    (m) => m.active && (user.coordinator || m.id === user.ministerId),
+    (m) =>
+      m.active &&
+      !m.former &&
+      m.registrationStatus !== "DRAFT" &&
+      (user.coordinator || m.id === user.ministerId),
   );
   return (
     <>

@@ -1,5 +1,7 @@
 import type { Minister } from "@/lib/domain";
 import { Field } from "./fields";
+import { ServicePreferences } from "./service-preferences";
+import { ActionForm, type SaveResult } from "./action-form";
 export function MinisterForm({
   minister,
   spouses = [],
@@ -8,11 +10,11 @@ export function MinisterForm({
 }: {
   minister: Minister;
   spouses?: Pick<Minister, "id" | "name">[];
-  action: (form: FormData) => Promise<void>;
+  action: (form: FormData) => Promise<SaveResult>;
   complete?: boolean;
 }) {
   return (
-    <form action={action}>
+    <ActionForm action={action}>
       <p>
         E-mail de acesso: <strong>{minister.email}</strong>
       </p>
@@ -54,28 +56,7 @@ export function MinisterForm({
         <Field name="city" label="Cidade" value={minister.city} />
         <Field name="state" label="UF" value={minister.state} />
         <Field name="postalCode" label="CEP" value={minister.postalCode} />
-        <Field
-          name="monthlyLimit"
-          label="Limite mensal de participações"
-          type="number"
-          value={minister.monthlyLimit}
-          required
-        />
-        <Field
-          name="location"
-          label="Local de preferência"
-          value={minister.location}
-        />
-        <Field
-          name="locationPreference"
-          label="Preferência do local"
-          value={minister.locationPreference}
-          options={[
-            ["ACCEPT", "Aceita outros locais"],
-            ["PREFER", "Preferencial"],
-            ["EXCLUSIVE", "Exclusiva"],
-          ]}
-        />
+        <ServicePreferences minister={minister} />
         {!complete && (
           <>
             <Field
@@ -113,6 +94,6 @@ export function MinisterForm({
           {complete ? "Concluir meu cadastro" : "Salvar meus dados"}
         </button>
       </div>
-    </form>
+    </ActionForm>
   );
 }

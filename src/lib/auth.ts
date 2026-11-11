@@ -78,14 +78,23 @@ export async function resolveActor(
       "SELECT payload FROM mesce_records WHERE id=$1 AND kind='minister'",
       [access.minister_id],
     );
-    if (
-      !record.rows[0] ||
-      !(decrypt(record.rows[0].payload) as { active: boolean }).active
-    )
-      return null;
+    const member = record.rows[0]
+      ? (decrypt(record.rows[0].payload) as {
+          active: boolean;
+          former?: boolean;
+        })
+      : null;
+    if (access.role === "COORDINATOR")
+      return {
+        ...user,
+        coordinator: true,
+        ministerId:
+          member?.active && !member.former ? access.minister_id : undefined,
+      };
+    if (!member?.active || member.former) return null;
     return {
       ...user,
-      coordinator: access.role === "COORDINATOR",
+      coordinator: false,
       ministerId: access.minister_id,
     };
   }

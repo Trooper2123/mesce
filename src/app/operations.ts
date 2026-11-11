@@ -116,7 +116,10 @@ export async function settingsAction(form: FormData) {
     const settings = z
       .object({
         unansweredPolicy: z.enum(["REVIEW", "ELIGIBLE"]),
-        monthlyLimit: z.coerce.number().int().min(1).max(100),
+        monthlyLimit: z.preprocess(
+          (v) => (v === "" ? null : v),
+          z.coerce.number().int().min(1).max(100).nullable(),
+        ),
         historyMonths: z.coerce.number().int().min(1).max(36),
       })
       .parse(Object.fromEntries(form.entries()));

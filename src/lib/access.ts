@@ -8,7 +8,7 @@ export type Identity = {
 };
 export function linkedMinister(user: Identity, data: Data) {
   return data.ministers.find(
-    (m) => m.active && user.verified && m.id === user.ministerId,
+    (m) => m.active && !m.former && user.verified && m.id === user.ministerId,
   );
 }
 export function canDownload(user: Identity, data: Data, schedule: Schedule) {

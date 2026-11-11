@@ -13,7 +13,12 @@ import {
   completeRegistration,
   rateLimit,
 } from "@/lib/registration";
-import { blankMinister, ownProfile, validateSpouse } from "@/lib/profile";
+import {
+  blankMinister,
+  ownProfile,
+  validateSpouse,
+  requireCompleteMinister,
+} from "@/lib/profile";
 import {
   previewEnabled,
   passwordMatches,
@@ -74,7 +79,9 @@ export async function saveOwnProfile(form: FormData) {
       const previous = data.ministers.find((m) => m.id === current.ministerId);
       if (!previous || !previous.active)
         throw new Error("Cadastro indisponível. Procure a coordenação.");
-      const minister = ownProfile(Object.fromEntries(form.entries()), previous);
+      const minister = requireCompleteMinister(
+        ownProfile(Object.fromEntries(form.entries()), previous),
+      );
       validateSpouse(minister, data.ministers);
       if (previous.spouseId && previous.spouseId !== minister.spouseId) {
         const old = data.ministers.find((m) => m.id === previous.spouseId);
@@ -99,7 +106,7 @@ export async function saveOwnProfile(form: FormData) {
       });
     });
   } catch (e) {
-    redirect("/meus-dados?error=" + encodeURIComponent(failure(e)));
+    return { error: failure(e) };
   }
   revalidatePath("/", "layout");
   redirect("/meus-dados?saved=1");
@@ -119,11 +126,15 @@ export async function finishRegistration(form: FormData) {
         ...prior,
         email: user.email,
       });
+      if (prior.former)
+        throw new Error("Cadastro de ex-ministro. Procure a coordenação.");
+      requireCompleteMinister(profile);
+      profile.registrationStatus = "COMPLETE";
       validateSpouse(profile, data.ministers);
       await completeRegistration(client, user, profile);
     });
   } catch (e) {
-    redirect("/cadastro?error=" + encodeURIComponent(failure(e)));
+    return { error: failure(e) };
   }
   revalidatePath("/", "layout");
   redirect("/meus-dados?saved=1");

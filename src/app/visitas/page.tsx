@@ -27,7 +27,7 @@ export default async function Visits({
       <form className="toolbar">
         <Field name="month" label="Mês" type="month" value={month} />
         <button className="secondary">Consultar</button>
-        <Link className="button" href="/celebracoes?type=VISIT">
+        <Link className="button" href="/celebracoes?new=1&type=VISIT">
           Agendar visita
         </Link>
       </form>

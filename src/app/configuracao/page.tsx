@@ -35,9 +35,9 @@ export default async function Configuration({
             />
             <Field
               name="monthlyLimit"
-              label="Limite padrão para novos cadastros"
+              label="Limite opcional para novos cadastros (vazio = sem limite)"
               type="number"
-              value={settings.monthlyLimit}
+              value={settings.monthlyLimit ?? ""}
             />
             <Field
               name="historyMonths"
@@ -50,6 +50,10 @@ export default async function Configuration({
             <button>Salvar regras</button>
           </div>
         </form>
+        <p>
+          O limite é opcional e soma celebrações e visitas. Não altera limites
+          já cadastrados; o equilíbrio histórico continua funcionando sem teto.
+        </p>
         <p>
           A política é explícita. Nenhuma ausência de resposta confirma
           disponibilidade.
