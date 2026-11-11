@@ -123,12 +123,29 @@ export default async function Registry({
         </p>
       )}
       <Notice error={query.error} saved={query.saved} />
-      {kind === "minister" && user.coordinator && (
-        <p>
-          <Link className="button secondary" href="/ministros/importar">
-            Importar ministros por CSV
+      {(kind === "minister" || kind === "assisted") && user.coordinator && (
+        <div className="toolbar">
+          <Link
+            className="button secondary"
+            href={
+              kind === "minister"
+                ? "/ministros/importar"
+                : "/assistidos/importar"
+            }
+          >
+            Importar {kind === "minister" ? "ministros" : "assistidos"} por CSV
           </Link>
-        </p>
+          <a
+            className="button secondary"
+            href={
+              kind === "minister"
+                ? "/api/ministers/template"
+                : "/api/assisted/template"
+            }
+          >
+            Baixar CSV de exemplo
+          </a>
+        </div>
       )}
       {!user.coordinator && !ministers.length ? (
         <p className="notice">
@@ -529,6 +546,7 @@ export default async function Registry({
                         <>
                           {r.neighborhood}
                           <small>{r.mobile || r.landline}</small>
+                          <small>ID para importação: {r.id}</small>
                           <small>
                             {r.ministersRequired ?? 1} ministro(s) por visita
                           </small>

@@ -5,14 +5,18 @@ import { normalizeEmail } from "./registration";
 export const csvTemplate =
   "nome;email;nascimento;telefone;inicio_ministerio;endereco;bairro;cidade;uf;cep;situacao;conjuge_email;preferencia_casal;atividades;comunidade;preferencia_comunidade;limite_mensal;observacoes\nMinistro Exemplo;exemplo@example.invalid;1980-01-15;61999999999;2020-01-01;Rua Exemplo 10;Centro;Brasilia;DF;70000000;ATIVO;;SEM_PREFERENCIA;AMBAS;Matriz;ACEITA;;Dados ficticios\n";
 const columns = csvTemplate.split("\n")[0].split(";");
-export function csvState(ministers: Minister[]) {
+export function csvState<T extends { id: string }>(ministers: T[]) {
   return createHash("sha256")
     .update(
       JSON.stringify([...ministers].sort((a, b) => a.id.localeCompare(b.id))),
     )
     .digest("hex");
 }
-export function parseMinisterCsv(source: string): Record<string, string>[] {
+export function parseCsv(
+  source: string,
+  columns: string[],
+  required: string[],
+): Record<string, string>[] {
   if (Buffer.byteLength(source, "utf8") > 500_000)
     throw new Error("Arquivo excede 500 KB.");
   source = source.replace(/^\uFEFF/, "");
@@ -44,7 +48,7 @@ export function parseMinisterCsv(source: string): Record<string, string>[] {
     if (row.some((x) => x.trim())) rows.push(row);
     row = [];
     if (rows.length > 501)
-      throw new Error("Máximo de 500 ministros por arquivo.");
+      throw new Error("Máximo de 500 registros por arquivo.");
   }
   for (let i = 0; i < source.length; i++) {
     const c = source[i];
@@ -76,15 +80,15 @@ export function parseMinisterCsv(source: string): Record<string, string>[] {
   if (quoted) throw new Error("Campo com aspas não foi fechado.");
   if (field || row.length || closed) endRow();
   if (rows.length < 2)
-    throw new Error("Inclua o cabeçalho e pelo menos um ministro.");
+    throw new Error("Inclua o cabeçalho e pelo menos um registro.");
   const header = rows.shift()!.map((h) => h.trim().toLowerCase());
   if (
     new Set(header).size !== header.length ||
     header.some((h) => !columns.includes(h)) ||
-    !["nome", "email"].every((h) => header.includes(h))
+    !required.every((h) => header.includes(h))
   )
     throw new Error(
-      "Cabeçalhos inválidos. Use o modelo: nome e email são obrigatórios, demais colunas são opcionais.",
+      "Cabeçalhos inválidos. Use as colunas do modelo de exemplo.",
     );
   return rows.map((r, index) => {
     if (r.length !== header.length)
@@ -93,6 +97,9 @@ export function parseMinisterCsv(source: string): Record<string, string>[] {
       );
     return Object.fromEntries(header.map((h, i) => [h, r[i].trim()]));
   });
+}
+export function parseMinisterCsv(source: string) {
+  return parseCsv(source, columns, ["nome", "email"]);
 }
 export type CsvPlan = {
   ministers: Minister[];
@@ -103,6 +110,7 @@ export type CsvPlan = {
     email: string;
     operation: string;
     missing: string[];
+    ministersRequired?: number;
   }[];
 };
 export function planMinisterCsv(
