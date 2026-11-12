@@ -1,4 +1,9 @@
 import Link from "next/link";
+import {
+  eventClassOf,
+  sortEvents,
+  eventOverlapNotice,
+} from "@/lib/event-agenda";
 import { ServicePreferences } from "@/components/service-preferences";
 import { EventFields } from "@/components/event-fields";
 import { AbsenceFields, AbsenceBatch } from "@/components/absence-fields";
@@ -47,6 +52,7 @@ export default async function Registry({
     q?: string;
     month?: string;
     type?: string;
+    eventClass?: string;
     new?: string;
   }>;
 }) {
@@ -77,7 +83,7 @@ export default async function Registry({
       : kind === "assisted"
         ? data.assisted
         : kind === "event"
-          ? data.events
+          ? sortEvents(data.events)
           : data.absences.filter((a) =>
               ministers.some((m) => m.id === a.ministerId),
             );
@@ -100,10 +106,13 @@ export default async function Registry({
     : new Date().toISOString().slice(0, 7);
   const filtered = rows.filter(
     (r) =>
-      !query.q ||
-      JSON.stringify("name" in r ? r.name : "title" in r ? r.title : r)
-        .toLowerCase()
-        .includes(query.q.toLowerCase()),
+      (!("kind" in r) ||
+        !["FIXED", "EXTRAORDINARY"].includes(query.eventClass ?? "") ||
+        eventClassOf(r) === query.eventClass) &&
+      (!query.q ||
+        JSON.stringify("name" in r ? r.name : "title" in r ? r.title : r)
+          .toLowerCase()
+          .includes(query.q.toLowerCase())),
   );
   return (
     <>
@@ -394,15 +403,6 @@ export default async function Registry({
                       value={event?.time ?? "08:00"}
                       required
                     />
-                    {!event && (
-                      <Field
-                        name="occurrences"
-                        label="Repetir semanalmente (número de ocorrências)"
-                        type="number"
-                        value={1}
-                        required
-                      />
-                    )}
                     <Field
                       name="duration"
                       label="Duração em minutos"
@@ -428,7 +428,7 @@ export default async function Registry({
                           .filter((e) => e.kind !== "VISIT" && !e.cancelled)
                           .map((e) => ({
                             id: e.id,
-                            label: `${e.date} ${e.time} • ${e.title}`,
+                            label: `${e.date} ${e.time} • ${e.title} • ${e.location}`,
                           }))}
                       />
                     </>
@@ -442,7 +442,7 @@ export default async function Registry({
                         .filter((e) => e.kind !== "VISIT" && !e.cancelled)
                         .map((e) => ({
                           id: e.id,
-                          label: `${e.date} ${e.time} • ${e.title}`,
+                          label: `${e.date} ${e.time} • ${e.title} • ${e.location}`,
                         }))}
                     />
                   ))}
@@ -487,10 +487,21 @@ export default async function Registry({
               type="month"
               value={month}
             />
+            <Field
+              name="eventClass"
+              label="Grupo de eventos"
+              value={query.eventClass ?? "ALL"}
+              options={[
+                ["ALL", "Todos os eventos"],
+                ["FIXED", "Fixos recorrentes"],
+                ["EXTRAORDINARY", "Extraordinários"],
+              ]}
+            />
             <button className="secondary">Ver mês</button>
           </form>
           <Calendar
             month={month}
+            agendaEvents={data.events}
             impediments={Object.fromEntries(
               data.events.map((e) => [
                 e.id,
@@ -499,7 +510,12 @@ export default async function Registry({
                   .map((m) => m.name),
               ]),
             )}
-            events={data.events.filter((e) => e.date.startsWith(month))}
+            events={data.events.filter(
+              (e) =>
+                e.date.startsWith(month) &&
+                (!["FIXED", "EXTRAORDINARY"].includes(query.eventClass ?? "") ||
+                  eventClassOf(e) === query.eventClass),
+            )}
           />
         </>
       )}
@@ -513,6 +529,16 @@ export default async function Registry({
           <span className="tag">{rows.length} registros</span>
         </div>
         <form className="toolbar" role="search">
+          {kind === "event" && (
+            <>
+              <input
+                type="hidden"
+                name="eventClass"
+                value={query.eventClass ?? "ALL"}
+              />
+              <input type="hidden" name="month" value={month} />
+            </>
+          )}
           <Field name="q" label="Buscar" value={query.q} />
           <button className="secondary" type="submit">
             Buscar
@@ -562,6 +588,16 @@ export default async function Registry({
                       ) : "time" in r ? (
                         <>
                           {r.date} · {r.time}
+                          {eventOverlapNotice(r, data.events) && (
+                            <small className="event-overlap">
+                              {eventOverlapNotice(r, data.events)}
+                            </small>
+                          )}
+                          <small>
+                            {eventClassOf(r) === "FIXED"
+                              ? "Fixo recorrente"
+                              : "Extraordinário"}
+                          </small>
                           <small>
                             {r.location} · {r.required} ministros
                           </small>

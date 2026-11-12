@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
+import { eventClassOf } from "@/lib/event-agenda";
 import type { Event } from "@/lib/domain";
 import { Field } from "./fields";
 export function EventFields({
@@ -13,6 +14,9 @@ export function EventFields({
   visit?: boolean;
 }) {
   const [kind, setKind] = useState(event?.kind ?? (visit ? "VISIT" : "MASS"));
+  const [category, setCategory] = useState<"FIXED" | "EXTRAORDINARY">(
+    event ? eventClassOf(event) : visit ? "EXTRAORDINARY" : "FIXED",
+  );
   const [assistedId, setAssistedId] = useState(event?.assistedId ?? "");
   const [options, setOptions] = useState(assisted);
   const [message, setMessage] = useState("");
@@ -41,7 +45,13 @@ export function EventFields({
         <select
           name="eventKind"
           value={kind}
-          onChange={(e) => setKind(e.target.value as Event["kind"])}
+          onChange={(e) => {
+            const value = e.target.value as Event["kind"];
+            setKind(value);
+            setCategory(
+              ["MASS", "ADORATION"].includes(value) ? "FIXED" : "EXTRAORDINARY",
+            );
+          }}
         >
           <option value="MASS">Missa</option>
           <option value="ADORATION">Adoração</option>
@@ -50,6 +60,50 @@ export function EventFields({
           <option value="VISIT">Visita dominical</option>
         </select>
       </label>
+      {kind === "VISIT" ? (
+        <>
+          <input type="hidden" name="eventClass" value="EXTRAORDINARY" />
+          <p className="notice">
+            Evento extraordinário — visita agendada para uma data específica.
+          </p>
+        </>
+      ) : (
+        <label className="field">
+          Organização do evento
+          <select
+            name="eventClass"
+            value={category}
+            onChange={(e) => setCategory(e.target.value as typeof category)}
+          >
+            <option value="FIXED">Fixo recorrente</option>
+            <option value="EXTRAORDINARY">Extraordinário</option>
+          </select>
+        </label>
+      )}
+      {!event && kind !== "VISIT" && category === "FIXED" ? (
+        <>
+          <Field
+            key="weekly"
+            name="occurrences"
+            label="Repetir semanalmente (número de ocorrências)"
+            type="number"
+            value={12}
+            required
+          />
+          <p className="muted">
+            Cadastre de 1 a 53 semanas. Cada encontro mantém sua data e horário;
+            o nome pode ser repetido.
+          </p>
+        </>
+      ) : (
+        <input type="hidden" name="occurrences" value="1" />
+      )}
+      {event && (
+        <p className="muted">
+          A alteração vale apenas para esta ocorrência. As outras datas da série
+          são preservadas.
+        </p>
+      )}
       {kind === "VISIT" ? (
         <>
           <label className="field">

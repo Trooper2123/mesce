@@ -1,7 +1,7 @@
 "use client";
-import { unstable_rethrow } from "next/navigation";
+import { unstable_rethrow, useRouter } from "next/navigation";
 import { useState, useTransition, type ReactNode, type FormEvent } from "react";
-export type SaveResult = { error: string } | void;
+export type SaveResult = { error: string } | { redirectTo: string } | void;
 export function ActionForm({
   action,
   children,
@@ -9,6 +9,7 @@ export function ActionForm({
   action: (form: FormData) => Promise<SaveResult>;
   children: ReactNode;
 }) {
+  const router = useRouter();
   const [error, setError] = useState("");
   const [pending, startTransition] = useTransition();
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -20,7 +21,11 @@ export function ActionForm({
       setError("");
       try {
         const result = await action(form);
-        if (result) setError(result.error);
+        if (result && "error" in result) setError(result.error);
+        else if (result && "redirectTo" in result) {
+          router.push(result.redirectTo);
+          router.refresh();
+        }
       } catch (error) {
         unstable_rethrow(error);
         setError(

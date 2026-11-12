@@ -589,3 +589,38 @@ aside {
   grid-column: 1 / -1;
   min-width: 0;
 }
+
+.calendar-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.calendar-legend span {
+  padding: 6px 10px;
+  border-left: 4px solid;
+  font-size: 16px;
+}
+.calendar td p.calendar-event-fixed,
+.event-key-fixed {
+  background: #edf4eb;
+  border-left-color: #28543b;
+  color: #143020;
+}
+.calendar td p.calendar-event-extraordinary,
+.event-key-extraordinary {
+  background: #fff0d8;
+  border-left-color: #a14e00;
+  color: #512a00;
+}
+.calendar td p.calendar-event-visit,
+.event-key-visit {
+  background: #e6f0ff;
+  border-left-color: #225a9c;
+  color: #153758;
+}
+
+.event-overlap {
+  display: block;
+  color: #713b00;
+  font-weight: 600;
+}

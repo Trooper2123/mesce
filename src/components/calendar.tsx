@@ -1,13 +1,24 @@
+import {
+  eventClassOf,
+  sortEvents,
+  eventOverlapNotice,
+} from "@/lib/event-agenda";
 import type { Event } from "@/lib/domain";
 export function Calendar({
   month,
   events,
   impediments = {},
+  agendaEvents = events,
 }: {
   month: string;
   events: Event[];
   impediments?: Record<string, string[]>;
+  agendaEvents?: Event[];
 }) {
+  const ordered = sortEvents(events);
+  const warnings = new Map(
+    ordered.map((event) => [event.id, eventOverlapNotice(event, agendaEvents)]),
+  );
   const [year, number] = month.split("-").map(Number);
   const first = new Date(Date.UTC(year, number - 1, 1)).getUTCDay();
   const days = new Date(Date.UTC(year, number, 0)).getUTCDate();
@@ -18,6 +29,11 @@ export function Calendar({
   return (
     <section className="panel">
       <h2>Calendário · {month}</h2>
+      <p className="calendar-legend">
+        <span className="event-key-fixed">Fixo recorrente</span>{" "}
+        <span className="event-key-extraordinary">Extraordinário</span>{" "}
+        <span className="event-key-visit">Visita extraordinária</span>
+      </p>
       <div
         className="table-scroll"
         role="region"
@@ -50,17 +66,41 @@ export function Calendar({
                     {day > 0 && day <= days && (
                       <>
                         <strong>{day}</strong>
-                        {events
-                          .filter((e) => Number(e.date.slice(8)) === day)
+                        {ordered
+                          .filter(
+                            (e) =>
+                              e.date ===
+                              `${month}-${String(day).padStart(2, "0")}`,
+                          )
                           .map((e) => (
-                            <p key={e.id}>
+                            <p
+                              key={e.id}
+                              className={
+                                e.kind === "VISIT"
+                                  ? "calendar-event-visit"
+                                  : eventClassOf(e) === "FIXED"
+                                    ? "calendar-event-fixed"
+                                    : "calendar-event-extraordinary"
+                              }
+                            >
                               <time>{e.time}</time> {e.title}
+                              <small>
+                                {eventClassOf(e) === "FIXED"
+                                  ? "Fixo recorrente"
+                                  : "Extraordinário"}
+                                {e.cancelled ? " · Cancelado" : ""}
+                              </small>
                               <small>
                                 {e.kind === "VISIT"
                                   ? "Visita dominical"
                                   : e.location}{" "}
                                 · {e.required} vagas
                               </small>
+                              {warnings.get(e.id) && (
+                                <small className="event-overlap">
+                                  {warnings.get(e.id)}
+                                </small>
+                              )}
                               {(impediments[e.id] ?? []).map((name) => (
                                 <small key={name}>Impedido: {name}</small>
                               ))}
