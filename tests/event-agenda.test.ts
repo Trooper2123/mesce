@@ -12,6 +12,9 @@ import { type Event, emptyData, blocked } from "../src/lib/domain";
 import { blankMinister } from "../src/lib/profile";
 import {
   eventClassOf,
+  eventNameOptions,
+  matchesEventName,
+  matchesEventSearch,
   eventOverlapNotice,
   overlappingEvents,
   planEventSave,
@@ -201,4 +204,209 @@ test("PostgreSQL persiste dois eventos de mesmo nome e horário sem sobrescrever
   } finally {
     await db.close();
   }
+});
+
+test("cards ordenam missas antes das visitas e abrem edição da ocorrência", () => {
+  const visitEarly = event({
+    kind: "VISIT",
+    title: "VISITA_CEDO",
+    time: "07:00",
+  });
+  const visitLate = event({
+    kind: "VISIT",
+    title: "VISITA_TARDE",
+    time: "09:00",
+  });
+  const massEarly = event({ title: "MISSA_CEDO", time: "08:00" });
+  const massLate = event({ title: "MISSA_TARDE", time: "19:00" });
+  const sameTime = event({
+    title: "MISSA_OUTRO_LOCAL",
+    time: "08:00",
+    location: "Capela",
+  });
+  const events = [visitLate, massLate, sameTime, visitEarly, massEarly];
+  const html = renderToStaticMarkup(
+    createElement(Calendar, { month: "2030-11", events }),
+  );
+  const cards = [
+    ...html.matchAll(/<a [^>]*class="calendar-event [^>]*>[\s\S]*?<\/a>/g),
+  ].map((m) => m[0]);
+  assert.equal(cards.length, 5);
+  const positions = [massEarly, sameTime, massLate, visitEarly, visitLate].map(
+    (e) => cards.findIndex((card) => card.includes(`edit=${e.id}`)),
+  );
+  assert.ok(positions[0] < positions[1]);
+  assert.ok(positions[1] < positions[2]);
+  assert.ok(positions[2] < positions[3]);
+  assert.ok(positions[3] < positions[4]);
+  for (const e of events) {
+    const card = cards.find((card) => card.includes(`edit=${e.id}`))!;
+    assert.ok(
+      card.includes(
+        `href="/celebracoes?edit=${e.id}&amp;month=2030-11&amp;calendarView=FULL&amp;eventClass=ALL#cadastro"`,
+      ),
+    );
+    assert.ok(card.includes('aria-label="Editar '));
+    assert.ok(card.includes(e.title));
+  }
+  assert.equal(events[0], visitLate);
+});
+
+test("resumo exibe todos os eventos apenas com hora e nome e preserva edição", () => {
+  const mass = event({ title: "MISSA_RESUMIDA", time: "19:00" });
+  const visit = event({
+    title: "VISITA_RESUMIDA",
+    kind: "VISIT",
+    time: "07:00",
+  });
+  const html = renderToStaticMarkup(
+    createElement(Calendar, {
+      month: "2030-11",
+      events: [visit, mass],
+      view: "SUMMARY",
+      impediments: { [mass.id]: ["MINISTRO_OCULTO"] },
+    }),
+  );
+  const cards = [
+    ...html.matchAll(/<a [^>]*class="calendar-event [^>]*>[\s\S]*?<\/a>/g),
+  ].map((m) => m[0]);
+  assert.equal(cards.length, 2);
+  assert.ok(cards[0].includes("MISSA_RESUMIDA"));
+  assert.ok(cards[1].includes("VISITA_RESUMIDA"));
+  for (const card of cards) {
+    assert.ok(card.includes("calendarView=SUMMARY"));
+    assert.ok(!card.includes("<small"));
+    assert.ok(!card.includes("vagas"));
+    assert.ok(!card.includes("MINISTRO_OCULTO"));
+  }
+});
+test("modo separado isola missas e visitas com todos os domingos do mês", () => {
+  const mass = event({ title: "MISSA_SEPARADA" });
+  const visit = event({
+    title: "ASSISTIDO_SEPARADO",
+    kind: "VISIT",
+    time: "07:00",
+  });
+  const nextMonth = event({
+    title: "OUTRO_MES_OCULTO",
+    date: "2030-12-01",
+    kind: "VISIT",
+  });
+  const html = renderToStaticMarkup(
+    createElement(Calendar, {
+      month: "2030-11",
+      events: [mass, visit, nextMonth],
+      view: "SPLIT",
+    }),
+  );
+  const tables = [...html.matchAll(/<table[^>]*>[\s\S]*?<\/table>/g)].map(
+    (m) => m[0],
+  );
+  assert.equal(tables.length, 2);
+  assert.ok(tables[0].includes("MISSA_SEPARADA"));
+  assert.ok(!tables[0].includes("ASSISTIDO_SEPARADO"));
+  assert.ok(tables[1].includes("ASSISTIDO_SEPARADO"));
+  assert.ok(!tables[1].includes("MISSA_SEPARADA"));
+  assert.ok(!html.includes("OUTRO_MES_OCULTO"));
+  assert.equal((tables[1].match(/<th /g) ?? []).length, 4);
+  for (const day of ["03", "10", "17", "24"])
+    assert.ok(tables[1].includes(`Domingo ${day}/11`));
+  assert.ok(!tables[1].includes("Segunda"));
+  assert.ok(tables[1].includes("calendarView=SPLIT"));
+});
+test("calendário de assistidos inclui meses com cinco domingos e fevereiro bissexto", () => {
+  for (const [month, expected] of [
+    ["2030-12", ["01", "08", "15", "22", "29"]],
+    ["2032-02", ["01", "08", "15", "22", "29"]],
+  ] as const) {
+    const html = renderToStaticMarkup(
+      createElement(Calendar, { month, events: [], view: "VISITS" }),
+    );
+    assert.equal((html.match(/<th /g) ?? []).length, 5);
+    for (const day of expected)
+      assert.ok(html.includes(`Domingo ${day}/${month.slice(5)}`));
+    assert.equal((html.match(/<td>/g) ?? []).length, 5);
+  }
+});
+
+test("seletor usa nomes cadastrados sem duplicar ocorrências e filtra pelo nome inteiro", () => {
+  const events = [
+    event({ title: "Visita Maria" }),
+    event({ title: "Missa semanal" }),
+    event({ title: " missa   SEMANAL " }),
+    event({ title: "Missa semanal especial" }),
+  ];
+  const options = eventNameOptions(events);
+  assert.deepEqual(options, [
+    ["missa semanal", "Missa semanal"],
+    ["missa semanal especial", "Missa semanal especial"],
+    ["visita maria", "Visita Maria"],
+  ]);
+  assert.equal(
+    events.filter((e) => matchesEventName(e, "missa semanal")).length,
+    2,
+  );
+  assert.equal(events.filter((e) => matchesEventName(e, "")).length, 4);
+  assert.equal(events.filter((e) => matchesEventName(e, "removido")).length, 0);
+  assert.deepEqual(eventNameOptions([]), []);
+});
+test("card preserva o nome selecionado ao abrir edição nos modos resumido e separado", () => {
+  const e = event({ title: "Missa & visita" });
+  for (const view of ["SUMMARY", "SPLIT"] as const) {
+    const html = renderToStaticMarkup(
+      createElement(Calendar, {
+        month: "2030-11",
+        events: [e],
+        view,
+        eventName: "missa & visita",
+      }),
+    );
+    assert.ok(html.includes("eventName=missa%20%26%20visita#cadastro"));
+  }
+});
+
+test("busca encontra a data digitada na imagem tanto em ISO quanto em formato brasileiro", () => {
+  const records = [
+    event({ date: "2026-12-06" }),
+    event({ date: "2026-12-13" }),
+    event({ date: "2026-11-06" }),
+  ];
+  for (const query of ["2026-12-06", "06/12/2026", "  2026-12-06  "]) {
+    assert.deepEqual(
+      records.filter((e) => matchesEventSearch(e, query)).map((e) => e.date),
+      ["2026-12-06"],
+    );
+  }
+  assert.equal(
+    records.filter((e) => matchesEventSearch(e, "07/12/2026")).length,
+    0,
+  );
+});
+test("busca combina data com nome e horário sem perder o seletor de evento", () => {
+  const e = event({
+    date: "2026-12-06",
+    title: "Missa dominical",
+    location: "Capela",
+    time: "08:30",
+  });
+  for (const query of [
+    "missa",
+    "CAPELA",
+    "08:30",
+    "dominical 06/12/2026",
+    "2026-12-06 08:30 capela",
+    "",
+    "  ",
+  ])
+    assert.ok(matchesEventSearch(e, query));
+  assert.ok(!matchesEventSearch(e, "2026-12-06 19:00"));
+  assert.ok(
+    matchesEventName(e, "missa dominical") &&
+      matchesEventSearch(e, "2026-12-06"),
+  );
+  assert.ok(
+    !(
+      matchesEventName(e, "outro evento") && matchesEventSearch(e, "2026-12-06")
+    ),
+  );
 });

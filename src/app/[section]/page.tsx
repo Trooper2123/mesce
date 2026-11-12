@@ -1,6 +1,9 @@
 import Link from "next/link";
 import {
   eventClassOf,
+  eventNameOptions,
+  matchesEventName,
+  matchesEventSearch,
   sortEvents,
   eventOverlapNotice,
 } from "@/lib/event-agenda";
@@ -53,6 +56,8 @@ export default async function Registry({
     month?: string;
     type?: string;
     eventClass?: string;
+    calendarView?: string;
+    eventName?: string;
     new?: string;
   }>;
 }) {
@@ -104,15 +109,23 @@ export default async function Registry({
   const month = /^\d{4}-(0[1-9]|1[0-2])$/.test(query.month ?? "")
     ? query.month!
     : new Date().toISOString().slice(0, 7);
+  const calendarView =
+    query.calendarView === "SPLIT" || query.calendarView === "FULL"
+      ? query.calendarView
+      : "SUMMARY";
+  const nameOptions = eventNameOptions(data.events);
   const filtered = rows.filter(
     (r) =>
       (!("kind" in r) ||
         !["FIXED", "EXTRAORDINARY"].includes(query.eventClass ?? "") ||
         eventClassOf(r) === query.eventClass) &&
-      (!query.q ||
-        JSON.stringify("name" in r ? r.name : "title" in r ? r.title : r)
-          .toLowerCase()
-          .includes(query.q.toLowerCase())),
+      (!("kind" in r) || matchesEventName(r, query.eventName)) &&
+      ("kind" in r
+        ? matchesEventSearch(r, query.q)
+        : !query.q ||
+          JSON.stringify("name" in r ? r.name : r)
+            .toLowerCase()
+            .includes(query.q.toLowerCase())),
   );
   return (
     <>
@@ -164,6 +177,7 @@ export default async function Registry({
       ) : (
         <section className="panel">
           <details
+            id="cadastro"
             open={
               !!editing ||
               query.new === "1" ||
@@ -190,6 +204,17 @@ export default async function Registry({
                     />
                     {kind === "minister" && (
                       <>
+                        <Field
+                          name="preferredName"
+                          maxLength={80}
+                          label="Nome de preferência nas escalas"
+                          value={minister?.preferredName}
+                        />
+                        <p className="muted">
+                          Nome usado nas escalas e PDFs. O nome completo
+                          permanece no cadastro; sem preferência, usamos o nome
+                          completo.
+                        </p>
                         <Field
                           name="email"
                           label="E-mail de acesso"
@@ -380,6 +405,7 @@ export default async function Registry({
                     />
                     <EventFields
                       event={event}
+                      initialMonth={month}
                       visit={query.type === "VISIT"}
                       assisted={data.assisted
                         .filter((a) => a.active || a.id === event?.assistedId)
@@ -388,13 +414,6 @@ export default async function Registry({
                           name: a.name,
                           ministersRequired: a.ministersRequired ?? 1,
                         }))}
-                    />
-                    <Field
-                      name="date"
-                      label="Data (visitas somente aos domingos)"
-                      type="date"
-                      value={event?.date}
-                      required
                     />
                     <Field
                       name="time"
@@ -497,9 +516,29 @@ export default async function Registry({
                 ["EXTRAORDINARY", "Extraordinários"],
               ]}
             />
-            <button className="secondary">Ver mês</button>
+            <Field
+              name="calendarView"
+              label="Visualização do calendário"
+              value={calendarView}
+              options={[
+                ["SUMMARY", "Resumido · todos os eventos"],
+                ["SPLIT", "Separado · missas e visitas aos domingos"],
+                ["FULL", "Completo · todos os detalhes"],
+              ]}
+            />
+            <Field
+              name="eventName"
+              label="Evento cadastrado"
+              value={query.eventName ?? ""}
+              options={[["", "Todos os nomes de eventos"], ...nameOptions]}
+            />
+            {query.q && <input type="hidden" name="q" value={query.q} />}
+            <button className="secondary">Ver calendário</button>
           </form>
           <Calendar
+            eventName={query.eventName}
+            view={calendarView}
+            eventClass={query.eventClass ?? "ALL"}
             month={month}
             agendaEvents={data.events}
             impediments={Object.fromEntries(
@@ -512,6 +551,7 @@ export default async function Registry({
             )}
             events={data.events.filter(
               (e) =>
+                matchesEventName(e, query.eventName) &&
                 e.date.startsWith(month) &&
                 (!["FIXED", "EXTRAORDINARY"].includes(query.eventClass ?? "") ||
                   eventClassOf(e) === query.eventClass),
@@ -526,7 +566,9 @@ export default async function Registry({
               ? "Impedimentos registrados"
               : "Cadastros registrados"}
           </h2>
-          <span className="tag">{rows.length} registros</span>
+          <span className="tag">
+            {filtered.length} de {rows.length} registros
+          </span>
         </div>
         <form className="toolbar" role="search">
           {kind === "event" && (
@@ -537,9 +579,24 @@ export default async function Registry({
                 value={query.eventClass ?? "ALL"}
               />
               <input type="hidden" name="month" value={month} />
+              <input type="hidden" name="calendarView" value={calendarView} />
+              <Field
+                name="eventName"
+                label="Evento cadastrado"
+                value={query.eventName ?? ""}
+                options={[["", "Todos os nomes de eventos"], ...nameOptions]}
+              />
             </>
           )}
-          <Field name="q" label="Buscar" value={query.q} />
+          <Field
+            name="q"
+            label={
+              kind === "event"
+                ? "Buscar por nome, data, horário ou local"
+                : "Buscar"
+            }
+            value={query.q}
+          />
           <button className="secondary" type="submit">
             Buscar
           </button>
@@ -575,6 +632,9 @@ export default async function Registry({
                         <>
                           {r.email}
                           <small>{r.phone}</small>
+                          {r.preferredName && (
+                            <small>Nas escalas: {r.preferredName}</small>
+                          )}
                         </>
                       ) : "mobile" in r ? (
                         <>
@@ -640,7 +700,15 @@ export default async function Registry({
                       </span>
                     </td>
                     <td>
-                      <Link href={`/${section}?edit=${r.id}`}>Editar</Link>
+                      <Link
+                        href={
+                          kind === "event"
+                            ? `/${section}?${new URLSearchParams({ edit: r.id, month, calendarView, eventClass: query.eventClass ?? "ALL", eventName: query.eventName ?? "", q: query.q ?? "" })}#cadastro`
+                            : `/${section}?edit=${r.id}`
+                        }
+                      >
+                        Editar
+                      </Link>
                     </td>
                   </tr>
                 ))}

@@ -1,6 +1,7 @@
 import { ministerSchema, Minister } from "./domain";
 export const editableFields = [
   "name",
+  "preferredName",
   "birthDate",
   "phone",
   "ministryStart",
@@ -21,6 +22,7 @@ export function blankMinister(id: string, email: string): Minister {
     id,
     email,
     name: "",
+    preferredName: "",
     birthDate: "",
     phone: "",
     ministryStart: "",

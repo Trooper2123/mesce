@@ -3,7 +3,7 @@ import { ministerSchema, type Minister } from "./domain";
 import { blankMinister, missingMinisterFields } from "./profile";
 import { normalizeEmail } from "./registration";
 export const csvTemplate =
-  "nome;email;nascimento;telefone;inicio_ministerio;endereco;bairro;cidade;uf;cep;situacao;conjuge_email;preferencia_casal;atividades;comunidade;preferencia_comunidade;limite_mensal;observacoes\nMinistro Exemplo;exemplo@example.invalid;1980-01-15;61999999999;2020-01-01;Rua Exemplo 10;Centro;Brasilia;DF;70000000;ATIVO;;SEM_PREFERENCIA;AMBAS;Matriz;ACEITA;;Dados ficticios\n";
+  "nome;nome_preferencia;email;nascimento;telefone;inicio_ministerio;endereco;bairro;cidade;uf;cep;situacao;conjuge_email;preferencia_casal;atividades;comunidade;preferencia_comunidade;limite_mensal;observacoes\nMinistro Exemplo;Exemplo;exemplo@example.invalid;1980-01-15;61999999999;2020-01-01;Rua Exemplo 10;Centro;Brasilia;DF;70000000;ATIVO;;SEM_PREFERENCIA;AMBAS;Matriz;ACEITA;;Dados ficticios\n";
 const columns = csvTemplate.split("\n")[0].split(";");
 export function csvState<T extends { id: string }>(ministers: T[]) {
   return createHash("sha256")
@@ -126,6 +126,7 @@ export function planMinisterCsv(
   const spouses = new Map<string, string>();
   const fields: Record<string, string> = {
     nome: "name",
+    nome_preferencia: "preferredName",
     email: "email",
     nascimento: "birthDate",
     telefone: "phone",

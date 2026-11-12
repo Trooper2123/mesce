@@ -3,16 +3,28 @@ import Link from "next/link";
 import { useState } from "react";
 import { eventClassOf } from "@/lib/event-agenda";
 import type { Event } from "@/lib/domain";
+import { MultiDatePicker } from "./multi-date-picker";
 import { Field } from "./fields";
 export function EventFields({
   event,
   assisted,
   visit = false,
+  initialMonth,
 }: {
   event?: Event;
   assisted: { id: string; name: string; ministersRequired: number }[];
   visit?: boolean;
+  initialMonth?: string;
 }) {
+  const [dateMode, setDateMode] = useState<"SINGLE" | "MULTIPLE">("SINGLE");
+  const [dates, setDates] = useState<string[]>([]);
+  const pickerMonth =
+    initialMonth ??
+    new Intl.DateTimeFormat("en-CA", {
+      year: "numeric",
+      month: "2-digit",
+      timeZone: "America/Sao_Paulo",
+    }).format(new Date());
   const [kind, setKind] = useState(event?.kind ?? (visit ? "VISIT" : "MASS"));
   const [category, setCategory] = useState<"FIXED" | "EXTRAORDINARY">(
     event ? eventClassOf(event) : visit ? "EXTRAORDINARY" : "FIXED",
@@ -64,7 +76,7 @@ export function EventFields({
         <>
           <input type="hidden" name="eventClass" value="EXTRAORDINARY" />
           <p className="notice">
-            Evento extraordinário — visita agendada para uma data específica.
+            Cada visita é um evento extraordinário na data selecionada.
           </p>
         </>
       ) : (
@@ -80,7 +92,49 @@ export function EventFields({
           </select>
         </label>
       )}
-      {!event && kind !== "VISIT" && category === "FIXED" ? (
+      {!event ? (
+        <label className="field">
+          Escolher datas
+          <select
+            name="dateMode"
+            value={dateMode}
+            onChange={(e) => setDateMode(e.target.value as typeof dateMode)}
+          >
+            <option value="SINGLE">Uma data / repetição semanal</option>
+            <option value="MULTIPLE">
+              Selecionar várias datas no calendário
+            </option>
+          </select>
+        </label>
+      ) : (
+        <input type="hidden" name="dateMode" value="SINGLE" />
+      )}
+      {dateMode === "MULTIPLE" && !event ? (
+        <>
+          <input type="hidden" name="date" value={dates[0] ?? ""} />
+          <MultiDatePicker
+            value={dates}
+            onChange={setDates}
+            initialMonth={pickerMonth}
+          />
+          <p className="muted">
+            O horário, local e demais dados serão aplicados a todas as datas
+            selecionadas.
+          </p>
+        </>
+      ) : (
+        <Field
+          name="date"
+          label="Data (visitas somente aos domingos)"
+          type="date"
+          value={event?.date}
+          required
+        />
+      )}
+      {!event &&
+      dateMode === "SINGLE" &&
+      kind !== "VISIT" &&
+      category === "FIXED" ? (
         <>
           <Field
             key="weekly"

@@ -1,3 +1,4 @@
+import { ministerDisplayName } from "./minister-name";
 import { latestPublished, type Data } from "./domain";
 
 export function reportPeriod(month: string, months: number) {
@@ -20,7 +21,7 @@ export function operationalReport(data: Data, month: string, months: number) {
       m.id,
       {
         id: m.id,
-        name: m.name,
+        name: ministerDisplayName(m),
         current: true,
         celebrations: 0,
         visits: 0,
