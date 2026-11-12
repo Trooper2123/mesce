@@ -240,11 +240,88 @@ test("cards ordenam missas antes das visitas e abrem edição da ocorrência", (
     const card = cards.find((card) => card.includes(`edit=${e.id}`))!;
     assert.ok(
       card.includes(
-        `href="/celebracoes?edit=${e.id}&amp;month=2030-11#cadastro"`,
+        `href="/celebracoes?edit=${e.id}&amp;month=2030-11&amp;calendarView=FULL&amp;eventClass=ALL#cadastro"`,
       ),
     );
     assert.ok(card.includes('aria-label="Editar '));
     assert.ok(card.includes(e.title));
   }
   assert.equal(events[0], visitLate);
+});
+
+test("resumo exibe todos os eventos apenas com hora e nome e preserva edição", () => {
+  const mass = event({ title: "MISSA_RESUMIDA", time: "19:00" });
+  const visit = event({
+    title: "VISITA_RESUMIDA",
+    kind: "VISIT",
+    time: "07:00",
+  });
+  const html = renderToStaticMarkup(
+    createElement(Calendar, {
+      month: "2030-11",
+      events: [visit, mass],
+      view: "SUMMARY",
+      impediments: { [mass.id]: ["MINISTRO_OCULTO"] },
+    }),
+  );
+  const cards = [
+    ...html.matchAll(/<a [^>]*class="calendar-event [^>]*>[\s\S]*?<\/a>/g),
+  ].map((m) => m[0]);
+  assert.equal(cards.length, 2);
+  assert.ok(cards[0].includes("MISSA_RESUMIDA"));
+  assert.ok(cards[1].includes("VISITA_RESUMIDA"));
+  for (const card of cards) {
+    assert.ok(card.includes("calendarView=SUMMARY"));
+    assert.ok(!card.includes("<small"));
+    assert.ok(!card.includes("vagas"));
+    assert.ok(!card.includes("MINISTRO_OCULTO"));
+  }
+});
+test("modo separado isola missas e visitas com todos os domingos do mês", () => {
+  const mass = event({ title: "MISSA_SEPARADA" });
+  const visit = event({
+    title: "ASSISTIDO_SEPARADO",
+    kind: "VISIT",
+    time: "07:00",
+  });
+  const nextMonth = event({
+    title: "OUTRO_MES_OCULTO",
+    date: "2030-12-01",
+    kind: "VISIT",
+  });
+  const html = renderToStaticMarkup(
+    createElement(Calendar, {
+      month: "2030-11",
+      events: [mass, visit, nextMonth],
+      view: "SPLIT",
+    }),
+  );
+  const tables = [...html.matchAll(/<table[^>]*>[\s\S]*?<\/table>/g)].map(
+    (m) => m[0],
+  );
+  assert.equal(tables.length, 2);
+  assert.ok(tables[0].includes("MISSA_SEPARADA"));
+  assert.ok(!tables[0].includes("ASSISTIDO_SEPARADO"));
+  assert.ok(tables[1].includes("ASSISTIDO_SEPARADO"));
+  assert.ok(!tables[1].includes("MISSA_SEPARADA"));
+  assert.ok(!html.includes("OUTRO_MES_OCULTO"));
+  assert.equal((tables[1].match(/<th /g) ?? []).length, 4);
+  for (const day of ["03", "10", "17", "24"])
+    assert.ok(tables[1].includes(`Domingo ${day}/11`));
+  assert.ok(!tables[1].includes("Segunda"));
+  assert.ok(tables[1].includes("calendarView=SPLIT"));
+});
+test("calendário de assistidos inclui meses com cinco domingos e fevereiro bissexto", () => {
+  for (const [month, expected] of [
+    ["2030-12", ["01", "08", "15", "22", "29"]],
+    ["2032-02", ["01", "08", "15", "22", "29"]],
+  ] as const) {
+    const html = renderToStaticMarkup(
+      createElement(Calendar, { month, events: [], view: "VISITS" }),
+    );
+    assert.equal((html.match(/<th /g) ?? []).length, 5);
+    for (const day of expected)
+      assert.ok(html.includes(`Domingo ${day}/${month.slice(5)}`));
+    assert.equal((html.match(/<td>/g) ?? []).length, 5);
+  }
 });

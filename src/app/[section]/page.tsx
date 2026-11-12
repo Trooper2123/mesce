@@ -53,6 +53,7 @@ export default async function Registry({
     month?: string;
     type?: string;
     eventClass?: string;
+    calendarView?: string;
     new?: string;
   }>;
 }) {
@@ -104,6 +105,10 @@ export default async function Registry({
   const month = /^\d{4}-(0[1-9]|1[0-2])$/.test(query.month ?? "")
     ? query.month!
     : new Date().toISOString().slice(0, 7);
+  const calendarView =
+    query.calendarView === "SPLIT" || query.calendarView === "FULL"
+      ? query.calendarView
+      : "SUMMARY";
   const filtered = rows.filter(
     (r) =>
       (!("kind" in r) ||
@@ -503,9 +508,21 @@ export default async function Registry({
                 ["EXTRAORDINARY", "Extraordinários"],
               ]}
             />
-            <button className="secondary">Ver mês</button>
+            <Field
+              name="calendarView"
+              label="Visualização do calendário"
+              value={calendarView}
+              options={[
+                ["SUMMARY", "Resumido · todos os eventos"],
+                ["SPLIT", "Separado · missas e visitas aos domingos"],
+                ["FULL", "Completo · todos os detalhes"],
+              ]}
+            />
+            <button className="secondary">Ver calendário</button>
           </form>
           <Calendar
+            view={calendarView}
+            eventClass={query.eventClass ?? "ALL"}
             month={month}
             agendaEvents={data.events}
             impediments={Object.fromEntries(
@@ -543,6 +560,7 @@ export default async function Registry({
                 value={query.eventClass ?? "ALL"}
               />
               <input type="hidden" name="month" value={month} />
+              <input type="hidden" name="calendarView" value={calendarView} />
             </>
           )}
           <Field name="q" label="Buscar" value={query.q} />

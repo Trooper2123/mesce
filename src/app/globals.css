@@ -689,3 +689,18 @@ aside {
 #cadastro {
   scroll-margin-top: 24px;
 }
+
+.calendar-sundays {
+  min-width: 700px;
+}
+.calendar-sundays td {
+  min-width: 180px;
+}
+.calendar-compact .calendar-event {
+  font-size: 14px;
+  padding: 4px 6px;
+  margin: 5px 0;
+}
+.calendar-cancelled {
+  text-decoration: line-through;
+}
