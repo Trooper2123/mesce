@@ -11,14 +11,12 @@ import {
   validateSchedule,
   Minister,
   Schedule,
-  requireFuture,
   syncSchedule,
 } from "@/lib/domain";
 import { z } from "zod";
-import { weeklyOccurrences } from "@/lib/recurrence";
+import { planEventSave } from "@/lib/event-agenda";
 import { requireCompleteMinister } from "@/lib/profile";
 import { emailHash } from "@/lib/registration";
-import { parseEventForm, applyVisitStaffing } from "@/lib/event-input";
 import {
   parseAbsenceBatch,
   validateAbsenceSubmission,
@@ -49,6 +47,7 @@ function message(error: unknown) {
 export async function save(form: FormData) {
   const user = await actor();
   const kind = value(form, "kind");
+  let eventMonth = "";
   const page =
     kind === "minister"
       ? "ministros"
@@ -174,47 +173,10 @@ export async function save(form: FormData) {
           }),
         );
       else if (kind === "event") {
-        const event = applyVisitStaffing(
-          parseEventForm(form, id),
-          current.assisted,
-        );
-        requireFuture(event);
-        if (
-          current.events.some(
-            (e) =>
-              e.id !== id &&
-              e.date === event.date &&
-              e.time === event.time &&
-              e.location === event.location &&
-              e.assistedId === event.assistedId,
-          )
-        )
-          throw new Error("Já existe um evento neste horário e local.");
-        const occurrences = z.coerce
-          .number()
-          .int()
-          .min(1)
-          .max(53)
-          .parse(form.get("occurrences") ?? 1);
-        for (const occurrence of weeklyOccurrences(
-          event,
-          occurrences,
-          current.events,
-        )) {
-          requireFuture(occurrence);
-          if (
-            current.events.some(
-              (e) =>
-                e.id !== occurrence.id &&
-                e.date === occurrence.date &&
-                e.time === occurrence.time &&
-                e.location === occurrence.location &&
-                e.assistedId === occurrence.assistedId,
-            )
-          )
-            continue;
+        const occurrences = planEventSave(form, id, current);
+        eventMonth = occurrences[0]?.date.slice(0, 7) ?? "";
+        for (const occurrence of occurrences)
           await write(client, "event", occurrence);
-        }
       } else if (kind === "absence") {
         const entries = form.getAll("rows").length
           ? parseAbsenceBatch(form)
@@ -248,7 +210,9 @@ export async function save(form: FormData) {
     return { error: message(error) };
   }
   revalidatePath("/", "layout");
-  redirect(`/${page}?saved=1`);
+  return {
+    redirectTo: `/${page}?saved=1${eventMonth ? `&month=${eventMonth}` : ""}`,
+  };
 }
 export async function scheduleAction(form: FormData) {
   const user = await coordinator();

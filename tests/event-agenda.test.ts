@@ -1,0 +1,204 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { PGlite } from "@electric-sql/pglite";
+import type { PoolClient } from "pg";
+import { Calendar } from "../src/components/calendar";
+import { EventFields } from "../src/components/event-fields";
+import { type Event, emptyData, blocked } from "../src/lib/domain";
+import { blankMinister } from "../src/lib/profile";
+import {
+  eventClassOf,
+  eventOverlapNotice,
+  overlappingEvents,
+  planEventSave,
+  sortEvents,
+} from "../src/lib/event-agenda";
+import { write, readData } from "../src/lib/store";
+const now = Date.parse("2026-11-01T12:00:00Z");
+const event = (extra: Partial<Event> = {}): Event => ({
+  id: randomUUID(),
+  title: "Missa semanal",
+  date: "2030-11-03",
+  time: "08:00",
+  duration: 60,
+  kind: "MASS",
+  location: "Matriz",
+  required: 1,
+  assistedId: "",
+  notes: "",
+  ...extra,
+});
+function form(e: Event, count = 1) {
+  const f = new FormData();
+  for (const [key, value] of Object.entries(e))
+    if (value !== undefined) f.set(key, String(value));
+  f.set("kind", "event");
+  f.set("eventKind", e.kind);
+  f.set("occurrences", String(count));
+  return f;
+}
+test("nomes e horários iguais são permitidos, inclusive no mesmo local, com aviso", () => {
+  const first = event(),
+    second = event();
+  const data = { ...emptyData(), events: [first] };
+  const planned = planEventSave(form(second), second.id, data, now);
+  assert.equal(planned.length, 1);
+  assert.equal(planned[0].title, first.title);
+  assert.notEqual(planned[0].id, first.id);
+  assert.match(
+    eventOverlapNotice(planned[0], data.events),
+    /Atenção: horário sobreposto/,
+  );
+  assert.equal(
+    eventOverlapNotice(event({ date: "2030-11-04" }), data.events),
+    "",
+  );
+});
+test("avisos consideram duração, ignoram cancelados e a própria ocorrência", () => {
+  const first = event(),
+    overlap = event({ time: "08:30" }),
+    adjacent = event({ time: "09:00" }),
+    cancelled = event({ cancelled: true });
+  assert.deepEqual(
+    overlappingEvents(first, [first, overlap, adjacent, cancelled]).map(
+      (e) => e.id,
+    ),
+    [overlap.id],
+  );
+  assert.deepEqual(overlappingEvents(cancelled, [first]), []);
+});
+test("série fixa preserva nomes e IDs distintos; remarcação individual mantém as próximas datas", () => {
+  const first = event({ eventClass: "FIXED" });
+  const data = emptyData();
+  const series = planEventSave(form(first, 3), first.id, data, now);
+  assert.equal(new Set(series.map((e) => e.id)).size, 3);
+  assert.equal(new Set(series.map((e) => e.seriesId)).size, 1);
+  assert.ok(
+    series.every((e) => e.title === first.title && e.eventClass === "FIXED"),
+  );
+  data.events = series;
+  const moved = { ...series[0], date: "2030-11-04" };
+  const [updated] = planEventSave(form(moved), moved.id, data, now);
+  assert.equal(updated.seriesId, series[1].seriesId);
+  assert.equal(series[1].date, "2030-11-10");
+  assert.equal(updated.date, "2030-11-04");
+});
+test("eventos extraordinários são avulsos e visita não pode ser classificada como fixa", () => {
+  const extra = event({ eventClass: "EXTRAORDINARY" });
+  assert.equal(
+    planEventSave(form(extra), extra.id, emptyData(), now)[0].eventClass,
+    "EXTRAORDINARY",
+  );
+  assert.throws(
+    () => planEventSave(form(extra, 2), extra.id, emptyData(), now),
+    /extraordinários/,
+  );
+  const visit = event({
+    kind: "VISIT",
+    assistedId: randomUUID(),
+    eventClass: "FIXED",
+  });
+  assert.throws(
+    () => planEventSave(form(visit), visit.id, emptyData(), now),
+    /Visitas/,
+  );
+  assert.equal(eventClassOf(event()), "FIXED");
+  assert.equal(eventClassOf(event({ kind: "SPECIAL" })), "EXTRAORDINARY");
+});
+test("calendário ordena por horário, filtra o mês e distingue categorias sem depender só da cor", () => {
+  const evening = event({ title: "NOITE_TESTE", time: "19:00" });
+  const morning = event({ title: "MANHA_TESTE", time: "08:00" });
+  const extra = event({
+    title: "EXTRA_TESTE",
+    time: "10:00",
+    eventClass: "EXTRAORDINARY",
+  });
+  const hidden = event({ title: "OUTRO_MES_TESTE", date: "2030-12-03" });
+  const before = [evening, extra, morning, hidden];
+  const markup = renderToStaticMarkup(
+    createElement(Calendar, { month: "2030-11", events: before }),
+  );
+  assert.ok(markup.indexOf("MANHA_TESTE") < markup.indexOf("EXTRA_TESTE"));
+  assert.ok(markup.indexOf("EXTRA_TESTE") < markup.indexOf("NOITE_TESTE"));
+  assert.ok(!markup.includes("OUTRO_MES_TESTE"));
+  assert.ok(markup.includes("calendar-event-extraordinary"));
+  assert.ok(markup.includes("Fixo recorrente"));
+  assert.deepEqual(before[0], evening);
+  assert.equal(sortEvents(before)[0].id, morning.id);
+  const coincident = event({
+    title: "COINCIDENTE_TESTE",
+    time: "08:00",
+    eventClass: "EXTRAORDINARY",
+  });
+  const filtered = renderToStaticMarkup(
+    createElement(Calendar, {
+      month: "2030-11",
+      events: [morning],
+      agendaEvents: [morning, coincident],
+    }),
+  );
+  assert.ok(filtered.includes("horário sobreposto com COINCIDENTE_TESTE"));
+});
+test("cadastro fixo oferece recorrência e visita usa ocorrência extraordinária", () => {
+  const fixed = renderToStaticMarkup(
+    createElement(EventFields, { assisted: [] }),
+  );
+  assert.ok(fixed.includes('name="occurrences"'));
+  assert.ok(fixed.includes("Repetir semanalmente"));
+  const visit = renderToStaticMarkup(
+    createElement(EventFields, { assisted: [], visit: true }),
+  );
+  assert.ok(visit.includes('name="eventClass" value="EXTRAORDINARY"'));
+  assert.ok(!visit.includes("Repetir semanalmente"));
+});
+test("eventos simultâneos não liberam a mesma pessoa para duas atividades", () => {
+  const minister = {
+    ...blankMinister(randomUUID(), "teste@example.invalid"),
+    registrationStatus: "COMPLETE" as const,
+  };
+  const first = event(),
+    second = event();
+  assert.match(
+    blocked(
+      minister,
+      second,
+      { ...emptyData(), events: [first, second] },
+      [{ eventId: first.id, ministerId: minister.id }],
+      [first, second],
+    ),
+    /Conflito/,
+  );
+});
+test("PostgreSQL persiste dois eventos de mesmo nome e horário sem sobrescrever", async () => {
+  process.env.MESCE_DATA_KEY_HEX = "b".repeat(64);
+  const db = new PGlite();
+  try {
+    for (const file of ["001_initial.sql", "002_access.sql"])
+      await db.exec(await readFile(`migrations/${file}`, "utf8"));
+    const client = {
+      query: (sql: string, params?: unknown[]) => db.query(sql, params),
+    } as unknown as PoolClient;
+    const first = event(),
+      second = event();
+    for (const value of [first, second]) {
+      const planned = planEventSave(
+        form(value),
+        value.id,
+        await readData(client),
+        now,
+      );
+      for (const item of planned) await write(client, "event", item);
+    }
+    const saved = (await readData(client)).events;
+    assert.equal(saved.length, 2);
+    assert.equal(saved[0].title, saved[1].title);
+    assert.equal(saved[0].time, saved[1].time);
+    assert.equal(overlappingEvents(saved[0], saved).length, 1);
+  } finally {
+    await db.close();
+  }
+});

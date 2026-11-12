@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { sortEvents } from "@/lib/event-agenda";
 import { coordinator } from "@/lib/auth";
 import { readData } from "@/lib/store";
 import { Field } from "@/components/fields";
@@ -34,7 +35,7 @@ export default async function Visits({
       {sundays.map((date) => (
         <section className="panel" key={date}>
           <h2>Domingo · {date}</h2>
-          {data.events
+          {sortEvents(data.events)
             .filter(
               (e) => e.kind === "VISIT" && !e.cancelled && e.date === date,
             )

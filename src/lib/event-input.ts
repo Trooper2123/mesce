@@ -1,5 +1,5 @@
 import { eventSchema, type Event, type Assisted } from "./domain";
-export function parseEventForm(form: FormData, id: string) {
+export function parseEventForm(form: FormData, id: string, previous?: Event) {
   if (
     form.getAll("kind").length !== 1 ||
     form.get("kind") !== "event" ||
@@ -11,6 +11,9 @@ export function parseEventForm(form: FormData, id: string) {
     ...raw,
     id,
     kind: raw.eventKind,
+    eventClass: raw.eventClass ?? previous?.eventClass,
+    seriesId: previous?.seriesId,
+    cancelled: previous?.cancelled,
     visitSite: undefined,
     assistedId: raw.eventKind === "VISIT" ? raw.assistedId : "",
     duration: Number(raw.duration),
