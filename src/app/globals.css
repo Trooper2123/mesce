@@ -624,3 +624,54 @@ aside {
   color: #713b00;
   font-weight: 600;
 }
+
+.multi-date-picker {
+  max-width: 660px;
+  min-width: 0;
+}
+.date-picker-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.multi-date-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+  max-width: 420px;
+}
+.multi-date-grid strong {
+  text-align: center;
+  font-size: 16px;
+}
+.multi-date-grid button {
+  padding: 4px;
+  min-height: 48px;
+  min-width: 0;
+  background: #edf4eb;
+  color: #143020;
+  border: 1px solid #b8c9b8;
+}
+.multi-date-grid button[aria-pressed="true"] {
+  background: #214d35;
+  color: white;
+  border: 3px solid #143020;
+  font-weight: 700;
+}
+.selected-event-dates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 0;
+  list-style: none;
+}
+.selected-event-dates li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border: 1px solid #b8c9b8;
+  border-radius: 6px;
+}

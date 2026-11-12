@@ -1,4 +1,11 @@
-import { type Data, type Event, requireFuture, overlaps } from "./domain";
+import { z } from "zod";
+import {
+  type Data,
+  type Event,
+  requireFuture,
+  overlaps,
+  eventSchema,
+} from "./domain";
 import { parseEventForm, applyVisitStaffing } from "./event-input";
 import { weeklyOccurrences } from "./recurrence";
 export function eventClassOf(event: Event): "FIXED" | "EXTRAORDINARY" {
@@ -40,8 +47,25 @@ export function planEventSave(
   now = Date.now(),
 ) {
   const previous = data.events.find((e) => e.id === id);
+  const mode = z
+    .enum(["SINGLE", "MULTIPLE"])
+    .parse(form.get("dateMode") ?? "SINGLE");
+  const rawDates = form.getAll("dates").map((date) => String(date).trim());
+  if (
+    mode === "MULTIPLE" &&
+    (previous || !rawDates.length || rawDates.length > 53)
+  )
+    throw new Error(
+      previous
+        ? "Edite apenas esta ocorrência; selecione múltiplas datas em um novo cadastro."
+        : "Selecione de 1 a 53 datas.",
+    );
+  const dates = [...new Set(rawDates)].sort();
+  const source = new FormData();
+  for (const [key, value] of form.entries()) source.append(key, value);
+  if (mode === "MULTIPLE") source.set("date", dates[0]);
   const parsed = applyVisitStaffing(
-    parseEventForm(form, id, previous),
+    parseEventForm(source, id, previous),
     data.assisted,
   );
   const event = {
@@ -51,7 +75,24 @@ export function planEventSave(
   requireFuture(event, now);
   const raw = form.get("occurrences");
   const count = raw === null ? 1 : Number(raw);
-  const occurrences = weeklyOccurrences(event, count, data.events);
+  if (mode === "MULTIPLE" && count !== 1)
+    throw new Error(
+      "Escolha várias datas ou repetição semanal, sem combinar os dois modos.",
+    );
+  const occurrences =
+    mode === "MULTIPLE"
+      ? dates.map((date, index) =>
+          eventSchema.parse({
+            ...event,
+            date,
+            id: index === 0 ? event.id : crypto.randomUUID(),
+            seriesId:
+              event.eventClass === "FIXED" && dates.length > 1
+                ? event.id
+                : undefined,
+          }),
+        )
+      : weeklyOccurrences(event, count, data.events);
   for (const occurrence of occurrences) requireFuture(occurrence, now);
   return occurrences;
 }

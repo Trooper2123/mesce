@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ministerDisplayName } from "@/lib/minister-name";
 import { AssignmentFields } from "@/components/assignment-fields";
 import {
   advisories,
@@ -224,7 +225,10 @@ export default async function Schedules({
                             (m) =>
                               !m.former && m.registrationStatus !== "DRAFT",
                           )
-                          .map((m) => ({ id: m.id, name: m.name }))}
+                          .map((m) => ({
+                            id: m.id,
+                            name: ministerDisplayName(m),
+                          }))}
                         assignedIds={assigned.map((a) => a.ministerId)}
                       />
                       <Field name="reason" label="Justificativa" required />

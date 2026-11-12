@@ -14,6 +14,7 @@ import {
   syncSchedule,
 } from "@/lib/domain";
 import { z } from "zod";
+import { ministerDisplayName } from "@/lib/minister-name";
 import { planEventSave } from "@/lib/event-agenda";
 import { requireCompleteMinister } from "@/lib/profile";
 import { emailHash } from "@/lib/registration";
@@ -108,6 +109,9 @@ export async function save(form: FormData) {
           .parse(value(form, "participationStatus"));
         const parsed = ministerSchema.parse({
           ...data,
+          preferredName: form.has("preferredName")
+            ? value(form, "preferredName")
+            : (existingMinister?.preferredName ?? ""),
           active: status
             ? status === "ACTIVE" || status === "AWAY"
             : data.active,
@@ -320,6 +324,10 @@ export async function scheduleAction(form: FormData) {
         updated = {
           ...existing,
           status: "APPROVED",
+          ministers: data.ministers.map((m) => ({
+            id: m.id,
+            name: ministerDisplayName(m),
+          })),
           assistedSnapshot: data.assisted
             .filter((p) =>
               existing.events.some(

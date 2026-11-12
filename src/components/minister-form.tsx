@@ -26,6 +26,16 @@ export function MinisterForm({
           required
         />
         <Field
+          name="preferredName"
+          maxLength={80}
+          label="Nome de preferência nas escalas"
+          value={minister.preferredName}
+        />
+        <p className="muted">
+          Use o nome pelo qual deseja aparecer nas escalas e PDFs. Se não
+          preencher, será usado o nome completo.
+        </p>
+        <Field
           name="birthDate"
           label="Data de nascimento"
           type="date"

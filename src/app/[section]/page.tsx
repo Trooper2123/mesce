@@ -191,6 +191,17 @@ export default async function Registry({
                     {kind === "minister" && (
                       <>
                         <Field
+                          name="preferredName"
+                          maxLength={80}
+                          label="Nome de preferência nas escalas"
+                          value={minister?.preferredName}
+                        />
+                        <p className="muted">
+                          Nome usado nas escalas e PDFs. O nome completo
+                          permanece no cadastro; sem preferência, usamos o nome
+                          completo.
+                        </p>
+                        <Field
                           name="email"
                           label="E-mail de acesso"
                           type="email"
@@ -380,6 +391,7 @@ export default async function Registry({
                     />
                     <EventFields
                       event={event}
+                      initialMonth={month}
                       visit={query.type === "VISIT"}
                       assisted={data.assisted
                         .filter((a) => a.active || a.id === event?.assistedId)
@@ -388,13 +400,6 @@ export default async function Registry({
                           name: a.name,
                           ministersRequired: a.ministersRequired ?? 1,
                         }))}
-                    />
-                    <Field
-                      name="date"
-                      label="Data (visitas somente aos domingos)"
-                      type="date"
-                      value={event?.date}
-                      required
                     />
                     <Field
                       name="time"
@@ -575,6 +580,9 @@ export default async function Registry({
                         <>
                           {r.email}
                           <small>{r.phone}</small>
+                          {r.preferredName && (
+                            <small>Nas escalas: {r.preferredName}</small>
+                          )}
                         </>
                       ) : "mobile" in r ? (
                         <>
