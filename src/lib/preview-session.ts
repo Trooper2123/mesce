@@ -1,3 +1,4 @@
+import { z } from "zod";
 import {
   createCipheriv,
   createDecipheriv,
@@ -23,12 +24,48 @@ function key() {
     .update(process.env.MESCE_DEV_SESSION_SECRET ?? "")
     .digest();
 }
-export function createPreviewSession(now = Date.now()) {
+export const previewProfileSchema = z.enum([
+  "COORDINATOR",
+  "MINISTER_A",
+  "MINISTER_B",
+]);
+export type PreviewProfile = z.infer<typeof previewProfileSchema>;
+export const previewProfiles = {
+  COORDINATOR: {
+    label: "Coordenador",
+    sub: "mesce-preview-coordinator",
+    email: "coordenacao@mesce.example",
+    ministerId: undefined,
+  },
+  MINISTER_A: {
+    label: "Ministro de teste A",
+    sub: "mesce-preview-minister-a",
+    email: "ministro-a@mesce.example",
+    ministerId: "9b6de502-6aa9-4c5d-9a6b-fb79c2614c01",
+  },
+  MINISTER_B: {
+    label: "Ministro de teste B",
+    sub: "mesce-preview-minister-b",
+    email: "ministro-b@mesce.example",
+    ministerId: "9b6de502-6aa9-4c5d-9a6b-fb79c2614c02",
+  },
+} as const;
+export function createPreviewSession(
+  now = Date.now(),
+  profile: PreviewProfile = "COORDINATOR",
+) {
+  if (!previewEnabled()) throw new Error("Sessão de homologação indisponível.");
+  previewProfileSchema.parse(profile);
   const iv = randomBytes(12),
     cipher = createCipheriv("aes-256-gcm", key(), iv);
   const body = Buffer.concat([
     cipher.update(
-      JSON.stringify({ sub: "mesce-preview-coordinator", exp: now + 3600000 }),
+      JSON.stringify({
+        version: 2,
+        profile,
+        sub: previewProfiles[profile].sub,
+        exp: now + 3600000,
+      }),
     ),
     cipher.final(),
   ]);
@@ -46,12 +83,23 @@ export function readPreviewSession(raw: string, now = Date.now()) {
         cipher.final(),
       ]).toString(),
     );
-    return session.sub === "mesce-preview-coordinator" && session.exp > now
+    const profile = previewProfileSchema.parse(session.profile);
+    const selected = previewProfiles[profile];
+    return session.version === 2 &&
+      session.sub === selected.sub &&
+      Number.isFinite(session.exp) &&
+      session.exp > now &&
+      session.exp <= now + 3600000
       ? {
-          id: session.sub,
-          email: "coordenacao@mesce.example",
+          id: selected.sub,
+          email: selected.email,
           verified: true,
           preview: true,
+          previewRole:
+            profile === "COORDINATOR"
+              ? ("COORDINATOR" as const)
+              : ("MINISTER" as const),
+          previewProfile: profile,
         }
       : null;
   } catch {
