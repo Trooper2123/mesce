@@ -704,3 +704,15 @@ aside {
 .calendar-cancelled {
   text-decoration: line-through;
 }
+
+.preview-role-banner {
+  margin: 16px 24px 0;
+  padding: 16px;
+  border: 2px solid #a14e00;
+  border-radius: 12px;
+  background: #fff0d8;
+  color: #512a00;
+}
+.preview-role-banner .toolbar {
+  margin-bottom: 0;
+}
