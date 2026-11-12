@@ -1,6 +1,8 @@
 import Link from "next/link";
 import {
   eventClassOf,
+  eventNameOptions,
+  matchesEventName,
   sortEvents,
   eventOverlapNotice,
 } from "@/lib/event-agenda";
@@ -54,6 +56,7 @@ export default async function Registry({
     type?: string;
     eventClass?: string;
     calendarView?: string;
+    eventName?: string;
     new?: string;
   }>;
 }) {
@@ -109,11 +112,13 @@ export default async function Registry({
     query.calendarView === "SPLIT" || query.calendarView === "FULL"
       ? query.calendarView
       : "SUMMARY";
+  const nameOptions = eventNameOptions(data.events);
   const filtered = rows.filter(
     (r) =>
       (!("kind" in r) ||
         !["FIXED", "EXTRAORDINARY"].includes(query.eventClass ?? "") ||
         eventClassOf(r) === query.eventClass) &&
+      (!("kind" in r) || matchesEventName(r, query.eventName)) &&
       (!query.q ||
         JSON.stringify("name" in r ? r.name : "title" in r ? r.title : r)
           .toLowerCase()
@@ -518,9 +523,17 @@ export default async function Registry({
                 ["FULL", "Completo · todos os detalhes"],
               ]}
             />
+            <Field
+              name="eventName"
+              label="Evento cadastrado"
+              value={query.eventName ?? ""}
+              options={[["", "Todos os nomes de eventos"], ...nameOptions]}
+            />
+            {query.q && <input type="hidden" name="q" value={query.q} />}
             <button className="secondary">Ver calendário</button>
           </form>
           <Calendar
+            eventName={query.eventName}
             view={calendarView}
             eventClass={query.eventClass ?? "ALL"}
             month={month}
@@ -535,6 +548,7 @@ export default async function Registry({
             )}
             events={data.events.filter(
               (e) =>
+                matchesEventName(e, query.eventName) &&
                 e.date.startsWith(month) &&
                 (!["FIXED", "EXTRAORDINARY"].includes(query.eventClass ?? "") ||
                   eventClassOf(e) === query.eventClass),
@@ -549,7 +563,9 @@ export default async function Registry({
               ? "Impedimentos registrados"
               : "Cadastros registrados"}
           </h2>
-          <span className="tag">{rows.length} registros</span>
+          <span className="tag">
+            {filtered.length} de {rows.length} registros
+          </span>
         </div>
         <form className="toolbar" role="search">
           {kind === "event" && (
@@ -561,6 +577,12 @@ export default async function Registry({
               />
               <input type="hidden" name="month" value={month} />
               <input type="hidden" name="calendarView" value={calendarView} />
+              <Field
+                name="eventName"
+                label="Evento cadastrado"
+                value={query.eventName ?? ""}
+                options={[["", "Todos os nomes de eventos"], ...nameOptions]}
+              />
             </>
           )}
           <Field name="q" label="Buscar" value={query.q} />
@@ -667,7 +689,15 @@ export default async function Registry({
                       </span>
                     </td>
                     <td>
-                      <Link href={`/${section}?edit=${r.id}`}>Editar</Link>
+                      <Link
+                        href={
+                          kind === "event"
+                            ? `/${section}?${new URLSearchParams({ edit: r.id, month, calendarView, eventClass: query.eventClass ?? "ALL", eventName: query.eventName ?? "", q: query.q ?? "" })}#cadastro`
+                            : `/${section}?edit=${r.id}`
+                        }
+                      >
+                        Editar
+                      </Link>
                     </td>
                   </tr>
                 ))}

@@ -12,6 +12,7 @@ export function Calendar({
   agendaEvents = events,
   view = "FULL",
   eventClass = "ALL",
+  eventName = "",
 }: {
   month: string;
   events: Event[];
@@ -19,16 +20,31 @@ export function Calendar({
   agendaEvents?: Event[];
   view?: "FULL" | "SUMMARY" | "SPLIT" | "MASSES" | "VISITS";
   eventClass?: string;
+  eventName?: string;
 }) {
   if (view === "SPLIT")
     return (
       <>
         <Calendar
-          {...{ month, events, impediments, agendaEvents, eventClass }}
+          {...{
+            month,
+            events,
+            impediments,
+            agendaEvents,
+            eventClass,
+            eventName,
+          }}
           view="MASSES"
         />
         <Calendar
-          {...{ month, events, impediments, agendaEvents, eventClass }}
+          {...{
+            month,
+            events,
+            impediments,
+            agendaEvents,
+            eventClass,
+            eventName,
+          }}
           view="VISITS"
         />
       </>
@@ -128,7 +144,7 @@ export function Calendar({
                           )
                           .map((e) => (
                             <Link
-                              href={`/celebracoes?edit=${encodeURIComponent(e.id)}&month=${month}&calendarView=${view === "MASSES" || view === "VISITS" ? "SPLIT" : view}&eventClass=${encodeURIComponent(eventClass)}#cadastro`}
+                              href={`/celebracoes?edit=${encodeURIComponent(e.id)}&month=${month}&calendarView=${view === "MASSES" || view === "VISITS" ? "SPLIT" : view}&eventClass=${encodeURIComponent(eventClass)}${eventName ? `&eventName=${encodeURIComponent(eventName)}` : ""}#cadastro`}
                               title={
                                 compact
                                   ? [

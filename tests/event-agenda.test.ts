@@ -12,6 +12,8 @@ import { type Event, emptyData, blocked } from "../src/lib/domain";
 import { blankMinister } from "../src/lib/profile";
 import {
   eventClassOf,
+  eventNameOptions,
+  matchesEventName,
   eventOverlapNotice,
   overlappingEvents,
   planEventSave,
@@ -323,5 +325,41 @@ test("calendário de assistidos inclui meses com cinco domingos e fevereiro biss
     for (const day of expected)
       assert.ok(html.includes(`Domingo ${day}/${month.slice(5)}`));
     assert.equal((html.match(/<td>/g) ?? []).length, 5);
+  }
+});
+
+test("seletor usa nomes cadastrados sem duplicar ocorrências e filtra pelo nome inteiro", () => {
+  const events = [
+    event({ title: "Visita Maria" }),
+    event({ title: "Missa semanal" }),
+    event({ title: " missa   SEMANAL " }),
+    event({ title: "Missa semanal especial" }),
+  ];
+  const options = eventNameOptions(events);
+  assert.deepEqual(options, [
+    ["missa semanal", "Missa semanal"],
+    ["missa semanal especial", "Missa semanal especial"],
+    ["visita maria", "Visita Maria"],
+  ]);
+  assert.equal(
+    events.filter((e) => matchesEventName(e, "missa semanal")).length,
+    2,
+  );
+  assert.equal(events.filter((e) => matchesEventName(e, "")).length, 4);
+  assert.equal(events.filter((e) => matchesEventName(e, "removido")).length, 0);
+  assert.deepEqual(eventNameOptions([]), []);
+});
+test("card preserva o nome selecionado ao abrir edição nos modos resumido e separado", () => {
+  const e = event({ title: "Missa & visita" });
+  for (const view of ["SUMMARY", "SPLIT"] as const) {
+    const html = renderToStaticMarkup(
+      createElement(Calendar, {
+        month: "2030-11",
+        events: [e],
+        view,
+        eventName: "missa & visita",
+      }),
+    );
+    assert.ok(html.includes("eventName=missa%20%26%20visita#cadastro"));
   }
 });

@@ -104,3 +104,20 @@ export function planEventSave(
   for (const occurrence of occurrences) requireFuture(occurrence, now);
   return occurrences;
 }
+
+/** Group repeated occurrences by their registered title, without merging events. */
+export function eventNameKey(title: string) {
+  return title.trim().replace(/\s+/g, " ").toLocaleLowerCase("pt-BR");
+}
+export function eventNameOptions(events: Event[]): [string, string][] {
+  const names = new Map<string, string>();
+  for (const event of events) {
+    const label = event.title.trim().replace(/\s+/g, " ");
+    const key = eventNameKey(label);
+    if (key && !names.has(key)) names.set(key, label);
+  }
+  return [...names].sort((a, b) => a[1].localeCompare(b[1], "pt-BR"));
+}
+export function matchesEventName(event: Event, selected?: string) {
+  return !selected || eventNameKey(event.title) === selected;
+}
