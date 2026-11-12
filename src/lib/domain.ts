@@ -66,6 +66,17 @@ export const eventSchema = z
     required: z.number().int().min(1).max(100),
     eventClass: z.enum(["FIXED", "EXTRAORDINARY"]).optional(),
     seriesId: z.string().uuid().optional(),
+    seriesException: z.boolean().optional(),
+    changeNotice: z
+      .object({
+        id: z.string().uuid(),
+        at: z.string(),
+        kind: z.enum(["CANCEL", "RESCHEDULE"]),
+        previousDate: date,
+        previousTime: z.string(),
+        ministerIds: z.array(z.string().uuid()),
+      })
+      .optional(),
     visitSite: z.enum(["HOME", "ALTEVITA"]).optional(),
     assistedId: z.union([z.string().uuid(), z.literal("")]),
     notes: text,
@@ -95,6 +106,9 @@ export const absenceSchema = z
     end: optionalDate,
     eventId: z.union([z.string().uuid(), z.literal("")]),
     reason: text,
+    revokedAt: z.string().optional(),
+    revokedBy: z.string().optional(),
+    withdrawalReason: text.optional(),
   })
   .superRefine((v, ctx) => {
     if (
@@ -187,6 +201,7 @@ export function overlaps(a: Event, b: Event) {
 export function impeded(ministerId: string, event: Event, absences: Absence[]) {
   return absences.some(
     (a) =>
+      !a.revokedAt &&
       a.ministerId === ministerId &&
       (a.scope === "CELEBRATION"
         ? a.eventId === event.id

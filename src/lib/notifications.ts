@@ -2,7 +2,8 @@ import { eventInstant, latestPublished, type Data } from "./domain";
 import type { Identity } from "./access";
 export type Notification = {
   id: string;
-  type: "PUBLICATION" | "REVISION" | "REMINDER" | "CANCELLATION";
+  type:
+    "PUBLICATION" | "REVISION" | "REMINDER" | "CANCELLATION" | "EVENT_CHANGE";
   title: string;
   description: string;
   href: string;
@@ -24,6 +25,32 @@ export function notificationsFor(
   if (!user.coordinator && !member) return [];
   const notices = new Map<string, Notification>();
   const add = (notice: Notification) => notices.set(notice.id, notice);
+  for (const event of data.events) {
+    const change = event.changeNotice;
+    if (
+      !change ||
+      (!user.coordinator && !change.ministerIds.includes(member!.id))
+    )
+      continue;
+    add({
+      id: `event-change:${change.id}`,
+      type: "EVENT_CHANGE",
+      title:
+        change.kind === "CANCEL"
+          ? "Compromisso cancelado"
+          : "Compromisso remarcado",
+      description:
+        change.kind === "CANCEL"
+          ? `O compromisso de ${change.previousDate}, às ${change.previousTime}, foi cancelado. Consulte a coordenação.`
+          : `O compromisso de ${change.previousDate}, às ${change.previousTime}, foi remarcado para ${event.date}, às ${event.time}. Aguarde a escala revisada pela coordenação.`,
+      href: user.coordinator
+        ? `/celebracoes?edit=${event.id}`
+        : "/minhas-escalas",
+      month: event.date.slice(0, 7),
+      revision: 0,
+      scheduleId: "",
+    });
+  }
   for (const schedule of latestPublished(data)) {
     const own = schedule.assignments.filter(
       (a) => user.coordinator || a.ministerId === member?.id,
@@ -53,7 +80,15 @@ export function notificationsFor(
         description: `A revisão ${schedule.revision} de ${schedule.month} substitui a publicação anterior. Consulte a versão vigente.`,
       });
     for (const event of schedule.events) {
-      if (event.cancelled || !own.some((a) => a.eventId === event.id)) continue;
+      const current = data.events.find((e) => e.id === event.id);
+      if (
+        event.cancelled ||
+        current?.cancelled ||
+        (current?.changeNotice &&
+          (current.date !== event.date || current.time !== event.time)) ||
+        !own.some((a) => a.eventId === event.id)
+      )
+        continue;
       const until = eventInstant(event) - now;
       if (until < 0 || until > 7 * 86400000) continue;
       add({

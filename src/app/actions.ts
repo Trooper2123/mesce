@@ -1,4 +1,5 @@
 "use server";
+import { eventChangeNotice } from "@/lib/operational-changes";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { actor, coordinator, assertCurrentActor } from "@/lib/auth";
@@ -179,14 +180,35 @@ export async function save(form: FormData) {
       else if (kind === "event") {
         const occurrences = planEventSave(form, id, current);
         eventMonth = occurrences[0]?.date.slice(0, 7) ?? "";
-        for (const occurrence of occurrences)
-          await write(client, "event", occurrence);
+        for (const occurrence of occurrences) {
+          const previous = current.events.find((e) => e.id === occurrence.id);
+          const changed =
+            previous &&
+            ["date", "time", "duration", "location", "assistedId"].some(
+              (key) =>
+                previous[key as keyof typeof previous] !==
+                occurrence[key as keyof typeof occurrence],
+            );
+          const saved = changed
+            ? eventChangeNotice(previous, occurrence, current)
+            : occurrence;
+          await write(client, "event", saved);
+          if (changed)
+            await audit(client, user.id, "event:reschedule", saved.id, {
+              before: previous,
+              after: saved,
+              reason: "Edição individual",
+            });
+        }
       } else if (kind === "absence") {
         const entries = form.getAll("rows").length
           ? parseAbsenceBatch(form)
           : [
               absenceSchema.parse({
                 ...data,
+                revokedAt: undefined,
+                revokedBy: undefined,
+                withdrawalReason: undefined,
                 end: raw.scope === "DAY" ? raw.start : raw.end,
               }),
             ];
@@ -195,6 +217,7 @@ export async function save(form: FormData) {
           if (
             current.absences.some(
               (a) =>
+                !a.revokedAt &&
                 a.id !== absence.id &&
                 a.ministerId === absence.ministerId &&
                 a.scope === absence.scope &&

@@ -13,6 +13,8 @@ export function parseEventForm(form: FormData, id: string, previous?: Event) {
     kind: raw.eventKind,
     eventClass: raw.eventClass ?? previous?.eventClass,
     seriesId: previous?.seriesId,
+    seriesException: previous?.seriesId ? true : undefined,
+    changeNotice: previous?.changeNotice,
     cancelled: previous?.cancelled,
     visitSite: undefined,
     assistedId: raw.eventKind === "VISIT" ? raw.assistedId : "",
