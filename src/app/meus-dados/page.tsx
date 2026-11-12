@@ -1,3 +1,4 @@
+import { locationCatalog } from "@/lib/locations";
 import { actor } from "@/lib/auth";
 import { readData } from "@/lib/store";
 import { MinisterForm } from "@/components/minister-form";
@@ -23,6 +24,7 @@ export default async function Own({
       <section className="panel">
         {minister ? (
           <MinisterForm
+            catalog={locationCatalog(data)}
             minister={{ ...minister, email: user.email }}
             spouses={data.ministers.map(({ id, name }) => ({ id, name }))}
             action={saveOwnProfile}

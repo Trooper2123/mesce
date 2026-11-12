@@ -1,3 +1,4 @@
+import { defaultLocations, type Location } from "@/lib/location-rules";
 import type { Minister } from "@/lib/domain";
 import { Field } from "./fields";
 import { ServicePreferences } from "./service-preferences";
@@ -7,11 +8,13 @@ export function MinisterForm({
   spouses = [],
   action,
   complete = false,
+  catalog = defaultLocations,
 }: {
   minister: Minister;
   spouses?: Pick<Minister, "id" | "name">[];
   action: (form: FormData) => Promise<SaveResult>;
   complete?: boolean;
+  catalog?: Location[];
 }) {
   return (
     <ActionForm action={action}>
@@ -66,7 +69,7 @@ export function MinisterForm({
         <Field name="city" label="Cidade" value={minister.city} />
         <Field name="state" label="UF" value={minister.state} />
         <Field name="postalCode" label="CEP" value={minister.postalCode} />
-        <ServicePreferences minister={minister} />
+        <ServicePreferences minister={minister} catalog={catalog} />
         {!complete && (
           <>
             <Field

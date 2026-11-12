@@ -1,3 +1,4 @@
+import { locationCatalog } from "@/lib/locations";
 import Link from "next/link";
 import {
   eventClassOf,
@@ -283,7 +284,10 @@ export default async function Registry({
                         ["SEPARATE", "Servir separados"],
                       ]}
                     />
-                    <ServicePreferences minister={minister} />
+                    <ServicePreferences
+                      minister={minister}
+                      catalog={locationCatalog(data)}
+                    />
                     <Field
                       name="participationStatus"
                       label="Situação no ministério"
@@ -404,6 +408,7 @@ export default async function Registry({
                       required
                     />
                     <EventFields
+                      catalog={locationCatalog(data)}
                       event={event}
                       initialMonth={month}
                       visit={query.type === "VISIT"}

@@ -1,4 +1,5 @@
 "use server";
+import { ministerLocations, eventLocation } from "@/lib/locations";
 import { eventChangeNotice } from "@/lib/operational-changes";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -123,6 +124,7 @@ export async function save(form: FormData) {
           monthlyLimit: form.has("monthlyLimit")
             ? data.monthlyLimit
             : (existingMinister?.monthlyLimit ?? null),
+          ...ministerLocations(form, existingMinister, current),
           registrationStatus:
             value(form, "registrationStatus") === "DRAFT"
               ? "DRAFT"
@@ -178,7 +180,16 @@ export async function save(form: FormData) {
           }),
         );
       else if (kind === "event") {
-        const occurrences = planEventSave(form, id, current);
+        const local = eventLocation(
+          form,
+          current.events.find((e) => e.id === id),
+          current,
+        );
+        if (local.location) form.set("location", local.location);
+        const occurrences = planEventSave(form, id, current).map((e) => ({
+          ...e,
+          locationId: local.locationId,
+        }));
         eventMonth = occurrences[0]?.date.slice(0, 7) ?? "";
         for (const occurrence of occurrences) {
           const previous = current.events.find((e) => e.id === occurrence.id);

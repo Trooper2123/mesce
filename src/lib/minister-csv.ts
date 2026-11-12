@@ -175,6 +175,8 @@ export function planMinisterCsv(
         value.away = status === "AFASTADO";
         value.former = status === "EX_MINISTRO";
       }
+      if ("comunidade" in row && row.comunidade !== existing?.location)
+        value.locationIds = undefined;
       if ("limite_mensal" in row)
         value.monthlyLimit = row.limite_mensal
           ? Number(row.limite_mensal)
