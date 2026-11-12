@@ -2,6 +2,10 @@
 
 Versão 2.0 · revisão de escopo em 12/11/2026.
 
+## Uso no TestSprite
+
+O arquivo [PLANO-TESTSPRITE.yaml](PLANO-TESTSPRITE.yaml) segue a estrutura do modelo fornecido: `useCases`, `testCases` e `steps` com ações e `assert`. Contém os 53 cenários implementados ativos e os 14 futuros comentados para impedir execução prematura. URL e credenciais são configuradas no executor. Esta é uma adaptação do plano vigente ao modelo; não é uma declaração de execução ou de importação já realizada no serviço.
+
 ## Objetivo e base
 
 Validar a jornada completa da coordenação e do ministro, as permissões no servidor, a persistência e a preservação do histórico. Este plano amplia o roteiro do TestSprite, sem substituir ou reclassificar o resultado da execução original.
