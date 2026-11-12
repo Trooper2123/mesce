@@ -29,6 +29,14 @@ export function AbsenceFields({
       </label>
       {scope === "CELEBRATION" ? (
         <>
+          <p className="muted">
+            Selecione uma celebração do próximo mês, cuja escala será preparada.
+          </p>
+          {events.length === 0 && (
+            <p role="status">
+              Nenhuma celebração cadastrada para o próximo mês.
+            </p>
+          )}
           <Field
             name={name("eventId")}
             label="Celebração"
