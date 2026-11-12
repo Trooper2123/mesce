@@ -1,4 +1,5 @@
 "use server";
+import { calendarReturn } from "@/lib/calendar-navigation";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -91,7 +92,7 @@ export async function changeEvents(form: FormData) {
     };
   }
   revalidatePath("/", "layout");
-  return { redirectTo: "/celebracoes?saved=1" };
+  return { redirectTo: calendarReturn(form, "saved") };
 }
 export async function monthlyResponse(form: FormData) {
   const user = await actor();

@@ -62,6 +62,21 @@ export function eventChangeNotice(
     },
   };
 }
+export function seriesCandidates(
+  anchor: Event,
+  events: Event[],
+  now = Date.now(),
+) {
+  return events.filter(
+    (e) =>
+      !!anchor.seriesId &&
+      e.seriesId === anchor.seriesId &&
+      !e.cancelled &&
+      eventInstant(e) >= eventInstant(anchor) &&
+      eventInstant(e) > now &&
+      (e.id === anchor.id || !e.seriesException),
+  );
+}
 export function planEventChange(form: FormData, data: Data, now = Date.now()) {
   const id = z.string().uuid().parse(form.get("id"));
   const anchor = data.events.find((e) => e.id === id);
@@ -82,18 +97,11 @@ export function planEventChange(form: FormData, data: Data, now = Date.now()) {
   const reason = z.string().trim().min(3).max(2000).parse(form.get("reason"));
   if (scope === "FOLLOWING" && !anchor.seriesId)
     throw new Error("Evento sem série.");
-  const excluded = new Set(form.getAll("exclude").map(String));
+  const excluded = new Set(
+    scope === "FOLLOWING" ? form.getAll("exclude").map(String) : [],
+  );
   const candidates =
-    scope === "ONE"
-      ? [anchor]
-      : data.events.filter(
-          (e) =>
-            e.seriesId === anchor.seriesId &&
-            !e.cancelled &&
-            eventInstant(e) >= eventInstant(anchor) &&
-            eventInstant(e) > now &&
-            (e.id === anchor.id || !e.seriesException),
-        );
+    scope === "ONE" ? [anchor] : seriesCandidates(anchor, data.events, now);
   if ([...excluded].some((id) => !candidates.some((e) => e.id === id)))
     throw new Error("Exceção inválida para esta série.");
   if (excluded.has(anchor.id))

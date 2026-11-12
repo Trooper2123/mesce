@@ -1,4 +1,5 @@
 "use server";
+import { calendarReturn } from "@/lib/calendar-navigation";
 import { ministerLocations, eventLocation } from "@/lib/locations";
 import { eventChangeNotice } from "@/lib/operational-changes";
 import { revalidatePath } from "next/cache";
@@ -249,7 +250,10 @@ export async function save(form: FormData) {
   }
   revalidatePath("/", "layout");
   return {
-    redirectTo: `/${page}?saved=1${eventMonth ? `&month=${eventMonth}` : ""}`,
+    redirectTo:
+      kind === "event"
+        ? calendarReturn(form, "saved", eventMonth)
+        : `/${page}?saved=1`,
   };
 }
 export async function scheduleAction(form: FormData) {
