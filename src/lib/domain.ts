@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { matchesLocation, type Location } from "./location-rules";
 import { ministerDisplayName } from "./minister-name";
 const text = z.string().trim().max(2000);
 const date = z
@@ -38,6 +39,7 @@ export const ministerSchema = z
     spouseId: z.union([z.string().uuid(), z.literal("")]),
     couplePreference: z.enum(["TOGETHER", "SEPARATE", "NONE"]),
     location: text,
+    locationIds: z.array(z.string().uuid()).max(100).optional(),
     locationPreference: z.enum(["ACCEPT", "PREFER", "EXCLUSIVE"]),
     notes: text,
   })
@@ -63,6 +65,7 @@ export const eventSchema = z
     duration: z.number().int().min(15).max(1440),
     kind: z.enum(["MASS", "ADORATION", "WEDDING", "SPECIAL", "VISIT"]),
     location: text.min(1),
+    locationId: z.string().uuid().optional(),
     required: z.number().int().min(1).max(100),
     eventClass: z.enum(["FIXED", "EXTRAORDINARY"]).optional(),
     seriesId: z.string().uuid().optional(),
@@ -159,6 +162,7 @@ export type Data = {
   settings?: Settings;
 };
 export type Settings = {
+  locations?: Location[];
   unansweredPolicy: "REVIEW" | "ELIGIBLE";
   monthlyLimit: number | null;
   historyMonths: number;
@@ -235,7 +239,7 @@ export function blocked(
   if (
     e.kind !== "VISIT" &&
     m.locationPreference === "EXCLUSIVE" &&
-    m.location !== e.location
+    !matchesLocation(m, e)
   )
     return "Local fora da preferência exclusiva";
   if (impeded(m.id, e, data.absences)) return "Impedimento informado";
@@ -390,10 +394,14 @@ export function generate(data: Data, month: string): Schedule {
             (count(b) + historical(b.id, e.kind === "VISIT")) ||
           Number(consecutive(a)) - Number(consecutive(b)) ||
           Number(
-            b.locationPreference === "PREFER" && b.location === e.location,
+            e.kind !== "VISIT" &&
+              b.locationPreference === "PREFER" &&
+              matchesLocation(b, e),
           ) -
             Number(
-              a.locationPreference === "PREFER" && a.location === e.location,
+              e.kind !== "VISIT" &&
+                a.locationPreference === "PREFER" &&
+                matchesLocation(a, e),
             ) ||
           Number(nearby(b)) - Number(nearby(a)) ||
           a.id.localeCompare(b.id),

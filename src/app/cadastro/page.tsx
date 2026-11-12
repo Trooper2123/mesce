@@ -1,3 +1,4 @@
+import { locationCatalog } from "@/lib/locations";
 import { redirect } from "next/navigation";
 import { identity, resolveActor } from "@/lib/auth";
 import { pool, readData } from "@/lib/store";
@@ -48,6 +49,7 @@ export default async function Register({
       <Notice error={query.error} />
       <section className="panel">
         <MinisterForm
+          catalog={locationCatalog(data)}
           minister={{ ...prior, email: user.email }}
           action={finishRegistration}
           complete

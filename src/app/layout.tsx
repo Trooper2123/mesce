@@ -32,6 +32,7 @@ const links = [
   ["/pre-cadastros", "Pré-cadastros", UsersRound],
   ["/ministros", "Ministros", UsersRound],
   ["/assistidos", "Assistidos", HeartHandshake],
+  ["/locais", "Locais e comunidades", Church],
   ["/celebracoes", "Celebrações e visitas", CalendarDays],
   ["/impedimentos", "Impedimentos", CalendarOff],
   ["/visitas", "Visitas dominicais", HeartHandshake],

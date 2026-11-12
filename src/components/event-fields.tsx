@@ -2,6 +2,11 @@
 import Link from "next/link";
 import { useState } from "react";
 import { eventClassOf } from "@/lib/event-agenda";
+import {
+  defaultLocations,
+  locationKey,
+  type Location,
+} from "@/lib/location-rules";
 import type { Event } from "@/lib/domain";
 import { MultiDatePicker } from "./multi-date-picker";
 import { Field } from "./fields";
@@ -10,11 +15,13 @@ export function EventFields({
   assisted,
   visit = false,
   initialMonth,
+  catalog = defaultLocations,
 }: {
   event?: Event;
   assisted: { id: string; name: string; ministersRequired: number }[];
   visit?: boolean;
   initialMonth?: string;
+  catalog?: Location[];
 }) {
   const [dateMode, setDateMode] = useState<"SINGLE" | "MULTIPLE">("SINGLE");
   const [dates, setDates] = useState<string[]>([]);
@@ -186,12 +193,34 @@ export function EventFields({
           required
         />
       )}
-      <Field
-        name="location"
-        label="Local"
-        value={event?.location ?? (kind === "VISIT" ? "" : "Matriz")}
-        required
-      />
+      {kind === "VISIT" ? (
+        <Field
+          name="location"
+          label="Local da visita (restrito)"
+          value={event?.kind === "VISIT" ? event.location : ""}
+          required
+        />
+      ) : (
+        <Field
+          name="locationId"
+          label="Local da celebração"
+          value={
+            event?.locationId ??
+            catalog.find(
+              (l) =>
+                locationKey(l.name) ===
+                locationKey(event?.location ?? "Matriz"),
+            )?.id
+          }
+          options={catalog
+            .filter((l) => l.active || l.id === event?.locationId)
+            .map((l) => [
+              l.id,
+              l.name + (!l.active ? " (inativo; registro existente)" : ""),
+            ])}
+          required
+        />
+      )}
       {kind === "VISIT" ? (
         <div className="wide">
           <p>

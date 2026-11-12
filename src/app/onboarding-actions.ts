@@ -1,4 +1,5 @@
 "use server";
+import { ministerLocations } from "@/lib/locations";
 import { redirect } from "next/navigation";
 import { cookies, headers } from "next/headers";
 import { revalidatePath } from "next/cache";
@@ -83,7 +84,13 @@ export async function saveOwnProfile(form: FormData) {
       if (!previous || !previous.active)
         throw new Error("Cadastro indisponível. Procure a coordenação.");
       const minister = requireCompleteMinister(
-        ownProfile(Object.fromEntries(form.entries()), previous),
+        ownProfile(
+          {
+            ...Object.fromEntries(form.entries()),
+            ...ministerLocations(form, previous, data),
+          },
+          previous,
+        ),
       );
       validateSpouse(minister, data.ministers);
       if (previous.spouseId && previous.spouseId !== minister.spouseId) {
@@ -125,10 +132,16 @@ export async function finishRegistration(form: FormData) {
       const prior =
         data.ministers.find((m) => m.id === access.minister_id) ??
         blankMinister(access.minister_id, user.email);
-      const profile = ownProfile(Object.fromEntries(form.entries()), {
-        ...prior,
-        email: user.email,
-      });
+      const profile = ownProfile(
+        {
+          ...Object.fromEntries(form.entries()),
+          ...ministerLocations(form, prior, data),
+        },
+        {
+          ...prior,
+          email: user.email,
+        },
+      );
       if (prior.former)
         throw new Error("Cadastro de ex-ministro. Procure a coordenação.");
       requireCompleteMinister(profile);

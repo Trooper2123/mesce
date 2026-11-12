@@ -162,11 +162,11 @@ export async function settingsAction(form: FormData) {
         historyMonths: z.coerce.number().int().min(1).max(36),
       })
       .parse(Object.fromEntries(form.entries()));
-    await transaction(async (client) => {
+    await transaction(async (client, data) => {
       await assertCurrentActor(client, user, true);
       await client.query(
         "INSERT INTO mesce_settings(id,payload) VALUES(1,$1) ON CONFLICT(id) DO UPDATE SET payload=EXCLUDED.payload",
-        [encrypt(settings)],
+        [encrypt({ ...data.settings, ...settings })],
       );
       await audit(client, user.id, "settings:update", undefined, settings);
     });

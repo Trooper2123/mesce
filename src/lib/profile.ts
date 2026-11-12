@@ -13,6 +13,7 @@ export const editableFields = [
   "notes",
   "servicePreference",
   "location",
+  "locationIds",
   "locationPreference",
   "spouseId",
   "couplePreference",
