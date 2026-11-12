@@ -1,5 +1,7 @@
 # Evidências de validação
 
+> Registro histórico da etapa inicial. O plano vigente está em [PLANO-TESTES.md](PLANO-TESTES.md), atualizado em 12/11/2026 com os perfis reais de homologação, evoluções da agenda e catálogo de locais. Os limites abaixo descrevem aquela execução; não anulam evidências posteriores nem comprovam homologação completa.
+
 ## Jornada
 
 Coordenação autentica → cadastra ministros, assistidos e agenda → recebe impedimentos → gera rascunho → ajusta → aprova → publica → ministro consulta seus compromissos e baixa a versão permitida.
