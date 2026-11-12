@@ -566,7 +566,10 @@ a.action {
   padding: 10px;
   vertical-align: top;
 }
-.calendar td p {
+.calendar td .calendar-event {
+  display: block;
+  text-decoration: none;
+  color: inherit;
   font-size: 16px;
   border-left: 3px solid var(--green);
   background: #edf4eb;
@@ -600,19 +603,19 @@ aside {
   border-left: 4px solid;
   font-size: 16px;
 }
-.calendar td p.calendar-event-fixed,
+.calendar td .calendar-event-fixed,
 .event-key-fixed {
   background: #edf4eb;
   border-left-color: #28543b;
   color: #143020;
 }
-.calendar td p.calendar-event-extraordinary,
+.calendar td .calendar-event-extraordinary,
 .event-key-extraordinary {
   background: #fff0d8;
   border-left-color: #a14e00;
   color: #512a00;
 }
-.calendar td p.calendar-event-visit,
+.calendar td .calendar-event-visit,
 .event-key-visit {
   background: #e6f0ff;
   border-left-color: #225a9c;
@@ -674,4 +677,15 @@ aside {
   padding: 4px 8px;
   border: 1px solid #b8c9b8;
   border-radius: 6px;
+}
+
+.calendar-event:hover {
+  box-shadow: inset 0 0 0 1px currentColor;
+}
+.calendar-event:focus-visible {
+  outline: 3px solid var(--green);
+  outline-offset: 2px;
+}
+#cadastro {
+  scroll-margin-top: 24px;
 }

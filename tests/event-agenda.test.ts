@@ -202,3 +202,49 @@ test("PostgreSQL persiste dois eventos de mesmo nome e horário sem sobrescrever
     await db.close();
   }
 });
+
+test("cards ordenam missas antes das visitas e abrem edição da ocorrência", () => {
+  const visitEarly = event({
+    kind: "VISIT",
+    title: "VISITA_CEDO",
+    time: "07:00",
+  });
+  const visitLate = event({
+    kind: "VISIT",
+    title: "VISITA_TARDE",
+    time: "09:00",
+  });
+  const massEarly = event({ title: "MISSA_CEDO", time: "08:00" });
+  const massLate = event({ title: "MISSA_TARDE", time: "19:00" });
+  const sameTime = event({
+    title: "MISSA_OUTRO_LOCAL",
+    time: "08:00",
+    location: "Capela",
+  });
+  const events = [visitLate, massLate, sameTime, visitEarly, massEarly];
+  const html = renderToStaticMarkup(
+    createElement(Calendar, { month: "2030-11", events }),
+  );
+  const cards = [
+    ...html.matchAll(/<a [^>]*class="calendar-event [^>]*>[\s\S]*?<\/a>/g),
+  ].map((m) => m[0]);
+  assert.equal(cards.length, 5);
+  const positions = [massEarly, sameTime, massLate, visitEarly, visitLate].map(
+    (e) => cards.findIndex((card) => card.includes(`edit=${e.id}`)),
+  );
+  assert.ok(positions[0] < positions[1]);
+  assert.ok(positions[1] < positions[2]);
+  assert.ok(positions[2] < positions[3]);
+  assert.ok(positions[3] < positions[4]);
+  for (const e of events) {
+    const card = cards.find((card) => card.includes(`edit=${e.id}`))!;
+    assert.ok(
+      card.includes(
+        `href="/celebracoes?edit=${e.id}&amp;month=2030-11#cadastro"`,
+      ),
+    );
+    assert.ok(card.includes('aria-label="Editar '));
+    assert.ok(card.includes(e.title));
+  }
+  assert.equal(events[0], visitLate);
+});

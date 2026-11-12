@@ -1,6 +1,7 @@
+import Link from "next/link";
 import {
   eventClassOf,
-  sortEvents,
+  sortCalendarEvents,
   eventOverlapNotice,
 } from "@/lib/event-agenda";
 import type { Event } from "@/lib/domain";
@@ -15,7 +16,7 @@ export function Calendar({
   impediments?: Record<string, string[]>;
   agendaEvents?: Event[];
 }) {
-  const ordered = sortEvents(events);
+  const ordered = sortCalendarEvents(events);
   const warnings = new Map(
     ordered.map((event) => [event.id, eventOverlapNotice(event, agendaEvents)]),
   );
@@ -73,14 +74,18 @@ export function Calendar({
                               `${month}-${String(day).padStart(2, "0")}`,
                           )
                           .map((e) => (
-                            <p
+                            <Link
+                              href={`/celebracoes?edit=${encodeURIComponent(e.id)}&month=${month}#cadastro`}
+                              prefetch={false}
+                              aria-label={`Editar ${e.title}, ${e.date.split("-").reverse().join("/")} às ${e.time}, ${e.location}`}
                               key={e.id}
                               className={
-                                e.kind === "VISIT"
+                                "calendar-event " +
+                                (e.kind === "VISIT"
                                   ? "calendar-event-visit"
                                   : eventClassOf(e) === "FIXED"
                                     ? "calendar-event-fixed"
-                                    : "calendar-event-extraordinary"
+                                    : "calendar-event-extraordinary")
                               }
                             >
                               <time>{e.time}</time> {e.title}
@@ -104,7 +109,7 @@ export function Calendar({
                               {(impediments[e.id] ?? []).map((name) => (
                                 <small key={name}>Impedido: {name}</small>
                               ))}
-                            </p>
+                            </Link>
                           ))}
                       </>
                     )}

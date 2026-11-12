@@ -24,6 +24,14 @@ export function sortEvents(events: Event[]) {
       a.id.localeCompare(b.id),
   );
 }
+/** Within each day, celebrations by time, followed by assisted visits by time. */
+export function sortCalendarEvents(events: Event[]) {
+  return sortEvents(events).sort(
+    (a, b) =>
+      a.date.localeCompare(b.date) ||
+      Number(a.kind === "VISIT") - Number(b.kind === "VISIT"),
+  );
+}
 export function overlappingEvents(event: Event, events: Event[]) {
   if (event.cancelled) return [];
   return sortEvents(

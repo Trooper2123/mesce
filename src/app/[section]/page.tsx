@@ -164,6 +164,7 @@ export default async function Registry({
       ) : (
         <section className="panel">
           <details
+            id="cadastro"
             open={
               !!editing ||
               query.new === "1" ||
