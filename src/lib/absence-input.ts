@@ -53,6 +53,8 @@ export function validateAbsenceSubmission(
   )
     throw new Error("Você só pode informar seus impedimentos.");
   const previous = data.absences.find((x) => x.id === a.id);
+  if (previous?.revokedAt)
+    throw new Error("Impedimento retirado; crie um novo registro.");
   if (previous && !user.coordinator && previous.ministerId !== user.ministerId)
     throw new Error("Impedimento de outro ministro.");
   const event =

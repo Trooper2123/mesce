@@ -12,7 +12,7 @@ import { EventFields } from "@/components/event-fields";
 import { AbsenceFields, AbsenceBatch } from "@/components/absence-fields";
 import { ActionForm } from "@/components/action-form";
 import { missingMinisterFields } from "@/lib/profile";
-import { cancelEvent } from "@/app/operations";
+import { changeEvents, withdrawAbsence } from "@/app/operations";
 import { Calendar } from "@/components/calendar";
 import { notFound } from "next/navigation";
 import { actor } from "@/lib/auth";
@@ -474,7 +474,7 @@ export default async function Registry({
                   />
                 )}
               </div>
-              {(kind !== "absence" || !!absence) && (
+              {(kind !== "absence" || (!!absence && !absence.revokedAt)) && (
                 <div className="form-actions">
                   <button type="submit">
                     {editing ? "Salvar alterações" : "Salvar cadastro"}
@@ -484,16 +484,106 @@ export default async function Registry({
               )}
             </ActionForm>
           </details>
+          {absence && !absence.revokedAt && (
+            <ActionForm action={withdrawAbsence}>
+              <input type="hidden" name="id" value={absence.id} />
+              <p>
+                A retirada preserva o histórico e não altera escalas publicadas.
+                Fora do prazo, procure a coordenação.
+              </p>
+              <Field name="reason" label="Justificativa da retirada" required />
+              <button type="submit" className="secondary">
+                Retirar este impedimento
+              </button>
+            </ActionForm>
+          )}
           {event && !event.cancelled && (
-            <form action={cancelEvent} className="toolbar">
-              <input type="hidden" name="id" value={event.id} />
-              <Field
-                name="reason"
-                label="Justificativa do cancelamento"
-                required
-              />
-              <button className="secondary">Cancelar este agendamento</button>
-            </form>
+            <details>
+              <summary>Remarcar ou cancelar ocorrência / série</summary>
+              {data.absences.some(
+                (a) =>
+                  !a.revokedAt &&
+                  a.scope === "CELEBRATION" &&
+                  a.eventId === event.id,
+              ) && (
+                <p className="notice">
+                  Esta ocorrência possui impedimentos específicos. Eles
+                  continuam vinculados ao evento ao remarcar; confirme com os
+                  ministros e revise a escala.
+                </p>
+              )}
+              <ActionForm action={changeEvents}>
+                <input type="hidden" name="id" value={event.id} />
+                <input type="hidden" name="expectedDate" value={event.date} />
+                <input type="hidden" name="expectedTime" value={event.time} />
+                <div className="form-grid">
+                  <Field
+                    name="operation"
+                    label="Ação"
+                    value="RESCHEDULE"
+                    options={[
+                      ["RESCHEDULE", "Remarcar"],
+                      ["CANCEL", "Cancelar"],
+                    ]}
+                  />
+                  <Field
+                    name="scope"
+                    label="Aplicar a"
+                    value="ONE"
+                    options={
+                      event.seriesId
+                        ? [
+                            ["ONE", "Somente esta ocorrência"],
+                            ["FOLLOWING", "Esta e as próximas da série"],
+                          ]
+                        : [["ONE", "Somente esta ocorrência"]]
+                    }
+                  />
+                  <Field
+                    name="date"
+                    label="Nova data (remarcação)"
+                    type="date"
+                    value={event.date}
+                  />
+                  <Field
+                    name="time"
+                    label="Novo horário (remarcação)"
+                    type="time"
+                    value={event.time}
+                  />
+                  <Field name="reason" label="Justificativa" required />
+                </div>
+                <p>
+                  A remarcação da série desloca as datas pelo mesmo número de
+                  dias e aplica o novo horário. Ocorrências passadas, canceladas
+                  e exceções individuais são preservadas. Publicações permanecem
+                  no histórico; revise e publique uma nova versão.
+                </p>
+                {event.seriesId && (
+                  <fieldset>
+                    <legend>
+                      Não alterar estas ocorrências nesta operação
+                    </legend>
+                    {data.events
+                      .filter(
+                        (e) =>
+                          e.seriesId === event.seriesId &&
+                          e.id !== event.id &&
+                          !e.cancelled &&
+                          !e.seriesException &&
+                          e.date + e.time >= event.date + event.time,
+                      )
+                      .map((e) => (
+                        <label className="check" key={e.id}>
+                          <input type="checkbox" name="exclude" value={e.id} />
+                          {e.date} · {e.time} · {e.title}
+                        </label>
+                      ))}
+                  </fieldset>
+                )}
+                <button type="submit">Confirmar alteração dos eventos</button>
+              </ActionForm>
+            </details>
           )}
         </section>
       )}
@@ -661,6 +751,9 @@ export default async function Registry({
                           <small>
                             {r.location} · {r.required} ministros
                           </small>
+                          {r.seriesException && (
+                            <small>Exceção individual da série</small>
+                          )}
                         </>
                       ) : (
                         <>
@@ -679,36 +772,40 @@ export default async function Registry({
                     </td>
                     <td>
                       <span className="tag">
-                        {"former" in r && r.former
-                          ? "Ex-ministro"
-                          : "registrationStatus" in r &&
-                              r.registrationStatus === "DRAFT"
-                            ? "Cadastro pendente"
-                            : "cancelled" in r && r.cancelled
-                              ? "Cancelado"
-                              : "active" in r
-                                ? r.active
-                                  ? "away" in r && r.away
-                                    ? "Afastado"
-                                    : "Ativo"
-                                  : "Inativo"
-                                : "kind" in r
-                                  ? r.kind === "VISIT"
-                                    ? "Visita"
-                                    : "Celebração"
-                                  : "Registrado"}
+                        {"revokedAt" in r && r.revokedAt
+                          ? "Retirado"
+                          : "former" in r && r.former
+                            ? "Ex-ministro"
+                            : "registrationStatus" in r &&
+                                r.registrationStatus === "DRAFT"
+                              ? "Cadastro pendente"
+                              : "cancelled" in r && r.cancelled
+                                ? "Cancelado"
+                                : "active" in r
+                                  ? r.active
+                                    ? "away" in r && r.away
+                                      ? "Afastado"
+                                      : "Ativo"
+                                    : "Inativo"
+                                  : "kind" in r
+                                    ? r.kind === "VISIT"
+                                      ? "Visita"
+                                      : "Celebração"
+                                    : "Registrado"}
                       </span>
                     </td>
                     <td>
-                      <Link
-                        href={
-                          kind === "event"
-                            ? `/${section}?${new URLSearchParams({ edit: r.id, month, calendarView, eventClass: query.eventClass ?? "ALL", eventName: query.eventName ?? "", q: query.q ?? "" })}#cadastro`
-                            : `/${section}?edit=${r.id}`
-                        }
-                      >
-                        Editar
-                      </Link>
+                      {!("revokedAt" in r && r.revokedAt) && (
+                        <Link
+                          href={
+                            kind === "event"
+                              ? `/${section}?${new URLSearchParams({ edit: r.id, month, calendarView, eventClass: query.eventClass ?? "ALL", eventName: query.eventName ?? "", q: query.q ?? "" })}#cadastro`
+                              : `/${section}?edit=${r.id}`
+                          }
+                        >
+                          Editar
+                        </Link>
+                      )}
                     </td>
                   </tr>
                 ))}

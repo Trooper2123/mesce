@@ -28,11 +28,14 @@ export default async function Notifications({
           <h2>{selected.title}</h2>
           <p>{selected.description}</p>
           <p>
-            {selected.month} · Revisão {selected.revision}
+            {selected.month}
+            {selected.revision > 0 ? ` · Revisão ${selected.revision}` : ""}
           </p>
           <div className="hero-actions">
             <Link className="button" href={selected.href}>
-              Abrir escala relacionada
+              {selected.type === "EVENT_CHANGE"
+                ? "Consultar compromisso"
+                : "Abrir escala relacionada"}
             </Link>
             <Link href="/notificacoes">Voltar às notificações</Link>
           </div>

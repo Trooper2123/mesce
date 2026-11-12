@@ -51,7 +51,13 @@ export function operationalReport(data: Data, month: string, months: number) {
   const events = schedules
     .flatMap((s) =>
       s.events
-        .filter((e) => !e.cancelled)
+        .filter(
+          (e) =>
+            !e.cancelled &&
+            !data.events.some(
+              (current) => current.id === e.id && current.cancelled,
+            ),
+        )
         .map((e) => {
           const assignments = [
             ...new Set(
