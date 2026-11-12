@@ -3,6 +3,7 @@ import {
   eventClassOf,
   eventNameOptions,
   matchesEventName,
+  matchesEventSearch,
   sortEvents,
   eventOverlapNotice,
 } from "@/lib/event-agenda";
@@ -119,10 +120,12 @@ export default async function Registry({
         !["FIXED", "EXTRAORDINARY"].includes(query.eventClass ?? "") ||
         eventClassOf(r) === query.eventClass) &&
       (!("kind" in r) || matchesEventName(r, query.eventName)) &&
-      (!query.q ||
-        JSON.stringify("name" in r ? r.name : "title" in r ? r.title : r)
-          .toLowerCase()
-          .includes(query.q.toLowerCase())),
+      ("kind" in r
+        ? matchesEventSearch(r, query.q)
+        : !query.q ||
+          JSON.stringify("name" in r ? r.name : r)
+            .toLowerCase()
+            .includes(query.q.toLowerCase())),
   );
   return (
     <>
@@ -585,7 +588,15 @@ export default async function Registry({
               />
             </>
           )}
-          <Field name="q" label="Buscar" value={query.q} />
+          <Field
+            name="q"
+            label={
+              kind === "event"
+                ? "Buscar por nome, data, horário ou local"
+                : "Buscar"
+            }
+            value={query.q}
+          />
           <button className="secondary" type="submit">
             Buscar
           </button>

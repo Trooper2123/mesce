@@ -14,6 +14,7 @@ import {
   eventClassOf,
   eventNameOptions,
   matchesEventName,
+  matchesEventSearch,
   eventOverlapNotice,
   overlappingEvents,
   planEventSave,
@@ -362,4 +363,50 @@ test("card preserva o nome selecionado ao abrir edição nos modos resumido e se
     );
     assert.ok(html.includes("eventName=missa%20%26%20visita#cadastro"));
   }
+});
+
+test("busca encontra a data digitada na imagem tanto em ISO quanto em formato brasileiro", () => {
+  const records = [
+    event({ date: "2026-12-06" }),
+    event({ date: "2026-12-13" }),
+    event({ date: "2026-11-06" }),
+  ];
+  for (const query of ["2026-12-06", "06/12/2026", "  2026-12-06  "]) {
+    assert.deepEqual(
+      records.filter((e) => matchesEventSearch(e, query)).map((e) => e.date),
+      ["2026-12-06"],
+    );
+  }
+  assert.equal(
+    records.filter((e) => matchesEventSearch(e, "07/12/2026")).length,
+    0,
+  );
+});
+test("busca combina data com nome e horário sem perder o seletor de evento", () => {
+  const e = event({
+    date: "2026-12-06",
+    title: "Missa dominical",
+    location: "Capela",
+    time: "08:30",
+  });
+  for (const query of [
+    "missa",
+    "CAPELA",
+    "08:30",
+    "dominical 06/12/2026",
+    "2026-12-06 08:30 capela",
+    "",
+    "  ",
+  ])
+    assert.ok(matchesEventSearch(e, query));
+  assert.ok(!matchesEventSearch(e, "2026-12-06 19:00"));
+  assert.ok(
+    matchesEventName(e, "missa dominical") &&
+      matchesEventSearch(e, "2026-12-06"),
+  );
+  assert.ok(
+    !(
+      matchesEventName(e, "outro evento") && matchesEventSearch(e, "2026-12-06")
+    ),
+  );
 });

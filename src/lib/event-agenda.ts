@@ -121,3 +121,19 @@ export function eventNameOptions(events: Event[]): [string, string][] {
 export function matchesEventName(event: Event, selected?: string) {
   return !selected || eventNameKey(event.title) === selected;
 }
+
+/** Search only public event fields, including both supported date formats. */
+export function matchesEventSearch(event: Event, query?: string) {
+  const terms =
+    query?.trim().toLocaleLowerCase("pt-BR").split(/\s+/).filter(Boolean) ?? [];
+  const searchable = [
+    event.title,
+    event.date,
+    event.date.split("-").reverse().join("/"),
+    event.time,
+    event.location,
+  ]
+    .join(" ")
+    .toLocaleLowerCase("pt-BR");
+  return terms.every((term) => searchable.includes(term));
+}
