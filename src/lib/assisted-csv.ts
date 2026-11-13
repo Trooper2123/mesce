@@ -3,7 +3,7 @@ import { z } from "zod";
 import { assistedSchema, type Assisted } from "./domain";
 import { parseCsv, type CsvPlan } from "./minister-csv";
 export const assistedCsvTemplate =
-  "id;nome;endereco;bairro;cidade;uf;cep;telefone_fixo;telefone_movel;familiar;telefone_familiar;quantidade_ministros;visita_grupal;ativo;observacoes\n;Assistido Exemplo;Rua Exemplo 10;Centro;Brasilia;DF;70000000;6133333333;61999999999;Familiar Exemplo;61988888888;1;NAO;SIM;Dados ficticios - substitua antes de importar\n;Instituicao Exemplo;Rua Exemplo 20;Centro;Brasilia;DF;70000000;;61977777777;Responsavel Exemplo;61966666666;3;SIM;SIM;Exemplo de visita grupal com tres ministros\n";
+  "id;nome;endereco;bairro;cidade;uf;cep;telefone_fixo;telefone_movel;familiar;telefone_familiar;quantidade_ministros;visita_grupal;grupo;ativo;observacoes\n;Assistido Exemplo;Rua Exemplo 10;Centro;Brasilia;DF;70000000;6133333333;61999999999;Familiar Exemplo;61988888888;1;NAO;;SIM;Dados ficticios - substitua antes de importar\n;Instituicao Exemplo;Rua Exemplo 20;Centro;Brasilia;DF;70000000;;61977777777;Responsavel Exemplo;61966666666;3;SIM;Grupo Exemplo;SIM;Exemplo de visita grupal com tres ministros\n";
 const fields = {
   nome: "name",
   endereco: "address",
@@ -15,6 +15,7 @@ const fields = {
   telefone_movel: "mobile",
   familiar: "familyName",
   telefone_familiar: "familyPhone",
+  grupo: "groupName",
   observacoes: "notes",
 } as const;
 const fingerprint = (a: Assisted) =>

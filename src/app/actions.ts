@@ -171,17 +171,35 @@ export async function save(form: FormData) {
             couplePreference: minister.couplePreference,
           } as Minister);
         await write(client, "minister", minister);
-      } else if (kind === "assisted")
+      } else if (kind === "assisted") {
+        const groupVisit = form.has("groupVisit");
+        const requestedGroup = String(form.get("groupName") ?? "").trim();
+        if (groupVisit && requestedGroup.length < 2)
+          throw new Error(
+            "Para cadastrar este assistido em um grupo, selecione um grupo existente ou informe o nome do novo grupo.",
+          );
+        const normalizedGroup = (name: string) =>
+          name.trim().toLocaleLowerCase("pt-BR").replace(/\s+/g, " ");
+        const existingGroup = groupVisit
+          ? current.assisted.find(
+              (assisted) =>
+                assisted.groupVisit &&
+                assisted.groupName &&
+                normalizedGroup(assisted.groupName) ===
+                  normalizedGroup(requestedGroup),
+            )?.groupName
+          : undefined;
         await write(
           client,
           "assisted",
           assistedSchema.parse({
             ...data,
             ministersRequired: Number(form.get("ministersRequired")),
-            groupVisit: form.has("groupVisit"),
+            groupVisit,
+            groupName: groupVisit ? (existingGroup ?? requestedGroup) : "",
           }),
         );
-      else if (kind === "event") {
+      } else if (kind === "event") {
         const local = eventLocation(
           form,
           current.events.find((e) => e.id === id),

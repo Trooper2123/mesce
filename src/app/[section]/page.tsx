@@ -16,6 +16,7 @@ import {
 } from "@/lib/event-agenda";
 import { ServicePreferences } from "@/components/service-preferences";
 import { EventFields } from "@/components/event-fields";
+import { AssistedGroupFields } from "@/components/assisted-group-fields";
 import { AbsenceFields, AbsenceBatch } from "@/components/absence-fields";
 import { ActionForm } from "@/components/action-form";
 import { missingMinisterFields } from "@/lib/profile";
@@ -459,10 +460,17 @@ export default async function Registry({
                       conforme a necessidade. O valor será usado nas novas
                       visitas e nas visitas editadas.
                     </p>
-                    <Check
-                      name="groupVisit"
-                      label="Este assistido pertence a uma visita grupal"
+                    <AssistedGroupFields
                       checked={assisted?.groupVisit ?? false}
+                      currentGroup={assisted?.groupName}
+                      groups={[
+                        ...new Set(
+                          data.assisted
+                            .filter((item) => item.active && item.groupVisit)
+                            .map((item) => item.groupName?.trim() ?? "")
+                            .filter(Boolean),
+                        ),
+                      ]}
                     />
                     <Check
                       name="active"
@@ -855,7 +863,13 @@ export default async function Registry({
                             <small>
                               {r.ministersRequired ?? 1} ministro(s) por visita
                             </small>
-                            {r.groupVisit && <small>Visita grupal</small>}
+                            {r.groupVisit && (
+                              <small>
+                                {r.groupName
+                                  ? `Visita grupal · ${r.groupName}`
+                                  : "Visita grupal · grupo não definido"}
+                              </small>
+                            )}
                           </>
                         ) : "time" in r ? (
                           <>
