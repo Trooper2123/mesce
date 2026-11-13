@@ -30,6 +30,17 @@ export async function sendSingleSmtpTest() {
   if (!previewTestEnabled()) redirect("/minhas-escalas");
 
   const user = await coordinator();
+  const host = process.env.MESCE_SMTP_HOST;
+  const smtpUser = process.env.MESCE_SMTP_USER;
+  const password = process.env.MESCE_SMTP_PASSWORD;
+  const port = Number(process.env.MESCE_SMTP_PORT || 587);
+  const from = process.env.MESCE_SMTP_FROM || smtpUser;
+  const appUrl =
+    process.env.APP_BASE_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "");
+  if (!host || !smtpUser || !password || !from || !appUrl)
+    redirect("/minhas-escalas/teste-email?error=config");
+
   const reserved = await transaction(async (client) => {
     await assertCurrentActor(client, user, true);
     await client.query(`
@@ -50,17 +61,6 @@ export async function sendSingleSmtpTest() {
     return result.rowCount === 1;
   });
   if (!reserved) redirect("/minhas-escalas/teste-email?attempted=1");
-
-  const host = process.env.MESCE_SMTP_HOST;
-  const smtpUser = process.env.MESCE_SMTP_USER;
-  const password = process.env.MESCE_SMTP_PASSWORD;
-  const port = Number(process.env.MESCE_SMTP_PORT || 587);
-  const from = process.env.MESCE_SMTP_FROM || smtpUser;
-  const appUrl =
-    process.env.APP_BASE_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "");
-  if (!host || !smtpUser || !password || !from || !appUrl)
-    redirect("/minhas-escalas/teste-email?error=config");
 
   const now = new Date();
   const eventDate = new Date(now.getTime() + 7 * 86400000);
