@@ -1,3 +1,4 @@
+import { visitAssistedIds } from "@/lib/visit-group";
 import {
   PDFDocument,
   StandardFonts,
@@ -397,8 +398,10 @@ async function render(
           String(Number(e.date.slice(8))),
           namesFor(schedule, e),
           restricted
-            ? (schedule.assistedSnapshot?.find((p) => p.id === e.assistedId)
-                ?.name ?? "Assistido não informado")
+            ? (schedule.assistedSnapshot
+                ?.filter((p) => visitAssistedIds(e).includes(p.id))
+                .map((p) => p.name)
+                .join(", ") ?? "Assistido não informado")
             : visitCodes.get(e.assistedId)!,
         ],
       })),
@@ -461,7 +464,7 @@ async function render(
   );
   bottomRight -= noteHeight;
   if (restricted) {
-    const ids = new Set(visits.map((e) => e.assistedId));
+    const ids = new Set(visits.flatMap(visitAssistedIds));
     const people = (schedule.assistedSnapshot ?? []).filter((p) =>
       ids.has(p.id),
     );

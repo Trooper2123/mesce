@@ -1,3 +1,4 @@
+import { visitAssistedIds } from "./visit-group";
 import { ministerDisplayName } from "./minister-name";
 import { latestPublished, type Data } from "./domain";
 
@@ -105,6 +106,12 @@ export function operationalReport(data: Data, month: string, months: number) {
             filled: assignments.length,
             vacancies: Math.max(0, e.required - assignments.length),
             assisted,
+            assistedPeople:
+              e.kind === "VISIT"
+                ? (s.assistedSnapshot ?? []).filter((a) =>
+                    visitAssistedIds(e).includes(a.id),
+                  )
+                : [],
           };
         }),
     )
