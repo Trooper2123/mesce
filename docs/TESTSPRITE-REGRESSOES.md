@@ -23,6 +23,8 @@ Base: branch `dev` de `Trooper2123/mesce`, commit `77f2a0b0f66eeb11878e460f5339f
 
 ## Revalidação em homologação
 
+O roteiro abaixo corresponde à regressão original. Para o escopo atual e os novos cenários, usar [Plano de testes do produto](PLANO-TESTES.md). A entrada `/acesso-dev` agora permite coordenador e ministros A/B; ministros entram em Minhas escalas. A execução original de 17 testes não cobre automaticamente as evoluções seguintes.
+
 1. Publicar a branch de correção em Preview com banco sintético isolado e acesso de teste autorizado.
 2. Confirmar cadastro completo de ministro, impedimentos de dia/período/celebração e feedback único após persistência e recarga.
 3. Abrir uma revisão, selecionar um ministro ainda não designado, completar a capacidade, validar/aprovar/publicar e conferir a preservação do PDF anterior.
