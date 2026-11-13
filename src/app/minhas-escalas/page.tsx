@@ -33,6 +33,15 @@ export default async function Mine() {
       <Link className="button secondary" href="/impedimentos">
         Informar impedimento
       </Link>
+      {minister && (
+        <Link
+          className="button secondary"
+          href="/minhas-escalas/calendario"
+          style={{ marginInlineStart: 8 }}
+        >
+          Configurar agenda pessoal
+        </Link>
+      )}
       {!minister ? (
         <p className="notice">
           Procure a coordenação para vincular seu e-mail verificado ao cadastro
