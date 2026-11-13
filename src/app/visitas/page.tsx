@@ -4,6 +4,7 @@ import { sortEvents } from "@/lib/event-agenda";
 import { coordinator } from "@/lib/auth";
 import { readData } from "@/lib/store";
 import { Field } from "@/components/fields";
+import { nextMonth } from "@/lib/domain";
 export const dynamic = "force-dynamic";
 export default async function Visits({
   searchParams,
@@ -14,7 +15,7 @@ export default async function Visits({
   const query = await searchParams;
   const month = /^\d{4}-(0[1-9]|1[0-2])$/.test(query.month ?? "")
     ? query.month!
-    : new Date().toISOString().slice(0, 7);
+    : nextMonth();
   const data = await readData();
   const [year, m] = month.split("-").map(Number);
   const days = new Date(Date.UTC(year, m, 0)).getUTCDate();

@@ -2,6 +2,8 @@ import { actor } from "@/lib/auth";
 import { readData } from "@/lib/store";
 import { monthlyResponse } from "@/app/operations";
 import { Notice, Field } from "@/components/fields";
+import { nextMonth } from "@/lib/domain";
+import Link from "next/link";
 export const dynamic = "force-dynamic";
 export default async function Responses({
   searchParams,
@@ -11,15 +13,9 @@ export default async function Responses({
   const user = await actor();
   const data = await readData();
   const query = await searchParams;
-  const now = new Date();
-  const next = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1),
-  )
-    .toISOString()
-    .slice(0, 7);
   const month = /^\d{4}-(0[1-9]|1[0-2])$/.test(query.month ?? "")
     ? query.month!
-    : next;
+    : nextMonth();
   const ministers = data.ministers.filter(
     (m) =>
       m.active &&
@@ -29,10 +25,10 @@ export default async function Responses({
   );
   return (
     <>
-      <h1>Respostas de disponibilidade</h1>
+      <h1>Impedimentos do mês</h1>
       <p className="subtitle">
-        Registre seus impedimentos antes de concluir o envio. Também é possível
-        informar que você não possui impedimentos.
+        Informe os impedimentos do próximo mês e confirme quando não houver
+        nenhum a registrar.
       </p>
       <Notice {...query} />
       <form className="toolbar">
@@ -43,6 +39,9 @@ export default async function Responses({
           value={month}
         />
         <button className="secondary">Consultar</button>
+        <Link className="button secondary" href="/impedimentos">
+          Cancelar
+        </Link>
       </form>
       <section className="panel">
         <h2>
@@ -83,11 +82,14 @@ export default async function Responses({
                         <input type="hidden" name="ministerId" value={m.id} />
                         <button className="secondary">
                           {user.coordinator
-                            ? "Consolidar resposta"
+                            ? "Consolidar impedimentos"
                             : count
-                              ? "Concluir envio"
-                              : "Concluir sem impedimentos"}
+                              ? "Concluir impedimentos"
+                              : "Confirmar sem impedimentos"}
                         </button>
+                        <Link className="button secondary" href="/impedimentos">
+                          Cancelar
+                        </Link>
                       </form>
                     </td>
                   </tr>

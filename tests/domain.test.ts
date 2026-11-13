@@ -26,7 +26,6 @@ const m = (extra: Partial<Minister> = {}): Minister => ({
   state: "",
   postalCode: "",
   active: true,
-  away: false,
   monthlyLimit: 20,
   spouseId: "",
   couplePreference: "NONE",
@@ -95,11 +94,11 @@ test("dia e período inclusivo bloqueiam todas as atividades aplicáveis", () =>
     assert.equal(generate(d, "2026-11").assignments.length, 0);
   }
 });
-test("não escala ministros inativos, afastados ou fora de local exclusivo", () => {
+test("não escala ex-ministros ou ministros fora de local exclusivo", () => {
   const d = data(
     [
       m({ active: false }),
-      m({ away: true }),
+      m({ former: true }),
       m({ location: "Capela", locationPreference: "EXCLUSIVE" }),
     ],
     [e()],

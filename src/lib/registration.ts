@@ -112,7 +112,6 @@ export async function completeRegistration(
     id: access.minister_id,
     email: normalizeEmail(identity.email),
     active: prior?.active ?? true,
-    away: prior?.away ?? false,
     former: prior?.former ?? false,
   });
   await write(client, "minister", minister);

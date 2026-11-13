@@ -33,7 +33,6 @@ export function blankMinister(id: string, email: string): Minister {
     state: "",
     postalCode: "",
     active: true,
-    away: false,
     monthlyLimit: null,
     spouseId: "",
     couplePreference: "NONE",

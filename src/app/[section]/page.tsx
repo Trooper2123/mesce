@@ -27,6 +27,7 @@ import { readData, transaction, audit } from "@/lib/store";
 import { save } from "@/app/actions";
 import { Field, Check, Notice } from "@/components/fields";
 import { impeded, Minister, Assisted, Event, Absence } from "@/lib/domain";
+import { Fragment } from "react";
 export const dynamic = "force-dynamic";
 const sections = {
   ministros: [
@@ -155,6 +156,22 @@ export default async function Registry({
         </p>
       )}
       <Notice error={query.error} saved={query.saved} />
+      {kind === "minister" && user.coordinator && (
+        <div className="cards">
+          <article className="card">
+            <div className="card-title">Ativos</div>
+            <span className="stat">
+              {data.ministers.filter((m) => m.active && !m.former).length}
+            </span>
+          </article>
+          <article className="card">
+            <div className="card-title">Ex-ministros</div>
+            <span className="stat">
+              {data.ministers.filter((m) => m.former || !m.active).length}
+            </span>
+          </article>
+        </div>
+      )}
       {query.deleted && (
         <p role="status" className="notice">
           Cadastro excluído com sucesso.
@@ -316,18 +333,12 @@ export default async function Registry({
                       name="participationStatus"
                       label="Situação no ministério"
                       value={
-                        minister?.former
+                        minister?.former || minister?.active === false
                           ? "FORMER"
-                          : minister?.away
-                            ? "AWAY"
-                            : minister?.active === false
-                              ? "INACTIVE"
-                              : "ACTIVE"
+                          : "ACTIVE"
                       }
                       options={[
                         ["ACTIVE", "Ativo"],
-                        ["AWAY", "Afastado temporariamente"],
-                        ["INACTIVE", "Inativo"],
                         ["FORMER", "Ex-ministro"],
                       ]}
                     />
@@ -509,6 +520,9 @@ export default async function Registry({
                   <button type="submit">
                     {editing ? "Salvar alterações" : "Salvar cadastro"}
                   </button>
+                  <button type="reset" className="secondary">
+                    Cancelar
+                  </button>
                   {editing && (
                     <Link
                       href={`/${section}${kind === "event" ? `?month=${month}` : ""}`}
@@ -516,6 +530,16 @@ export default async function Registry({
                       Cancelar edição
                     </Link>
                   )}
+                </div>
+              )}
+              {kind === "absence" && !absence && (
+                <div className="form-actions">
+                  <button type="reset" className="secondary">
+                    Cancelar
+                  </button>
+                  <Link className="button secondary" href="/impedimentos">
+                    Voltar
+                  </Link>
                 </div>
               )}
             </ActionForm>
@@ -603,7 +627,12 @@ export default async function Registry({
                   e exceções individuais são preservadas. Publicações permanecem
                   no histórico; revise e publique uma nova versão.
                 </p>
-                <button type="submit">Confirmar alteração dos eventos</button>
+                <div className="form-actions">
+                  <button type="submit">Confirmar alteração dos eventos</button>
+                  <button type="reset" className="secondary">
+                    Cancelar
+                  </button>
+                </div>
               </ActionForm>
             </details>
           )}
@@ -730,122 +759,141 @@ export default async function Registry({
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((r) => (
-                  <tr key={r.id}>
-                    <td>
-                      {"name" in r
-                        ? r.name
-                        : "title" in r
-                          ? r.title
-                          : data.ministers.find((m) => m.id === r.ministerId)
-                              ?.name}
-                    </td>
-                    <td>
-                      {"phone" in r ? (
-                        <>
-                          {r.email}
-                          <small>{r.phone}</small>
-                          {r.preferredName && (
-                            <small>Nas escalas: {r.preferredName}</small>
-                          )}
-                        </>
-                      ) : "mobile" in r ? (
-                        <>
-                          {r.neighborhood}
-                          <small>{r.mobile || r.landline}</small>
-                          <small>ID para importação: {r.id}</small>
-                          <small>
-                            {r.ministersRequired ?? 1} ministro(s) por visita
-                          </small>
-                        </>
-                      ) : "time" in r ? (
-                        <>
-                          {r.date} · {r.time}
-                          {eventOverlapNotice(r, data.events) && (
-                            <small className="event-overlap">
-                              {eventOverlapNotice(r, data.events)}
+                {filtered.map((r, index) => (
+                  <Fragment key={r.id}>
+                    {kind === "event" &&
+                      "date" in r &&
+                      (index === 0 ||
+                        !("date" in filtered[index - 1]) ||
+                        (filtered[index - 1] as Event).date.slice(0, 7) !==
+                          r.date.slice(0, 7)) && (
+                        <tr>
+                          <th colSpan={4} scope="rowgroup">
+                            {new Intl.DateTimeFormat("pt-BR", {
+                              month: "long",
+                              year: "numeric",
+                              timeZone: "UTC",
+                            }).format(
+                              new Date(`${r.date.slice(0, 7)}-01T12:00:00Z`),
+                            )}
+                          </th>
+                        </tr>
+                      )}
+                    <tr>
+                      <td>
+                        {"name" in r
+                          ? r.name
+                          : "title" in r
+                            ? r.title
+                            : data.ministers.find((m) => m.id === r.ministerId)
+                                ?.name}
+                      </td>
+                      <td>
+                        {"phone" in r ? (
+                          <>
+                            {r.email}
+                            <small>{r.phone}</small>
+                            {r.preferredName && (
+                              <small>Nas escalas: {r.preferredName}</small>
+                            )}
+                          </>
+                        ) : "mobile" in r ? (
+                          <>
+                            {r.neighborhood}
+                            <small>{r.mobile || r.landline}</small>
+                            <small>ID para importação: {r.id}</small>
+                            <small>
+                              {r.ministersRequired ?? 1} ministro(s) por visita
                             </small>
-                          )}
-                          <small>
-                            {eventClassOf(r) === "FIXED"
-                              ? "Fixo recorrente"
-                              : "Extraordinário"}
-                          </small>
-                          <small>
-                            {r.location} · {r.required} ministros
-                          </small>
-                          {r.seriesException && (
-                            <small>Exceção individual da série</small>
-                          )}
-                        </>
-                      ) : (
-                        <>
-                          {r.scope === "CELEBRATION"
-                            ? data.events.find((e) => e.id === r.eventId)?.title
-                            : `${r.start} a ${r.end}`}
-                          <small>
+                          </>
+                        ) : "time" in r ? (
+                          <>
+                            {r.date} · {r.time}
+                            {eventOverlapNotice(r, data.events) && (
+                              <small className="event-overlap">
+                                {eventOverlapNotice(r, data.events)}
+                              </small>
+                            )}
+                            <small>
+                              {eventClassOf(r) === "FIXED"
+                                ? "Fixo recorrente"
+                                : "Extraordinário"}
+                            </small>
+                            <small>
+                              {r.location} · {r.required} ministros
+                            </small>
+                            {r.seriesException && (
+                              <small>Exceção individual da série</small>
+                            )}
+                          </>
+                        ) : (
+                          <>
                             {r.scope === "CELEBRATION"
-                              ? "Somente esta celebração"
-                              : r.scope === "DAY"
-                                ? "Dia inteiro"
-                                : "Intervalo inclusivo"}
-                          </small>
-                        </>
-                      )}
-                    </td>
-                    <td>
-                      <span className="tag">
-                        {"revokedAt" in r && r.revokedAt
-                          ? "Retirado"
-                          : "former" in r && r.former
-                            ? "Ex-ministro"
-                            : "registrationStatus" in r &&
-                                r.registrationStatus === "DRAFT"
-                              ? "Cadastro pendente"
-                              : "cancelled" in r && r.cancelled
-                                ? "Cancelado"
-                                : "active" in r
-                                  ? r.active
-                                    ? "away" in r && r.away
-                                      ? "Afastado"
-                                      : "Ativo"
-                                    : "Inativo"
-                                  : "kind" in r
-                                    ? r.kind === "VISIT"
-                                      ? "Visita"
-                                      : "Celebração"
-                                    : "Registrado"}
-                      </span>
-                    </td>
-                    <td>
-                      {!("revokedAt" in r && r.revokedAt) && (
-                        <Link
-                          href={
-                            kind === "event"
-                              ? `/${section}?${new URLSearchParams({ edit: r.id, month, calendarView, eventClass: query.eventClass ?? "ALL", eventName: query.eventName ?? "", q: query.q ?? "" })}#cadastro`
-                              : `/${section}?edit=${r.id}`
-                          }
-                        >
-                          Editar
-                        </Link>
-                      )}
-                      {user.coordinator && (
-                        <RemoveRecord
-                          kind={kind}
-                          returnMonth={month}
-                          events={data.events}
-                          record={r}
-                          label={
-                            "name" in r
-                              ? r.name
-                              : "title" in r
-                                ? `${r.title} · ${r.date} ${r.time}`
-                                : "Impedimento"
-                          }
-                        />
-                      )}
-                    </td>
-                  </tr>
+                              ? data.events.find((e) => e.id === r.eventId)
+                                  ?.title
+                              : `${r.start} a ${r.end}`}
+                            <small>
+                              {r.scope === "CELEBRATION"
+                                ? "Somente esta celebração"
+                                : r.scope === "DAY"
+                                  ? "Dia inteiro"
+                                  : "Intervalo inclusivo"}
+                            </small>
+                          </>
+                        )}
+                      </td>
+                      <td>
+                        <span className="tag">
+                          {"revokedAt" in r && r.revokedAt
+                            ? "Retirado"
+                            : "former" in r && (r.former || !r.active)
+                              ? "Ex-ministro"
+                              : "registrationStatus" in r &&
+                                  r.registrationStatus === "DRAFT"
+                                ? "Cadastro pendente"
+                                : "cancelled" in r && r.cancelled
+                                  ? "Cancelado"
+                                  : "active" in r
+                                    ? r.active
+                                      ? "Ativo"
+                                      : "Ex-ministro"
+                                    : "kind" in r
+                                      ? r.kind === "VISIT"
+                                        ? "Visita"
+                                        : "Celebração"
+                                      : "Registrado"}
+                        </span>
+                      </td>
+                      <td>
+                        {!("revokedAt" in r && r.revokedAt) && (
+                          <Link
+                            href={
+                              kind === "event"
+                                ? `/${section}?${new URLSearchParams({ edit: r.id, month, calendarView, eventClass: query.eventClass ?? "ALL", eventName: query.eventName ?? "", q: query.q ?? "" })}#cadastro`
+                                : `/${section}?edit=${r.id}`
+                            }
+                          >
+                            Editar
+                          </Link>
+                        )}
+                        {user.coordinator && (
+                          <RemoveRecord
+                            kind={kind}
+                            returnMonth={month}
+                            events={data.events}
+                            record={r}
+                            label={
+                              "name" in r
+                                ? r.name
+                                : "title" in r
+                                  ? `${r.title} · ${r.date} ${r.time}`
+                                  : "Impedimento"
+                            }
+                          />
+                        )}
+                      </td>
+                    </tr>
+                  </Fragment>
                 ))}
               </tbody>
             </table>

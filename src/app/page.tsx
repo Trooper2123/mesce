@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { actor } from "@/lib/auth";
 import { readData } from "@/lib/store";
+import { nextMonth } from "@/lib/domain";
 export const dynamic = "force-dynamic";
 export default async function Home() {
   const user = await actor();
@@ -33,13 +34,7 @@ export default async function Home() {
       </section>
     );
   const data = await readData();
-  const month = new Intl.DateTimeFormat("en-CA", {
-    year: "numeric",
-    month: "2-digit",
-    timeZone: "America/Sao_Paulo",
-  })
-    .format(new Date())
-    .slice(0, 7);
+  const month = nextMonth();
   const events = data.events
     .filter((e) => e.date.startsWith(month))
     .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
@@ -50,8 +45,7 @@ export default async function Home() {
     [
       "Ministros ativos",
       data.ministers.filter(
-        (m) =>
-          m.active && !m.away && !m.former && m.registrationStatus !== "DRAFT",
+        (m) => m.active && !m.former && m.registrationStatus !== "DRAFT",
       ).length,
       "Pessoas a serviço",
       UsersRound,

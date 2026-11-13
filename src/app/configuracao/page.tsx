@@ -4,6 +4,7 @@ import { Field } from "@/components/fields";
 import { coordinator } from "@/lib/auth";
 import { legacyImportAction } from "@/app/operations";
 import { Notice } from "@/components/fields";
+import Link from "next/link";
 export const dynamic = "force-dynamic";
 export default async function Configuration({
   searchParams,
@@ -48,6 +49,12 @@ export default async function Configuration({
           </div>
           <div className="form-actions">
             <button>Salvar regras</button>
+            <button type="reset" className="secondary">
+              Cancelar
+            </button>
+            <Link className="button secondary" href="/configuracao">
+              Voltar
+            </Link>
           </div>
         </form>
         <p>

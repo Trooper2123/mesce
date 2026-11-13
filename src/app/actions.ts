@@ -16,6 +16,7 @@ import {
   Minister,
   Schedule,
   syncSchedule,
+  assignmentConflict,
 } from "@/lib/domain";
 import { z } from "zod";
 import { ministerDisplayName } from "@/lib/minister-name";
@@ -70,7 +71,6 @@ export async function save(form: FormData) {
       ...raw,
       id,
       active: form.has("active"),
-      away: form.has("away"),
       monthlyLimit: value(form, "monthlyLimit")
         ? Number(raw.monthlyLimit)
         : null,
@@ -109,20 +109,15 @@ export async function save(form: FormData) {
         }
         const existingMinister = current.ministers.find((m) => m.id === id);
         const status = z
-          .enum(["ACTIVE", "AWAY", "INACTIVE", "FORMER"])
+          .enum(["ACTIVE", "FORMER"])
           .parse(value(form, "participationStatus"));
         const parsed = ministerSchema.parse({
           ...data,
           preferredName: form.has("preferredName")
             ? value(form, "preferredName")
             : (existingMinister?.preferredName ?? ""),
-          active: status
-            ? status === "ACTIVE" || status === "AWAY"
-            : data.active,
-          away: status ? status === "AWAY" : data.away,
-          former: status
-            ? status === "FORMER"
-            : (existingMinister?.former ?? false),
+          active: status === "ACTIVE",
+          former: status === "FORMER",
           monthlyLimit: form.has("monthlyLimit")
             ? data.monthlyLimit
             : (existingMinister?.monthlyLimit ?? null),
@@ -352,11 +347,22 @@ export async function scheduleAction(form: FormData) {
             if (
               !minister ||
               minister.former ||
+              !minister.active ||
               minister.registrationStatus === "DRAFT"
             )
               throw new Error(
                 "Ministro inexistente, desligado ou com cadastro pendente.",
               );
+            const targetEvent = updated.events.find((e) => e.id === eventId);
+            if (targetEvent) {
+              const conflict = assignmentConflict(
+                ministerId,
+                targetEvent,
+                assignments,
+                updated.events,
+              );
+              if (conflict) throw new Error(conflict);
+            }
             assignments.push({ eventId, ministerId, origin: "MANUAL" });
           }
           updated = { ...updated, assignments };

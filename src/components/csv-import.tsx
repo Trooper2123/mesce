@@ -1,5 +1,6 @@
 "use client";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
+import Link from "next/link";
 import { previewCsv, importCsv } from "@/app/csv-actions";
 import {
   previewAssistedCsv,
@@ -11,6 +12,7 @@ export function CsvImport({
 }: {
   entity?: "ministers" | "assisted";
 }) {
+  const fileInput = useRef<HTMLInputElement>(null);
   const isAssisted = entity === "assisted";
   const previewAction = isAssisted ? previewAssistedCsv : previewCsv;
   const importAction = isAssisted ? importAssistedCsv : importCsv;
@@ -32,6 +34,7 @@ export function CsvImport({
       <label className="field">
         Arquivo CSV (até 500 KB e 500 registros)
         <input
+          ref={fileInput}
           type="file"
           accept=".csv,text/csv"
           disabled={pending}
@@ -164,6 +167,7 @@ export function CsvImport({
                   setPreview(undefined);
                   setConfirmed(false);
                   setSource("");
+                  if (fileInput.current) fileInput.current.value = "";
                 }
               })
             }
@@ -173,6 +177,27 @@ export function CsvImport({
         </>
       ) : null}
       {pending && <p role="status">Processando…</p>}
+      <div className="form-actions">
+        <button
+          type="button"
+          className="secondary"
+          disabled={pending}
+          onClick={() => {
+            setSource("");
+            setPreview(undefined);
+            setUpdate(false);
+            setAuthorize(false);
+            setConfirmed(false);
+            setMessage("");
+            if (fileInput.current) fileInput.current.value = "";
+          }}
+        >
+          Cancelar importação
+        </button>
+        <Link className="button secondary" href="/ministros">
+          Sair
+        </Link>
+      </div>
       {message && (
         <p role="status" className="notice">
           {message}

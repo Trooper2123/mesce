@@ -29,12 +29,10 @@ export function operationalReport(data: Data, month: string, months: number) {
         status: m.former
           ? "Ex-ministro"
           : !m.active
-            ? "Inativo"
-            : m.away
-              ? "Afastado"
-              : m.registrationStatus === "DRAFT"
-                ? "Cadastro pendente"
-                : "Ativo",
+            ? "Ex-ministro"
+            : m.registrationStatus === "DRAFT"
+              ? "Cadastro pendente"
+              : "Ativo",
       },
     ]),
   );

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { cookies, headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { createHmac } from "node:crypto";
+import { encrypt } from "@/lib/crypto";
 import { z } from "zod";
 import { identity, actor, coordinator, assertCurrentActor } from "@/lib/auth";
 import { pool, transaction, write, audit } from "@/lib/store";
@@ -114,6 +115,31 @@ export async function saveOwnProfile(form: FormData) {
         before: previous,
         after: minister,
       });
+    });
+  } catch (e) {
+    return { error: failure(e) };
+  }
+  revalidatePath("/", "layout");
+  redirect("/meus-dados?saved=1");
+}
+export async function saveCoordinatorProfile(form: FormData) {
+  const user = await actor();
+  try {
+    const profile = z
+      .object({
+        name: z.string().trim().min(3).max(200),
+        phone: z.string().trim().max(40),
+      })
+      .parse(Object.fromEntries(form.entries()));
+    await transaction(async (client) => {
+      const current = await assertCurrentActor(client, user, true);
+      if (!current.coordinator)
+        throw new Error("Acesso exclusivo da coordenação.");
+      await client.query(
+        "INSERT INTO mesce_coordinator_profiles(auth0_sub,payload) VALUES($1,$2) ON CONFLICT(auth0_sub) DO UPDATE SET payload=EXCLUDED.payload,updated_at=now()",
+        [user.id, encrypt(profile)],
+      );
+      await audit(client, user.id, "coordinator_profile:update");
     });
   } catch (e) {
     return { error: failure(e) };
