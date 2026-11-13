@@ -95,6 +95,7 @@ export async function GET(
     const calendar = personalCalendarIcs(
       schedules,
       ministerId,
+      new URL(_request.url).origin,
       new Date(),
       liveEvents,
     );

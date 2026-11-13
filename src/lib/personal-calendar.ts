@@ -177,6 +177,7 @@ function currentAssignments(
 export function personalCalendarIcs(
   schedules: StoredSchedule[],
   ministerId: string,
+  applicationUrl: string,
   now = new Date(),
   liveEvents?: Map<string, LiveEventState>,
 ) {
@@ -199,6 +200,7 @@ export function personalCalendarIcs(
     "X-WR-CALNAME:Minhas atividades MESCE",
     "X-WR-TIMEZONE:America/Sao_Paulo",
   ];
+  const appLink = new URL("/minhas-escalas", applicationUrl).toString();
   for (const entry of entries) {
     const start = localDateTimeToUtc(entry.event.date, entry.event.time);
     const end = new Date(start.getTime() + entry.event.duration * 60000);
@@ -217,7 +219,7 @@ export function personalCalendarIcs(
       ...(entry.event.kind !== "VISIT" && entry.event.location
         ? [`LOCATION:${escapeText(entry.event.location)}`]
         : []),
-      `DESCRIPTION:${escapeText("Consulte os detalhes na aplicação MESCE: /minhas-escalas")}`,
+      `DESCRIPTION:${escapeText(`Consulte os detalhes na aplicação MESCE: ${appLink}`)}`,
       "END:VEVENT",
     );
   }
