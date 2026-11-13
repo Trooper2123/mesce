@@ -3,7 +3,11 @@ import { z } from "zod";
 import { actor, assertCurrentActor } from "@/lib/auth";
 import { linkedMinister } from "@/lib/access";
 import { encrypt } from "@/lib/crypto";
-import { endpointHash } from "@/lib/agenda-delivery";
+import {
+  enqueueCurrentPushSummaries,
+  endpointHash,
+  processOutboxBatch,
+} from "@/lib/agenda-delivery";
 import { pool, readData, transaction } from "@/lib/store";
 import { revalidatePath } from "next/cache";
 
@@ -62,6 +66,7 @@ export async function registerPushSubscription(raw: unknown) {
   if (!allowedPushEndpoint(subscription.endpoint))
     throw new Error("Provedor de notificações não aceito.");
   const id = crypto.randomUUID();
+  let subscriptionId = id;
   await transaction(async (client, data) => {
     const current = await assertCurrentActor(client, user);
     const minister = linkedMinister(current, data);
@@ -88,7 +93,16 @@ export async function registerPushSubscription(raw: unknown) {
     );
     if (!saved.rowCount)
       throw new Error("Esta inscrição já está vinculada a outra conta.");
+    subscriptionId = String(saved.rows[0].id);
+    await enqueueCurrentPushSummaries(
+      client,
+      data,
+      minister.id,
+      subscriptionId,
+      process.env.APP_BASE_URL ?? "http://localhost:3000",
+    );
   });
+  await processOutboxBatch();
   return { ok: true };
 }
 

@@ -1,9 +1,8 @@
-import { createHash, randomUUID } from "node:crypto";
+import { createHash, createHmac, randomUUID } from "node:crypto";
 import type { PoolClient } from "pg";
 import type { Data, Event, Schedule } from "./domain";
 import { eventInstant, latestPublished } from "./domain";
 import { decrypt, encrypt } from "./crypto";
-import { emailHash } from "./registration";
 import { calendarUid } from "./personal-calendar";
 import type { InviteEvent, InviteMethod } from "./calendar-invite";
 import { buildCalendarInvite } from "./calendar-invite";
@@ -412,9 +411,7 @@ export async function enqueueCurrentPushSummaries(
   )
     return;
   for (const schedule of latestPublished(data)) {
-    const assigned = schedule.assignments.some(
-      (assignment) => assignment.ministerId === ministerId,
-    );
+    const assigned = assignmentEvents(schedule).has(ministerId);
     if (!assigned) continue;
     const fingerprint = fingerprintForMinister(schedule, ministerId);
     const deliveryKey = hash(`push-device:${subscriptionId}`);
@@ -441,7 +438,12 @@ export async function enqueueCurrentPushSummaries(
 }
 
 export function endpointHash(endpoint: string) {
-  return emailHash(endpoint);
+  const key = process.env.MESCE_DATA_KEY_HEX;
+  if (!key || !/^[a-f0-9]{64}$/i.test(key))
+    throw new Error("Chave de proteção não configurada.");
+  return createHmac("sha256", Buffer.from(key, "hex"))
+    .update("mesce:push-endpoint:v1:" + endpoint)
+    .digest("hex");
 }
 
 type OutboxRow = {
@@ -486,7 +488,7 @@ async function claimOutbox(owner: string): Promise<OutboxRow | undefined> {
            WHERE prior.delivery_key=o.delivery_key AND prior.sequence<o.sequence
              AND prior.status IN ('PENDING','RETRY','PROCESSING')
          )
-       ORDER BY o.created_at FOR UPDATE SKIP LOCKED LIMIT 1`,
+       ORDER BY o.created_at LIMIT 1 FOR UPDATE SKIP LOCKED`,
     );
     const row = result.rows[0];
     if (!row) {
@@ -611,14 +613,22 @@ async function finishOutbox(
   try {
     await client.query("BEGIN");
     const status = typeof result === "string" ? result : result?.status;
-    const code =
+    const providerStatus =
       error && typeof error === "object" && "statusCode" in error
-        ? String((error as { statusCode: number }).statusCode)
-        : error instanceof Error
-          ? error.message
-          : "DELIVERY_FAILED";
+        ? Number((error as { statusCode: number }).statusCode)
+        : 0;
+    const knownError =
+      error instanceof Error &&
+      ["SMTP_NOT_CONFIGURED", "VAPID_NOT_CONFIGURED"].includes(error.message)
+        ? error.message
+        : "DELIVERY_ERROR";
+    const code = providerStatus ? String(providerStatus) : knownError;
     const terminal = status === "OBSOLETE" || (!result && row.attempts >= 5);
-    const nextStatus = status ?? (terminal ? "FAILED" : "RETRY");
+    const invalidPushEndpoint =
+      row.channel === "PUSH" && ["404", "410"].includes(code);
+    const nextStatus =
+      status ??
+      (invalidPushEndpoint ? "OBSOLETE" : terminal ? "FAILED" : "RETRY");
     const delaySeconds = Math.min(
       86_400,
       60 * 2 ** Math.min(row.attempts - 1, 10),
@@ -631,7 +641,7 @@ async function finishOutbox(
       [
         row.id,
         nextStatus,
-        error ? code.slice(0, 40) : null,
+        error ? code : null,
         typeof result === "object" ? result.providerId.slice(0, 200) : null,
         delaySeconds,
       ],
@@ -660,7 +670,7 @@ async function finishOutbox(
         [row.minister_id, payload.eventId, mailStatus],
       );
     }
-    if (error && code === "410" && row.channel === "PUSH") {
+    if (error && invalidPushEndpoint) {
       const p = decrypt(row.payload) as { subscriptionId?: string };
       if (p.subscriptionId)
         await client.query(
