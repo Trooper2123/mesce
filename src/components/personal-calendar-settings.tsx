@@ -27,8 +27,12 @@ export function PersonalCalendarSettings({
     setError("");
     startTransition(async () => {
       const result = await createPersonalCalendarFeed();
-      if ("error" in result) {
-        setError(result.error);
+      if (!("token" in result) || !result.token) {
+        setError(
+          "error" in result && result.error
+            ? result.error
+            : "Não foi possível ativar a assinatura. Tente novamente.",
+        );
         return;
       }
       const url = new URL(
@@ -48,8 +52,12 @@ export function PersonalCalendarSettings({
     setError("");
     startTransition(async () => {
       const result = await revokePersonalCalendarFeed();
-      if ("error" in result) {
-        setError(result.error);
+      if (!("revoked" in result) || !result.revoked) {
+        setError(
+          "error" in result && result.error
+            ? result.error
+            : "Não foi possível revogar a assinatura. Tente novamente.",
+        );
         return;
       }
       setUrls(null);
