@@ -293,6 +293,19 @@ button {
   border-color: #e9b8aa;
   color: #792d19;
 }
+.error-remediation {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin: 10px 0 0;
+  padding-left: 20px;
+}
+.error-remediation a {
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
 .intro {
   background: #e8eee3;
   border-radius: 12px;

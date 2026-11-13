@@ -1,7 +1,12 @@
 "use client";
 import { unstable_rethrow, useRouter } from "next/navigation";
+import Link from "next/link";
 import { useState, useTransition, type ReactNode, type FormEvent } from "react";
-export type SaveResult = { error: string } | { redirectTo: string } | void;
+import type { RemediationLink } from "@/lib/remediation";
+export type SaveResult =
+  | { error: string; remediation?: RemediationLink[] }
+  | { redirectTo: string }
+  | void;
 export function ActionForm({
   action,
   children,
@@ -10,7 +15,10 @@ export function ActionForm({
   children: ReactNode;
 }) {
   const router = useRouter();
-  const [error, setError] = useState("");
+  const [failure, setFailure] = useState<{
+    message: string;
+    remediation?: RemediationLink[];
+  } | null>(null);
   const [pending, startTransition] = useTransition();
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -18,19 +26,24 @@ export function ActionForm({
     const submitter = (event.nativeEvent as SubmitEvent).submitter;
     const form = new FormData(event.currentTarget, submitter);
     startTransition(async () => {
-      setError("");
+      setFailure(null);
       try {
         const result = await action(form);
-        if (result && "error" in result) setError(result.error);
+        if (result && "error" in result)
+          setFailure({
+            message: result.error,
+            remediation: result.remediation,
+          });
         else if (result && "redirectTo" in result) {
           router.push(result.redirectTo);
           router.refresh();
         }
       } catch (error) {
         unstable_rethrow(error);
-        setError(
-          "Não foi possível salvar. Seus dados foram mantidos; tente novamente.",
-        );
+        setFailure({
+          message:
+            "Não foi possível concluir a operação. Nenhuma alteração foi confirmada. Verifique sua conexão e tente novamente. Se o problema continuar, informe à coordenação o horário e a tela em que ocorreu.",
+        });
       }
     });
   }
@@ -38,13 +51,22 @@ export function ActionForm({
     <form
       method="post"
       onSubmit={submit}
-      onReset={() => setError("")}
+      onReset={() => setFailure(null)}
       aria-busy={pending}
     >
-      {error && (
-        <p role="alert" className="notice error">
-          {error}
-        </p>
+      {failure && (
+        <div role="alert" className="notice error">
+          <p>{failure.message}</p>
+          {!!failure.remediation?.length && (
+            <ul className="error-remediation">
+              {failure.remediation.map((item) => (
+                <li key={`${item.href}:${item.label}`}>
+                  <Link href={item.href}>{item.label}</Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       )}
       <fieldset
         disabled={pending}
