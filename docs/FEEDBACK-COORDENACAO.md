@@ -64,3 +64,13 @@ Ao escolher o assistido, a visita mostra sua quantidade cadastrada. O servidor c
 Alterar o cadastro não reescreve visitas ou publicações existentes. Novas visitas e visitas editadas usam o valor atual; a coordenação deve editar as visitas futuras que deseja atualizar e revisar as escalas afetadas. Cadastros antigos sem o campo assumem 1 até edição explícita; Altevita precisa ser configurado como 3 pela coordenação, sem identificação por nome ou endereço. Não há migração de dados em produção nem nova DDL: o campo fica no payload cifrado.
 
 Validação da revisão: 54 testes, TypeScript, formatação e build aprovados. Homologação autenticada permanece pendente.
+
+## Ajustes adicionais de fluxo — 12/11/2026
+
+- A situação de ministro tem somente dois valores: `Ativo` e `Ex-ministro`. Indisponibilidades temporárias são registradas como impedimentos, não como uma terceira situação. O CSV aceita os mesmos dois valores.
+- A coordenação vê a lista consolidada de ministros e seus status. A página `Meus dados` também permite ao coordenador atualizar nome e telefone, mesmo sem cadastro de ministro associado; o perfil é cifrado e exige a migration aditiva `003_coordinator_profiles.sql`.
+- Telas mensais abrem no mês seguinte ao atual, calculado no fuso de Brasília. Eventos ficam agrupados por mês. O cadastro aceita várias datas; a opção permanente cria ocorrências semanais pelas próximas 53 semanas, sem pedir um número de repetições.
+- O menu de impedimentos e o acompanhamento de respostas ficam reunidos sob “Impedimentos”. Formulários de inclusão e edição têm uma ação para descartar alterações sem gravá-las.
+- A verificação de elegibilidade para geração e inclusão manual impede que um ministro receba visita simultânea à missa dominical das 10h; a vaga fica sinalizada se não houver outro ministro elegível.
+
+Aplicar migrations antes de usar o perfil de coordenador. Esta alteração não executa a migração nem promove produção.

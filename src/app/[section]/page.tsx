@@ -11,7 +11,8 @@ import { actor } from "@/lib/auth";
 import { readData, transaction, audit } from "@/lib/store";
 import { save } from "@/app/actions";
 import { Field, Check, Notice } from "@/components/fields";
-import { Minister, Assisted, Event, Absence } from "@/lib/domain";
+import { Minister, Assisted, Event, Absence, nextMonth } from "@/lib/domain";
+import { Fragment } from "react";
 export const dynamic = "force-dynamic";
 const sections = {
   ministros: [
@@ -97,14 +98,21 @@ export default async function Registry({
   const address = minister ?? assisted;
   const month = /^\d{4}-(0[1-9]|1[0-2])$/.test(query.month ?? "")
     ? query.month!
-    : new Date().toISOString().slice(0, 7);
-  const filtered = rows.filter(
-    (r) =>
-      !query.q ||
-      JSON.stringify("name" in r ? r.name : "title" in r ? r.title : r)
-        .toLowerCase()
-        .includes(query.q.toLowerCase()),
-  );
+    : nextMonth();
+  const filtered = rows
+    .filter(
+      (r) =>
+        !query.q ||
+        JSON.stringify("name" in r ? r.name : "title" in r ? r.title : r)
+          .toLowerCase()
+          .includes(query.q.toLowerCase()),
+    )
+    .sort((a, b) => {
+      if (kind !== "event" || !("date" in a) || !("date" in b)) return 0;
+      return (a.date + a.time + a.title).localeCompare(
+        b.date + b.time + b.title,
+      );
+    });
   return (
     <>
       <span className="eyebrow">Organização pastoral</span>
@@ -123,6 +131,29 @@ export default async function Registry({
         </p>
       )}
       <Notice error={query.error} saved={query.saved} />
+      {kind === "minister" && user.coordinator && (
+        <div className="cards">
+          <article className="card">
+            <div className="card-title">Ativos</div>
+            <span className="stat">
+              {data.ministers.filter((m) => m.active && !m.former).length}
+            </span>
+          </article>
+          <article className="card">
+            <div className="card-title">Ex-ministros</div>
+            <span className="stat">
+              {data.ministers.filter((m) => m.former || !m.active).length}
+            </span>
+          </article>
+        </div>
+      )}
+      {kind === "absence" && (
+        <p>
+          <Link className="button secondary" href="/respostas">
+            Responder ou acompanhar o mês
+          </Link>
+        </p>
+      )}
       {kind === "minister" && user.coordinator && (
         <p>
           <Link className="button secondary" href="/ministros/importar">
@@ -237,18 +268,12 @@ export default async function Registry({
                       name="participationStatus"
                       label="Situação no ministério"
                       value={
-                        minister?.former
+                        minister?.former || minister?.active === false
                           ? "FORMER"
-                          : minister?.away
-                            ? "AWAY"
-                            : minister?.active === false
-                              ? "INACTIVE"
-                              : "ACTIVE"
+                          : "ACTIVE"
                       }
                       options={[
                         ["ACTIVE", "Ativo"],
-                        ["AWAY", "Afastado temporariamente"],
-                        ["INACTIVE", "Inativo"],
                         ["FORMER", "Ex-ministro"],
                       ]}
                     />
@@ -378,13 +403,17 @@ export default async function Registry({
                       required
                     />
                     {!event && (
-                      <Field
-                        name="occurrences"
-                        label="Repetir semanalmente (número de ocorrências)"
-                        type="number"
-                        value={1}
-                        required
-                      />
+                      <>
+                        <Field
+                          name="additionalDates"
+                          label="Outras datas (separe por linha, vírgula ou ponto e vírgula)"
+                          type="textarea"
+                        />
+                        <Check
+                          name="permanent"
+                          label="Evento permanente: repetir semanalmente pelas próximas 53 semanas"
+                        />
+                      </>
                     )}
                     <Field
                       name="duration"
@@ -408,7 +437,13 @@ export default async function Registry({
                       <AbsenceFields
                         absence={absence}
                         events={data.events
-                          .filter((e) => e.kind !== "VISIT" && !e.cancelled)
+                          .filter(
+                            (e) =>
+                              e.kind !== "VISIT" &&
+                              !e.cancelled &&
+                              (e.date.startsWith(nextMonth()) ||
+                                e.id === absence.eventId),
+                          )
                           .map((e) => ({
                             id: e.id,
                             label: `${e.date} ${e.time} • ${e.title}`,
@@ -422,7 +457,12 @@ export default async function Registry({
                         name: m.name,
                       }))}
                       events={data.events
-                        .filter((e) => e.kind !== "VISIT" && !e.cancelled)
+                        .filter(
+                          (e) =>
+                            e.kind !== "VISIT" &&
+                            !e.cancelled &&
+                            e.date.startsWith(nextMonth()),
+                        )
                         .map((e) => ({
                           id: e.id,
                           label: `${e.date} ${e.time} • ${e.title}`,
@@ -443,7 +483,20 @@ export default async function Registry({
                   <button type="submit">
                     {editing ? "Salvar alterações" : "Salvar cadastro"}
                   </button>
+                  <button type="reset" className="secondary">
+                    Cancelar
+                  </button>
                   {editing && <Link href={`/${section}`}>Cancelar edição</Link>}
+                </div>
+              )}
+              {kind === "absence" && !absence && (
+                <div className="form-actions">
+                  <button type="reset" className="secondary">
+                    Cancelar
+                  </button>
+                  <Link className="button secondary" href="/impedimentos">
+                    Voltar
+                  </Link>
                 </div>
               )}
             </ActionForm>
@@ -457,6 +510,12 @@ export default async function Registry({
                 required
               />
               <button className="secondary">Cancelar este agendamento</button>
+              <Link
+                className="button secondary"
+                href={`/celebracoes?month=${month}`}
+              >
+                Voltar
+              </Link>
             </form>
           )}
         </section>
@@ -509,78 +568,100 @@ export default async function Registry({
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((r) => (
-                  <tr key={r.id}>
-                    <td>
-                      {"name" in r
-                        ? r.name
-                        : "title" in r
-                          ? r.title
-                          : data.ministers.find((m) => m.id === r.ministerId)
-                              ?.name}
-                    </td>
-                    <td>
-                      {"phone" in r ? (
-                        <>
-                          {r.email}
-                          <small>{r.phone}</small>
-                        </>
-                      ) : "mobile" in r ? (
-                        <>
-                          {r.neighborhood}
-                          <small>{r.mobile || r.landline}</small>
-                          <small>
-                            {r.ministersRequired ?? 1} ministro(s) por visita
-                          </small>
-                        </>
-                      ) : "time" in r ? (
-                        <>
-                          {r.date} · {r.time}
-                          <small>
-                            {r.location} · {r.required} ministros
-                          </small>
-                        </>
-                      ) : (
-                        <>
-                          {r.scope === "CELEBRATION"
-                            ? data.events.find((e) => e.id === r.eventId)?.title
-                            : `${r.start} a ${r.end}`}
-                          <small>
-                            {r.scope === "CELEBRATION"
-                              ? "Somente esta celebração"
-                              : r.scope === "DAY"
-                                ? "Dia inteiro"
-                                : "Intervalo inclusivo"}
-                          </small>
-                        </>
+                {filtered.map((r, index) => (
+                  <Fragment key={r.id}>
+                    {kind === "event" &&
+                      "date" in r &&
+                      (index === 0 ||
+                        !("date" in filtered[index - 1]) ||
+                        (filtered[index - 1] as Event).date.slice(0, 7) !==
+                          r.date.slice(0, 7)) && (
+                        <tr>
+                          <th colSpan={4} scope="rowgroup">
+                            {new Intl.DateTimeFormat("pt-BR", {
+                              month: "long",
+                              year: "numeric",
+                              timeZone: "UTC",
+                            }).format(
+                              new Date(`${r.date.slice(0, 7)}-01T12:00:00Z`),
+                            )}
+                          </th>
+                        </tr>
                       )}
-                    </td>
-                    <td>
-                      <span className="tag">
-                        {"former" in r && r.former
-                          ? "Ex-ministro"
-                          : "registrationStatus" in r &&
-                              r.registrationStatus === "DRAFT"
-                            ? "Cadastro pendente"
-                            : "cancelled" in r && r.cancelled
-                              ? "Cancelado"
-                              : "active" in r
-                                ? r.active
-                                  ? "away" in r && r.away
-                                    ? "Afastado"
-                                    : "Ativo"
-                                  : "Inativo"
-                                : "kind" in r
-                                  ? r.kind === "VISIT"
-                                    ? "Visita"
-                                    : "Celebração"
+                    <tr>
+                      <td>
+                        {"name" in r
+                          ? r.name
+                          : "title" in r
+                            ? r.title
+                            : data.ministers.find((m) => m.id === r.ministerId)
+                                ?.name}
+                      </td>
+                      <td>
+                        {"phone" in r ? (
+                          <>
+                            {r.email}
+                            <small>{r.phone}</small>
+                          </>
+                        ) : "mobile" in r ? (
+                          <>
+                            {r.neighborhood}
+                            <small>{r.mobile || r.landline}</small>
+                            <small>
+                              {r.ministersRequired ?? 1} ministro(s) por visita
+                            </small>
+                          </>
+                        ) : "time" in r ? (
+                          <>
+                            {r.date} · {r.time}
+                            <small>
+                              {r.location} · {r.required} ministros
+                            </small>
+                          </>
+                        ) : (
+                          <>
+                            {r.scope === "CELEBRATION"
+                              ? data.events.find((e) => e.id === r.eventId)
+                                  ?.title
+                              : `${r.start} a ${r.end}`}
+                            <small>
+                              {r.scope === "CELEBRATION"
+                                ? "Somente esta celebração"
+                                : r.scope === "DAY"
+                                  ? "Dia inteiro"
+                                  : "Intervalo inclusivo"}
+                            </small>
+                          </>
+                        )}
+                      </td>
+                      <td>
+                        <span className="tag">
+                          {"cancelled" in r && r.cancelled
+                            ? "Cancelado"
+                            : "former" in r
+                              ? r.former || !r.active
+                                ? "Ex-ministro"
+                                : "Ativo"
+                              : "kind" in r
+                                ? r.kind === "VISIT"
+                                  ? "Visita"
+                                  : "Celebração"
+                                : "active" in r
+                                  ? r.active
+                                    ? "Ativo"
+                                    : "Inativo"
                                   : "Registrado"}
-                      </span>
-                    </td>
-                    <td>
-                      <Link href={`/${section}?edit=${r.id}`}>Editar</Link>
-                    </td>
-                  </tr>
+                        </span>
+                        {"registrationStatus" in r &&
+                          r.registrationStatus === "DRAFT" && (
+                            <small>Cadastro pendente</small>
+                          )}
+                      </td>
+                      <td>
+                        <Link href={`/${section}?edit=${r.id}`}>Editar</Link>
+                      </td>
+                    </tr>
+                  </Fragment>
                 ))}
               </tbody>
             </table>

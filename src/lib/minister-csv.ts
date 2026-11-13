@@ -160,10 +160,9 @@ export function planMinisterCsv(
       value.email = email;
       if ("situacao" in row) {
         const status = row.situacao.toUpperCase();
-        if (!["ATIVO", "AFASTADO", "INATIVO", "EX_MINISTRO"].includes(status))
+        if (!["ATIVO", "EX_MINISTRO"].includes(status))
           throw new Error("Situação inválida.");
-        value.active = ["ATIVO", "AFASTADO"].includes(status);
-        value.away = status === "AFASTADO";
+        value.active = status === "ATIVO";
         value.former = status === "EX_MINISTRO";
       }
       if ("limite_mensal" in row)

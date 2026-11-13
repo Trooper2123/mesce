@@ -2,6 +2,7 @@ import type { Minister } from "@/lib/domain";
 import { Field } from "./fields";
 import { ServicePreferences } from "./service-preferences";
 import { ActionForm, type SaveResult } from "./action-form";
+import Link from "next/link";
 export function MinisterForm({
   minister,
   spouses = [],
@@ -93,6 +94,15 @@ export function MinisterForm({
         <button>
           {complete ? "Concluir meu cadastro" : "Salvar meus dados"}
         </button>
+        <button type="reset" className="secondary">
+          Cancelar
+        </button>
+        <Link
+          className="button secondary"
+          href={complete ? "/auth/logout" : "/meus-dados"}
+        >
+          {complete ? "Cancelar cadastro e sair" : "Voltar"}
+        </Link>
       </div>
     </ActionForm>
   );

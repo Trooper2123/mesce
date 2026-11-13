@@ -21,13 +21,13 @@ export default async function ImportMinisters() {
       <details>
         <summary>Valores aceitos no modelo</summary>
         <p>
-          Situação: ATIVO, AFASTADO, INATIVO, EX_MINISTRO. Atividades: AMBAS,
-          CELEBRACOES, VISITAS. Preferência da comunidade: ACEITA, PREFERENCIAL,
-          EXCLUSIVA. Casal: SEM_PREFERENCIA, JUNTOS, SEPARADOS; informe o e-mail
-          do cônjuge já cadastrado ou presente no mesmo arquivo. Limite vazio
-          significa sem teto mensal. Remova colunas opcionais para preservar
-          seus valores em atualizações; uma célula vazia substitui o valor
-          anterior, quando aplicável.
+          Situação: ATIVO ou EX_MINISTRO. Atividades: AMBAS, CELEBRACOES,
+          VISITAS. Preferência da comunidade: ACEITA, PREFERENCIAL, EXCLUSIVA.
+          Casal: SEM_PREFERENCIA, JUNTOS, SEPARADOS; informe o e-mail do cônjuge
+          já cadastrado ou presente no mesmo arquivo. Limite vazio significa sem
+          teto mensal. Remova colunas opcionais para preservar seus valores em
+          atualizações; uma célula vazia substitui o valor anterior, quando
+          aplicável.
         </p>
       </details>
       <CsvImport />

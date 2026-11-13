@@ -58,16 +58,18 @@ Ver [MVP-RELEASE.md](docs/MVP-RELEASE.md) para evidências, limitações e ordem
 
 Implementação na branch `feat/ux-feedback`; aceite no Preview ainda necessário.
 
-| Task                                                                                   | Situação                           |
-| -------------------------------------------------------------------------------------- | ---------------------------------- |
-| [#48 — Visita a assistidos](https://github.com/Trooper2123/mesce/issues/48)            | Implementada; homologação pendente |
-| [#50 — Clareza das preferências](https://github.com/Trooper2123/mesce/issues/50)       | Implementada; homologação pendente |
-| [#53 — Ex-ministro](https://github.com/Trooper2123/mesce/issues/53)                    | Implementada; homologação pendente |
-| [#49 — Assistidos/celebrações/visitas](https://github.com/Trooper2123/mesce/issues/49) | Implementada; homologação pendente |
-| [#54 — Limite opcional](https://github.com/Trooper2123/mesce/issues/54)                | Implementada; homologação pendente |
-| [#51 — Impedimentos em lote](https://github.com/Trooper2123/mesce/issues/51)           | Implementada; homologação pendente |
-| [#52 — CSV](https://github.com/Trooper2123/mesce/issues/52)                            | Implementada; homologação pendente |
-| [#55 — Completude](https://github.com/Trooper2123/mesce/issues/55)                     | Implementada; homologação pendente |
+| Task                                                                                            | Situação                                                     |
+| ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| [#48 — Visita a assistidos](https://github.com/Trooper2123/mesce/issues/48)                     | Implementada; homologação pendente                           |
+| [#50 — Clareza das preferências](https://github.com/Trooper2123/mesce/issues/50)                | Implementada; homologação pendente                           |
+| [#53 — Ex-ministro](https://github.com/Trooper2123/mesce/issues/53)                             | Implementada; homologação pendente                           |
+| [#49 — Assistidos/celebrações/visitas](https://github.com/Trooper2123/mesce/issues/49)          | Implementada; homologação pendente                           |
+| [#54 — Limite opcional](https://github.com/Trooper2123/mesce/issues/54)                         | Implementada; homologação pendente                           |
+| [#51 — Impedimentos em lote](https://github.com/Trooper2123/mesce/issues/51)                    | Implementada; homologação pendente                           |
+| [#52 — CSV](https://github.com/Trooper2123/mesce/issues/52)                                     | Implementada; homologação pendente                           |
+| [#55 — Completude](https://github.com/Trooper2123/mesce/issues/55)                              | Implementada; homologação pendente                           |
+| [#80 — Acessibilidade no celular](https://github.com/Trooper2123/mesce/issues/80)               | Pendente; melhoria prioritária de uso                        |
+| [#82 — Ajustes de cadastro, navegação e escala](https://github.com/Trooper2123/mesce/issues/82) | Implementada nesta branch; homologação e migration pendentes |
 
 Detalhes e limites em [FEEDBACK-COORDENACAO](docs/FEEDBACK-COORDENACAO.md).
 

@@ -28,7 +28,12 @@ export function ActionForm({
     });
   }
   return (
-    <form method="post" onSubmit={submit} aria-busy={pending}>
+    <form
+      method="post"
+      onSubmit={submit}
+      onReset={() => setError("")}
+      aria-busy={pending}
+    >
       {error && (
         <p role="alert" className="notice error">
           {error}

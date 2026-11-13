@@ -6,6 +6,7 @@ import { transaction, write, audit } from "@/lib/store";
 import {
   ministerSchema,
   assistedSchema,
+  eventSchema,
   absenceSchema,
   generate,
   validateSchedule,
@@ -13,6 +14,7 @@ import {
   Schedule,
   requireFuture,
   syncSchedule,
+  blocked,
 } from "@/lib/domain";
 import { z } from "zod";
 import { requireCompleteMinister } from "@/lib/profile";
@@ -65,7 +67,6 @@ export async function save(form: FormData) {
       ...raw,
       id,
       active: form.has("active"),
-      away: form.has("away"),
       monthlyLimit: value(form, "monthlyLimit")
         ? Number(raw.monthlyLimit)
         : null,
@@ -104,17 +105,12 @@ export async function save(form: FormData) {
         }
         const existingMinister = current.ministers.find((m) => m.id === id);
         const status = z
-          .enum(["ACTIVE", "AWAY", "INACTIVE", "FORMER"])
+          .enum(["ACTIVE", "FORMER"])
           .parse(value(form, "participationStatus"));
         const parsed = ministerSchema.parse({
           ...data,
-          active: status
-            ? status === "ACTIVE" || status === "AWAY"
-            : data.active,
-          away: status ? status === "AWAY" : data.away,
-          former: status
-            ? status === "FORMER"
-            : (existingMinister?.former ?? false),
+          active: status === "ACTIVE",
+          former: status === "FORMER",
           monthlyLimit: form.has("monthlyLimit")
             ? data.monthlyLimit
             : (existingMinister?.monthlyLimit ?? null),
@@ -177,6 +173,24 @@ export async function save(form: FormData) {
           parseEventForm(form, id),
           current.assisted,
         );
+        const additionalDates = String(form.get("additionalDates") ?? "")
+          .split(/[\s,;]+/)
+          .map((date) => date.trim())
+          .filter(Boolean);
+        const permanent = form.has("permanent");
+        if (permanent && additionalDates.length)
+          throw new Error(
+            "Use datas adicionais ou evento permanente, não os dois juntos.",
+          );
+        const dates = permanent
+          ? Array.from({ length: 53 }, (_, index) => {
+              const date = new Date(event.date + "T12:00:00Z");
+              date.setUTCDate(date.getUTCDate() + index * 7);
+              return date.toISOString().slice(0, 10);
+            })
+          : [...new Set([event.date, ...additionalDates])];
+        if (dates.some((date) => !/^\d{4}-\d{2}-\d{2}$/.test(date)))
+          throw new Error("Informe as datas adicionais no formato AAAA-MM-DD.");
         requireFuture(event);
         if (
           current.events.some(
@@ -189,24 +203,17 @@ export async function save(form: FormData) {
           )
         )
           throw new Error("Já existe um evento neste horário e local.");
-        const occurrences = z.coerce
-          .number()
-          .int()
-          .min(1)
-          .max(53)
-          .parse(form.get("occurrences") ?? 1);
-        if (current.events.some((e) => e.id === id) && occurrences !== 1)
+        if (current.events.some((e) => e.id === id) && dates.length !== 1)
           throw new Error(
-            "Edite apenas esta ocorrência; recorrência é criada no cadastro inicial.",
+            "Edite apenas esta ocorrência; cadastre novas datas separadamente.",
           );
-        for (let index = 0; index < occurrences; index++) {
-          const date = new Date(event.date + "T12:00:00Z");
-          date.setUTCDate(date.getUTCDate() + index * 7);
+        for (let index = 0; index < dates.length; index++) {
           const occurrence = {
             ...event,
             id: index === 0 ? id : crypto.randomUUID(),
-            date: date.toISOString().slice(0, 10),
+            date: dates[index],
           };
+          eventSchema.parse(occurrence);
           requireFuture(occurrence);
           if (
             current.events.some(
@@ -333,11 +340,21 @@ export async function scheduleAction(form: FormData) {
             if (
               !minister ||
               minister.former ||
+              !minister.active ||
               minister.registrationStatus === "DRAFT"
             )
               throw new Error(
                 "Ministro inexistente, desligado ou com cadastro pendente.",
               );
+            const event = updated.events.find((e) => e.id === eventId)!;
+            const conflict = blocked(
+              minister,
+              event,
+              data,
+              assignments,
+              updated.events,
+            );
+            if (conflict) throw new Error(conflict);
             assignments.push({ eventId, ministerId, origin: "MANUAL" });
           }
           updated = { ...updated, assignments };

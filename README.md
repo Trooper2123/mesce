@@ -5,17 +5,18 @@ Aplicação em **Next.js (App Router), React, TypeScript e PostgreSQL**, com Aut
 ## Funcionalidades implementadas
 
 - Painel mensal com indicadores e agenda.
-- Cadastro e edição de ministros: nascimento, início no ministério, endereço, contatos, situação, afastamento, limite mensal, cônjuge recíproco e preferência de local/casal.
+- Cadastro e edição de ministros: situação limitada a ativo ou ex-ministro, nascimento, início no ministério, endereço, contatos, limite mensal, cônjuge recíproco e preferência de local/casal.
 - Cadastro e edição de assistidos, telefones fixo/móvel, familiar de referência, endereço, situação e observações.
-- Celebrações extraordinárias e recorrência semanal (até 53 ocorrências), horários, duração, vagas e calendário mensal. Editar uma ocorrência não altera as demais.
+- Celebrações em várias datas e recorrência semanal permanente (horizonte inicial de 53 semanas), horários, duração, vagas e calendário mensal agrupado por mês. Editar uma ocorrência não altera as demais.
 - Visitas vinculadas a assistidos ativos, exclusivamente aos domingos.
 - Impedimentos por celebração, dia ou período inclusivo. Ministro informa os próprios impedimentos do próximo mês até o dia 25; coordenação pode complementar fora do prazo.
-- Proposta determinística de escala, impedimentos, conflito de horários, inatividade, afastamento, limite mensal combinado, local exclusivo e casal como unidade.
+- Proposta determinística de escala, impedimentos, conflito de horários (incluindo missa das 10h e visita simultânea), ex-ministros, limite mensal combinado, local exclusivo e casal como unidade.
 - Equilíbrio separado de celebrações/visitas considerando os últimos 12 meses publicados, sem duplicar revisões do histórico. Bairro igual desempata visitas após equilíbrio e preferência; não representa distância calculada.
 - Ajustes manuais de pessoas/vagas com justificativa e revalidação. Reduzir vagas mantém excedentes para retirada explícita.
 - Aprovação e publicação distintas; histórico de versões e snapshot aprovado preservado.
 - PDF interno das versões aprovadas/publicadas, com paginação e sem dados domiciliares, telefones, nomes de assistidos ou observações privadas.
 - Área do ministro: compromissos publicados e dados do assistido somente nas próprias visitas da última revisão publicada.
+- A coordenação consulta a lista de ministros por situação; cada usuário gerencia seus próprios dados, e a coordenação mantém perfil de contato próprio.
 - Dados pessoais cifrados com AES-256-GCM, consultas parametrizadas, auditoria e autorização no servidor. Sem cache offline de cadastros. Manifesto e ícone para identificação do aplicativo; não há service worker nem promessa de suporte offline.
 
 ## Executar localmente

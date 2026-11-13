@@ -4,6 +4,7 @@ import { coordinator } from "@/lib/auth";
 import { readData } from "@/lib/store";
 import { scheduleAction } from "@/app/actions";
 import { Field, Notice } from "@/components/fields";
+import { nextMonth } from "@/lib/domain";
 export const dynamic = "force-dynamic";
 export default async function Schedules({
   searchParams,
@@ -14,7 +15,7 @@ export default async function Schedules({
   const query = await searchParams;
   const month = /^\d{4}-(0[1-9]|1[0-2])$/.test(query.month ?? "")
     ? query.month!
-    : new Date().toISOString().slice(0, 7);
+    : nextMonth();
   const data = await readData();
   const history = data.schedules
     .filter((s) => s.month === month)
@@ -192,6 +193,15 @@ export default async function Schedules({
                       <button name="operation" value="assign">
                         Salvar designação
                       </button>
+                      <button type="reset" className="secondary">
+                        Cancelar
+                      </button>
+                      <Link
+                        className="button secondary"
+                        href={`/escalas?month=${month}`}
+                      >
+                        Voltar
+                      </Link>
                     </form>
                     <hr />
                     <form action={scheduleAction} className="inline-form">
@@ -211,6 +221,15 @@ export default async function Schedules({
                       >
                         Alterar vagas
                       </button>
+                      <button type="reset" className="secondary">
+                        Cancelar
+                      </button>
+                      <Link
+                        className="button secondary"
+                        href={`/escalas?month=${month}`}
+                      >
+                        Voltar
+                      </Link>
                     </form>
                     <p className="muted">
                       Reduzir vagas mantém as designações excedentes visíveis

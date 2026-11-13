@@ -3,6 +3,7 @@ import { pool } from "@/lib/store";
 import { listAccess } from "@/lib/registration";
 import { allowlistAction } from "@/app/onboarding-actions";
 import { Field, Notice } from "@/components/fields";
+import Link from "next/link";
 export const dynamic = "force-dynamic";
 export default async function Allowlist({
   searchParams,
@@ -37,6 +38,12 @@ export default async function Allowlist({
           />
           <div className="form-actions">
             <button>Autorizar pré-cadastros</button>
+            <button type="reset" className="secondary">
+              Cancelar
+            </button>
+            <Link className="button secondary" href="/pre-cadastros">
+              Voltar
+            </Link>
           </div>
         </form>
       </section>

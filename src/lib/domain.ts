@@ -28,7 +28,6 @@ export const ministerSchema = z
     ministryStart: optionalDate,
     ...address,
     active: z.boolean(),
-    away: z.boolean(),
     monthlyLimit: z.number().int().min(1).max(100).nullable(),
     former: z.boolean().optional(),
     registrationStatus: z.enum(["DRAFT", "COMPLETE"]).optional(),
@@ -175,6 +174,20 @@ export function overlaps(a: Event, b: Event) {
     start(b) < start(a) + a.duration * 60000
   );
 }
+export function currentMonth(now = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    year: "numeric",
+    month: "2-digit",
+    timeZone: "America/Sao_Paulo",
+  }).formatToParts(now);
+  const year = parts.find((part) => part.type === "year")!.value;
+  const month = parts.find((part) => part.type === "month")!.value;
+  return `${year}-${month}`;
+}
+export function nextMonth(now = new Date()) {
+  const [year, month] = currentMonth(now).split("-").map(Number);
+  return new Date(Date.UTC(year, month, 1)).toISOString().slice(0, 7);
+}
 export function blocked(
   m: Minister,
   e: Event,
@@ -190,9 +203,8 @@ export function blocked(
   )
     return "Resposta mensal pendente de consolidação";
   if (e.cancelled) return "Evento cancelado";
-  if (m.former) return "Ex-ministro";
+  if (m.former || !m.active) return "Ex-ministro não pode receber designações";
   if (m.registrationStatus === "DRAFT") return "Cadastro pendente";
-  if (!m.active || m.away) return "Ministro inativo ou afastado";
   if (
     (m.servicePreference === "VISITS" && e.kind !== "VISIT") ||
     (m.servicePreference === "CELEBRATIONS" && e.kind === "VISIT")
@@ -227,8 +239,27 @@ export function blocked(
         .map((a) => s.events.find((x) => x.id === a.eventId)),
     )
     .filter((x): x is Event => !!x && !x.cancelled);
-  if ([...ownEvents, ...outside].some((x) => overlaps(x, e)))
-    return "Conflito de horário";
+  const assignedEvents = [...ownEvents, ...outside];
+  if (
+    e.kind === "VISIT" &&
+    assignedEvents.some(
+      (x) =>
+        x.kind === "MASS" &&
+        x.date === e.date &&
+        x.time === "10:00" &&
+        overlaps(x, e),
+    )
+  )
+    return "Ministro já escalado para a missa das 10h";
+  if (
+    e.kind === "MASS" &&
+    e.time === "10:00" &&
+    assignedEvents.some(
+      (x) => x.kind === "VISIT" && x.date === e.date && overlaps(x, e),
+    )
+  )
+    return "Ministro já escalado para visita no mesmo horário";
+  if (assignedEvents.some((x) => overlaps(x, e))) return "Conflito de horário";
   if (
     m.monthlyLimit != null &&
     ownEvents.filter((x) => x.date.slice(0, 7) === e.date.slice(0, 7)).length >=
