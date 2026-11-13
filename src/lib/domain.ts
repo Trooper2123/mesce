@@ -82,6 +82,8 @@ export const eventSchema = z
       .optional(),
     visitSite: z.enum(["HOME", "ALTEVITA"]).optional(),
     assistedId: z.union([z.string().uuid(), z.literal("")]),
+    assistedIds: z.array(z.string().uuid()).max(100).optional(),
+    groupMinistersRequired: z.number().int().min(1).max(100).optional(),
     notes: text,
     cancelled: z.boolean().optional(),
   })

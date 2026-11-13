@@ -199,22 +199,24 @@ export default async function Reports({
                     <td>
                       {row.event.date} · {row.event.time}
                     </td>
-                    <td>{row.assisted?.name ?? "Snapshot indisponível"}</td>
+                    <td>
+                      {row.assistedPeople.map((p) => p.name).join(", ") ||
+                        "Snapshot indisponível"}
+                    </td>
                     <td>{row.ministers.join(", ") || "Sem responsável"}</td>
                     <td>
-                      {row.assisted ? (
-                        <>
-                          {row.assisted.mobile || row.assisted.landline}
-                          <br />
-                          {row.assisted.address} · {row.assisted.neighborhood} ·{" "}
-                          {row.assisted.city}/{row.assisted.state}
-                          <br />
-                          Familiar: {row.assisted.familyName}{" "}
-                          {row.assisted.familyPhone}
-                        </>
-                      ) : (
-                        "Sem dados históricos; consulte o cadastro."
-                      )}
+                      {row.assistedPeople.length
+                        ? row.assistedPeople.map((person) => (
+                            <div key={person.id}>
+                              {person.mobile || person.landline}
+                              <br />
+                              {person.address} · {person.neighborhood} ·{" "}
+                              {person.city}/{person.state}
+                              <br />
+                              Familiar: {person.familyName} {person.familyPhone}
+                            </div>
+                          ))
+                        : "Sem dados históricos; consulte o cadastro."}
                     </td>
                   </tr>
                 ))}

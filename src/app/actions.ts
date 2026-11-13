@@ -1,5 +1,6 @@
 "use server";
 import { calendarReturn } from "@/lib/calendar-navigation";
+import { visitAssistedIds } from "@/lib/visit-group";
 import { ministerLocations, eventLocation } from "@/lib/locations";
 import { eventChangeNotice } from "@/lib/operational-changes";
 import { revalidatePath } from "next/cache";
@@ -196,10 +197,18 @@ export async function save(form: FormData) {
           const previous = current.events.find((e) => e.id === occurrence.id);
           const changed =
             previous &&
-            ["date", "time", "duration", "location", "assistedId"].some(
+            [
+              "date",
+              "time",
+              "duration",
+              "location",
+              "assistedId",
+              "assistedIds",
+              "groupMinistersRequired",
+            ].some(
               (key) =>
-                previous[key as keyof typeof previous] !==
-                occurrence[key as keyof typeof occurrence],
+                JSON.stringify(previous[key as keyof typeof previous]) !==
+                JSON.stringify(occurrence[key as keyof typeof occurrence]),
             );
           const saved = changed
             ? eventChangeNotice(previous, occurrence, current)
@@ -369,7 +378,7 @@ export async function scheduleAction(form: FormData) {
           assistedSnapshot: data.assisted
             .filter((p) =>
               existing.events.some(
-                (e) => e.kind === "VISIT" && e.assistedId === p.id,
+                (e) => e.kind === "VISIT" && visitAssistedIds(e).includes(p.id),
               ),
             )
             .map((p) => ({ ...p, notes: "" })),

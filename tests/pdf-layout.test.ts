@@ -123,3 +123,23 @@ test("mês extenso pagina e repete cabeçalhos sem omitir o último encontro", a
   assert.ok(has("ENCONTRO_99"));
   for (const p of pdf.getPages()) assert.equal(Math.round(p.getHeight()), 842);
 });
+
+test("guia de visita agrupada inclui todos os contatos apenas para a equipe designada", async () => {
+  const s = fixture();
+  const visit = s.events.find((e) => e.kind === "VISIT")!;
+  visit.assistedIds = ["person", "person-2"];
+  s.assistedSnapshot!.push({
+    ...s.assistedSnapshot![0],
+    id: "person-2",
+    name: "PESSOA_GRUPO",
+    address: "ENDERECO_GRUPO",
+  });
+  const own = await inspect(await visitGuidePdf(s, "minister-0"));
+  assert.equal(own.has("PESSOA_GRUPO"), true);
+  assert.equal(own.has("ENDERECO_GRUPO"), true);
+  const other = await inspect(await visitGuidePdf(s, "minister-1"));
+  assert.equal(other.has("PESSOA_GRUPO"), false);
+  const general = await inspect(await schedulePdf(s));
+  assert.equal(general.has("PESSOA_GRUPO"), false);
+  assert.equal(general.has("ENDERECO_GRUPO"), false);
+});

@@ -2,6 +2,8 @@ import { preparationMonth } from "@/lib/calendar-navigation";
 import { EventScopeFields } from "@/components/event-scope-fields";
 import { seriesCandidates } from "@/lib/operational-changes";
 import { RemoveRecord } from "@/components/remove-record";
+import { visitAssistedIds } from "@/lib/visit-group";
+import { specificCelebrations } from "@/lib/celebration-options";
 import { locationCatalog } from "@/lib/locations";
 import Link from "next/link";
 import {
@@ -435,8 +437,13 @@ export default async function Registry({
                       initialMonth={month}
                       visit={query.type === "VISIT"}
                       assisted={data.assisted
-                        .filter((a) => a.active || a.id === event?.assistedId)
+                        .filter(
+                          (a) =>
+                            a.active ||
+                            (event && visitAssistedIds(event).includes(a.id)),
+                        )
                         .map((a) => ({
+                          ...a,
                           id: a.id,
                           name: a.name,
                           ministersRequired: a.ministersRequired ?? 1,
@@ -470,12 +477,10 @@ export default async function Registry({
                       />
                       <AbsenceFields
                         absence={absence}
-                        events={data.events
-                          .filter((e) => e.kind !== "VISIT" && !e.cancelled)
-                          .map((e) => ({
-                            id: e.id,
-                            label: `${e.date} ${e.time} • ${e.title} • ${e.location}`,
-                          }))}
+                        events={specificCelebrations(data.events).map((e) => ({
+                          id: e.id,
+                          label: `${e.date} ${e.time} • ${e.title} • ${e.location}`,
+                        }))}
                       />
                     </>
                   ) : (
@@ -484,12 +489,10 @@ export default async function Registry({
                         id: m.id,
                         name: m.name,
                       }))}
-                      events={data.events
-                        .filter((e) => e.kind !== "VISIT" && !e.cancelled)
-                        .map((e) => ({
-                          id: e.id,
-                          label: `${e.date} ${e.time} • ${e.title} • ${e.location}`,
-                        }))}
+                      events={specificCelebrations(data.events).map((e) => ({
+                        id: e.id,
+                        label: `${e.date} ${e.time} • ${e.title} • ${e.location}`,
+                      }))}
                     />
                   ))}
                 {kind !== "absence" && (

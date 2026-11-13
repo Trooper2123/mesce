@@ -7,7 +7,8 @@ import {
   locationKey,
   type Location,
 } from "@/lib/location-rules";
-import type { Event } from "@/lib/domain";
+import { sameVisitAddress, visitAssistedIds } from "@/lib/visit-group";
+import type { Assisted, Event } from "@/lib/domain";
 import { MultiDatePicker } from "./multi-date-picker";
 import { Field } from "./fields";
 export function EventFields({
@@ -18,7 +19,7 @@ export function EventFields({
   catalog = defaultLocations,
 }: {
   event?: Event;
-  assisted: { id: string; name: string; ministersRequired: number }[];
+  assisted: Assisted[];
   visit?: boolean;
   initialMonth?: string;
   catalog?: Location[];
@@ -37,6 +38,14 @@ export function EventFields({
     event ? eventClassOf(event) : visit ? "EXTRAORDINARY" : "FIXED",
   );
   const [assistedId, setAssistedId] = useState(event?.assistedId ?? "");
+  const [members, setMembers] = useState(
+    event
+      ? visitAssistedIds(event).filter((id) => id !== event.assistedId)
+      : ([] as string[]),
+  );
+  const [groupRequired, setGroupRequired] = useState(
+    event?.groupMinistersRequired ?? event?.required ?? 1,
+  );
   const [options, setOptions] = useState(assisted);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -50,7 +59,14 @@ export function EventFields({
       if (!response.ok) throw new Error();
       const value = await response.json();
       if (!Array.isArray(value)) throw new Error();
-      setOptions(value);
+      setOptions([
+        ...value,
+        ...options.filter(
+          (a) =>
+            (a.id === assistedId || members.includes(a.id)) &&
+            !value.some((p) => p.id === a.id),
+        ),
+      ]);
     } catch {
       setMessage("Não foi possível atualizar a lista. Tente novamente.");
     } finally {
@@ -172,15 +188,21 @@ export function EventFields({
             <input
               name="required"
               type="number"
-              readOnly
+              readOnly={members.length === 0}
+              min={1}
+              max={100}
+              onChange={(e) => setGroupRequired(Number(e.target.value))}
               value={
-                options.find((a) => a.id === assistedId)?.ministersRequired ?? 1
+                members.length
+                  ? groupRequired
+                  : (options.find((a) => a.id === assistedId)
+                      ?.ministersRequired ?? 1)
               }
             />
           </label>
           <p className="muted">
-            Quantidade definida no cadastro do assistido. Para mudar a equipe,
-            edite o assistido e atualize a lista antes de salvar.
+            Para visitas individuais, vale a quantidade do cadastro. Para
+            grupos, defina uma única equipe; as quantidades não são somadas.
           </p>
         </>
       ) : (
@@ -234,7 +256,14 @@ export function EventFields({
                 name="assistedId"
                 required
                 value={assistedId}
-                onChange={(e) => setAssistedId(e.target.value)}
+                onChange={(e) => {
+                  setAssistedId(e.target.value);
+                  setMembers([]);
+                  setGroupRequired(
+                    options.find((a) => a.id === e.target.value)
+                      ?.ministersRequired ?? 1,
+                  );
+                }}
               >
                 <option value="">Selecione um assistido</option>
                 {options.map((a) => (
@@ -263,6 +292,47 @@ export function EventFields({
               </p>
               <input type="hidden" name="assistedId" value="" />
             </>
+          )}
+          {assistedId && (
+            <fieldset>
+              <legend>Agrupar assistidos do mesmo endereço nesta visita</legend>
+              <p>Marque as pessoas que serão atendidas pela mesma equipe.</p>
+              {options
+                .filter(
+                  (a) =>
+                    a.id !== assistedId &&
+                    (members.includes(a.id) ||
+                      sameVisitAddress(
+                        options.find((p) => p.id === assistedId)!,
+                        a,
+                      )),
+                )
+                .map((a) => (
+                  <label key={a.id}>
+                    <input
+                      type="checkbox"
+                      name="assistedIds"
+                      value={a.id}
+                      checked={members.includes(a.id)}
+                      onChange={(e) =>
+                        setMembers((current) =>
+                          e.target.checked
+                            ? [...current, a.id]
+                            : current.filter((id) => id !== a.id),
+                        )
+                      }
+                    />{" "}
+                    {a.name}
+                  </label>
+                ))}
+              {members.length > 0 && (
+                <input
+                  type="hidden"
+                  name="groupMinistersRequired"
+                  value={groupRequired}
+                />
+              )}
+            </fieldset>
           )}
           <button
             type="button"

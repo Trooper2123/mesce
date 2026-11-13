@@ -1,3 +1,4 @@
+import { nextScheduleMonth } from "./celebration-options";
 import { absenceSchema, type Absence, type Data } from "./domain";
 import type { Identity } from "./access";
 export function parseAbsenceBatch(form: FormData): Absence[] {
@@ -63,6 +64,12 @@ export function validateAbsenceSubmission(
       : undefined;
   if (a.scope === "CELEBRATION" && !event)
     throw new Error("Celebração inexistente.");
+  if (
+    event &&
+    (!previous || previous.eventId !== a.eventId) &&
+    (event.cancelled || !event.date.startsWith(nextScheduleMonth(now)))
+  )
+    throw new Error("Selecione uma celebração ativa do próximo mês.");
   if (user.coordinator) return;
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Sao_Paulo",
