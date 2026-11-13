@@ -435,6 +435,10 @@ td small {
   padding: 8px 14px;
   text-align: center;
   font-weight: bold;
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* Alinha verticalmente o 04 e o 19:00 */
+  gap: 16px;
 }
 .muted {
   color: var(--muted);
