@@ -1,3 +1,4 @@
+import { locationCatalog } from "@/lib/locations";
 import { redirect } from "next/navigation";
 import { identity, resolveActor } from "@/lib/auth";
 import { pool, readData } from "@/lib/store";
@@ -36,7 +37,7 @@ export default async function Register({
   const data = await readData();
   const prior = data.ministers.find((m) => m.id === access.minister_id) ?? {
     ...blankMinister(access.minister_id, user.email),
-    monthlyLimit: data.settings?.monthlyLimit ?? 6,
+    monthlyLimit: data.settings?.monthlyLimit ?? null,
   };
   return (
     <>
@@ -48,6 +49,7 @@ export default async function Register({
       <Notice error={query.error} />
       <section className="panel">
         <MinisterForm
+          catalog={locationCatalog(data)}
           minister={{ ...prior, email: user.email }}
           action={finishRegistration}
           complete

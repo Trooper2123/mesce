@@ -1,7 +1,10 @@
+import { visitAssistedIds } from "@/lib/visit-group";
 import Link from "next/link";
+import { sortEvents } from "@/lib/event-agenda";
 import { coordinator } from "@/lib/auth";
 import { readData } from "@/lib/store";
 import { Field } from "@/components/fields";
+import { nextMonth } from "@/lib/domain";
 export const dynamic = "force-dynamic";
 export default async function Visits({
   searchParams,
@@ -12,7 +15,7 @@ export default async function Visits({
   const query = await searchParams;
   const month = /^\d{4}-(0[1-9]|1[0-2])$/.test(query.month ?? "")
     ? query.month!
-    : new Date().toISOString().slice(0, 7);
+    : nextMonth();
   const data = await readData();
   const [year, m] = month.split("-").map(Number);
   const days = new Date(Date.UTC(year, m, 0)).getUTCDate();
@@ -27,14 +30,14 @@ export default async function Visits({
       <form className="toolbar">
         <Field name="month" label="Mês" type="month" value={month} />
         <button className="secondary">Consultar</button>
-        <Link className="button" href="/celebracoes?type=VISIT">
+        <Link className="button" href="/celebracoes?new=1&type=VISIT">
           Agendar visita
         </Link>
       </form>
       {sundays.map((date) => (
         <section className="panel" key={date}>
           <h2>Domingo · {date}</h2>
-          {data.events
+          {sortEvents(data.events)
             .filter(
               (e) => e.kind === "VISIT" && !e.cancelled && e.date === date,
             )
@@ -42,8 +45,10 @@ export default async function Visits({
               <div className="row" key={e.id}>
                 <span>
                   {e.time} ·{" "}
-                  {data.assisted.find((a) => a.id === e.assistedId)?.name ??
-                    "Assistido"}{" "}
+                  {data.assisted
+                    .filter((a) => visitAssistedIds(e).includes(a.id))
+                    .map((a) => a.name)
+                    .join(", ") ?? "Assistido"}{" "}
                   · {e.required} ministros
                 </span>
                 <Link href={`/celebracoes?edit=${e.id}`}>Editar</Link>

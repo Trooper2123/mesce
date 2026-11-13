@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { actor } from "@/lib/auth";
 import { readData } from "@/lib/store";
+import { nextMonth } from "@/lib/domain";
 export const dynamic = "force-dynamic";
 export default async function Home() {
   const user = await actor();
@@ -20,6 +21,9 @@ export default async function Home() {
           mês.
         </p>
         <div className="hero-actions">
+          <Link className="button secondary" href="/notificacoes">
+            Central de notificações
+          </Link>
           <Link className="button" href="/minhas-escalas">
             Minhas escalas
           </Link>
@@ -30,13 +34,7 @@ export default async function Home() {
       </section>
     );
   const data = await readData();
-  const month = new Intl.DateTimeFormat("en-CA", {
-    year: "numeric",
-    month: "2-digit",
-    timeZone: "America/Sao_Paulo",
-  })
-    .format(new Date())
-    .slice(0, 7);
+  const month = nextMonth();
   const events = data.events
     .filter((e) => e.date.startsWith(month))
     .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
@@ -46,7 +44,9 @@ export default async function Home() {
   const stats = [
     [
       "Ministros ativos",
-      data.ministers.filter((m) => m.active && !m.away).length,
+      data.ministers.filter(
+        (m) => m.active && !m.former && m.registrationStatus !== "DRAFT",
+      ).length,
       "Pessoas a serviço",
       UsersRound,
     ],
@@ -76,13 +76,38 @@ export default async function Home() {
           <span className="eyebrow">Cuidar · Organizar · Servir</span>
           <h1>Visão geral do ministério</h1>
           <p className="subtitle">
-            Tudo pronto para organizar os próximos encontros.
+            Gerencie os cadastros, impedimentos e escalas de todo o ministério.
           </p>
         </div>
         <Link className="button" href="/escalas">
           Preparar escala <ArrowUpRight size={18} />
         </Link>
       </div>
+      <section className="panel" aria-labelledby="coordinator-actions">
+        <h2 id="coordinator-actions">Gestão da coordenação</h2>
+        <p>
+          Cadastre e atualize as informações diretamente, sem depender do
+          primeiro acesso do ministro. Você também pode registrar e corrigir
+          impedimentos de qualquer ministro fora do prazo mensal.
+        </p>
+        <div className="hero-actions">
+          <Link className="button secondary" href="/notificacoes">
+            Central de notificações
+          </Link>
+          <Link className="button secondary" href="/ministros?new=1">
+            Cadastrar ministro
+          </Link>
+          <Link className="button secondary" href="/assistidos?new=1">
+            Cadastrar assistido
+          </Link>
+          <Link className="button secondary" href="/impedimentos?new=1">
+            Registrar impedimento
+          </Link>
+          <Link className="button secondary" href="/pre-cadastros">
+            Autorizar acesso de ministros
+          </Link>
+        </div>
+      </section>
       <div className="cards">
         {stats.map(([label, total, note, Icon]) => (
           <article className="card" key={label}>

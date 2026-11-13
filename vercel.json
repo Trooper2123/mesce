@@ -1,7 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
-  "buildCommand": "if [ -n \"$MESCE_IMPORT_LEGACY_HOST\" ]; then node --import tsx scripts/import-legacy.ts \"$MESCE_IMPORT_LEGACY_HOST\"; fi && npm run build",
+  "buildCommand": "npm run build",
   "installCommand": "npm ci",
-  "devCommand": "npm run dev"
+  "devCommand": "npm run dev",
+  "crons": [{ "path": "/api/jobs/outbox", "schedule": "0 8 * * *" }]
 }

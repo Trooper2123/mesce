@@ -83,7 +83,7 @@
     "id": "A-11",
     "priority": "P1",
     "title": "Evitar dois dias seguidos ou duas missas no mesmo dia",
-    "acceptance": "Projeto p. 6/SPEC §§9.3 e 9.9: pontuação de preferência e avisos, sem inventar bloqueio absoluto",
+    "acceptance": "Projeto p. 6/SPEC §§9.3 e 9.9: preferência e avisos sem pontuação, sem inventar bloqueio absoluto",
     "url": "https://github.com/Trooper2123/mesce/issues/12",
     "number": 12
   },
@@ -99,7 +99,7 @@
     "id": "A-13",
     "priority": "P1",
     "title": "Pontuação e saldo histórico",
-    "acceptance": "Projeto p. 4/SPEC §9.4: fórmula não foi definida. Registrar decisão, sem inventar equivalência entre missa e visita",
+    "acceptance": "Removido do escopo por decisão da coordenação em 10/11/2026. Sem pontuação ou saldo; preservar histórico de participações.",
     "url": "https://github.com/Trooper2123/mesce/issues/15",
     "number": 15
   },
@@ -202,8 +202,8 @@
   {
     "id": "A-26",
     "priority": "P1",
-    "title": "Frequência e grupos de assistidos",
-    "acceptance": "SPEC §2.5 e modelo PDF: frequência por assistido, um ou vários assistidos por atendimento e quantidade por visita. Hoje cada evento vincula um único assistido",
+    "title": "Quantidade de ministros por assistido",
+    "acceptance": "Campo editável pela coordenação no cadastro do assistido: inteiro 1–100, padrão 1; Altevita configurado como 3. Novas visitas e edições usam cadastro atual no servidor. Sem frequência por assistido, exceção por nome ou reescrita automática de publicações. Múltiplos assistidos por visita permanecem evolução.",
     "url": "https://github.com/Trooper2123/mesce/issues/27",
     "number": 27
   },

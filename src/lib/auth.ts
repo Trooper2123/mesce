@@ -47,10 +47,15 @@ export async function resolveActor(
   user: SessionIdentity,
 ): Promise<Actor | null> {
   if (!user.verified) return null;
-  if (user.preview && previewEnabled()) return { ...user, coordinator: true };
-  const legacyTable = await db.query(
-    "SELECT to_regclass('mesce_dev.actors') AS table_name",
-  );
+  if (user.preview) {
+    if (!previewEnabled()) return null;
+    if (user.previewRole === "COORDINATOR")
+      return { ...user, coordinator: true };
+    if (user.previewRole !== "MINISTER") return null;
+  }
+  const legacyTable = user.preview
+    ? { rows: [] }
+    : await db.query("SELECT to_regclass('mesce_dev.actors') AS table_name");
   if (legacyTable.rows[0]?.table_name) {
     const legacy = await db.query(
       "SELECT role,active FROM mesce_dev.actors WHERE auth0_sub=$1",
@@ -73,22 +78,33 @@ export async function resolveActor(
   }
   const access = await findAccess(db, user);
   if (access) {
+    if (user.preview && access.role !== "MINISTER") return null;
     if (access.status !== "ACTIVE") return null;
     const record = await db.query(
       "SELECT payload FROM mesce_records WHERE id=$1 AND kind='minister'",
       [access.minister_id],
     );
-    if (
-      !record.rows[0] ||
-      !(decrypt(record.rows[0].payload) as { active: boolean }).active
-    )
-      return null;
+    const member = record.rows[0]
+      ? (decrypt(record.rows[0].payload) as {
+          active: boolean;
+          former?: boolean;
+        })
+      : null;
+    if (access.role === "COORDINATOR" && !user.preview)
+      return {
+        ...user,
+        coordinator: true,
+        ministerId:
+          member?.active && !member.former ? access.minister_id : undefined,
+      };
+    if (!member?.active || member.former) return null;
     return {
       ...user,
-      coordinator: access.role === "COORDINATOR",
+      coordinator: false,
       ministerId: access.minister_id,
     };
   }
+  if (user.preview) return null;
   // Administrative bootstrap only. Persisted revocation always wins above.
   const bootstrap = (process.env.MESCE_COORDINATOR_EMAILS ?? "")
     .split(",")
@@ -99,7 +115,12 @@ export async function resolveActor(
 export async function actor(): Promise<Actor> {
   const user = await identity();
   const resolved = await resolveActor(pool(), user);
-  if (!resolved) redirect("/cadastro");
+  if (!resolved)
+    redirect(
+      user.preview
+        ? "/acesso-dev?error=Perfil%20indisponível.%20Troque%20o%20perfil%20ou%20consulte%20a%20coordenação."
+        : "/cadastro",
+    );
   return resolved;
 }
 export async function coordinator() {

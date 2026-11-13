@@ -1,18 +1,24 @@
+import { defaultLocations, type Location } from "@/lib/location-rules";
 import type { Minister } from "@/lib/domain";
 import { Field } from "./fields";
+import { ServicePreferences } from "./service-preferences";
+import { ActionForm, type SaveResult } from "./action-form";
+import Link from "next/link";
 export function MinisterForm({
   minister,
   spouses = [],
   action,
   complete = false,
+  catalog = defaultLocations,
 }: {
   minister: Minister;
   spouses?: Pick<Minister, "id" | "name">[];
-  action: (form: FormData) => Promise<void>;
+  action: (form: FormData) => Promise<SaveResult>;
   complete?: boolean;
+  catalog?: Location[];
 }) {
   return (
-    <form action={action}>
+    <ActionForm action={action}>
       <p>
         E-mail de acesso: <strong>{minister.email}</strong>
       </p>
@@ -23,6 +29,16 @@ export function MinisterForm({
           value={minister.name}
           required
         />
+        <Field
+          name="preferredName"
+          maxLength={80}
+          label="Nome de preferência nas escalas"
+          value={minister.preferredName}
+        />
+        <p className="muted">
+          Use o nome pelo qual deseja aparecer nas escalas e PDFs. Se não
+          preencher, será usado o nome completo.
+        </p>
         <Field
           name="birthDate"
           label="Data de nascimento"
@@ -54,28 +70,7 @@ export function MinisterForm({
         <Field name="city" label="Cidade" value={minister.city} />
         <Field name="state" label="UF" value={minister.state} />
         <Field name="postalCode" label="CEP" value={minister.postalCode} />
-        <Field
-          name="monthlyLimit"
-          label="Limite mensal de participações"
-          type="number"
-          value={minister.monthlyLimit}
-          required
-        />
-        <Field
-          name="location"
-          label="Local de preferência"
-          value={minister.location}
-        />
-        <Field
-          name="locationPreference"
-          label="Preferência do local"
-          value={minister.locationPreference}
-          options={[
-            ["ACCEPT", "Aceita outros locais"],
-            ["PREFER", "Preferencial"],
-            ["EXCLUSIVE", "Exclusiva"],
-          ]}
-        />
+        <ServicePreferences minister={minister} catalog={catalog} />
         {!complete && (
           <>
             <Field
@@ -112,7 +107,16 @@ export function MinisterForm({
         <button>
           {complete ? "Concluir meu cadastro" : "Salvar meus dados"}
         </button>
+        <button type="reset" className="secondary">
+          Cancelar
+        </button>
+        <Link
+          className="button secondary"
+          href={complete ? "/auth/logout" : "/meus-dados"}
+        >
+          {complete ? "Cancelar cadastro e sair" : "Voltar"}
+        </Link>
       </div>
-    </form>
+    </ActionForm>
   );
 }

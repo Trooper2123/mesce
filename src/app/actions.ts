@@ -1,4 +1,8 @@
 "use server";
+import { calendarReturn } from "@/lib/calendar-navigation";
+import { visitAssistedIds } from "@/lib/visit-group";
+import { ministerLocations, eventLocation } from "@/lib/locations";
+import { eventChangeNotice } from "@/lib/operational-changes";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { actor, coordinator, assertCurrentActor } from "@/lib/auth";
@@ -6,16 +10,27 @@ import { transaction, write, audit } from "@/lib/store";
 import {
   ministerSchema,
   assistedSchema,
-  eventSchema,
   absenceSchema,
   generate,
   validateSchedule,
   Minister,
   Schedule,
-  requireFuture,
   syncSchedule,
+  assignmentConflict,
 } from "@/lib/domain";
 import { z } from "zod";
+import { ministerDisplayName } from "@/lib/minister-name";
+import { planEventSave } from "@/lib/event-agenda";
+import { requireCompleteMinister } from "@/lib/profile";
+import { emailHash } from "@/lib/registration";
+import {
+  enqueuePublishedAgenda,
+  processOutboxBatch,
+} from "@/lib/agenda-delivery";
+import {
+  parseAbsenceBatch,
+  validateAbsenceSubmission,
+} from "@/lib/absence-input";
 function value(form: FormData, key: string) {
   return String(form.get(key) ?? "").trim();
 }
@@ -42,6 +57,7 @@ function message(error: unknown) {
 export async function save(form: FormData) {
   const user = await actor();
   const kind = value(form, "kind");
+  let eventMonth = "";
   const page =
     kind === "minister"
       ? "ministros"
@@ -54,20 +70,71 @@ export async function save(form: FormData) {
     if (kind !== "absence" && !user.coordinator)
       throw new Error("Acesso exclusivo da coordenação.");
     const raw = Object.fromEntries(form.entries());
-    const id = value(form, "id") || crypto.randomUUID();
+    let id = value(form, "id") || crypto.randomUUID();
     const data = {
       ...raw,
       id,
       active: form.has("active"),
-      away: form.has("away"),
-      monthlyLimit: Number(raw.monthlyLimit),
+      monthlyLimit: value(form, "monthlyLimit")
+        ? Number(raw.monthlyLimit)
+        : null,
+      kind: kind === "event" ? value(form, "eventKind") : kind,
+      assistedId:
+        kind === "event" && value(form, "eventKind") !== "VISIT"
+          ? ""
+          : raw.assistedId,
       duration: Number(raw.duration),
       required: Number(raw.required),
     };
     await transaction(async (client, current) => {
-      await assertCurrentActor(client, user, kind !== "absence");
+      const currentUser = await assertCurrentActor(
+        client,
+        user,
+        kind !== "absence",
+      );
       if (kind === "minister") {
-        const minister = ministerSchema.parse(data);
+        if (!value(form, "id") && value(form, "email")) {
+          const reserved = await client.query(
+            "SELECT minister_id FROM mesce_access WHERE email_hmac=$1",
+            [emailHash(value(form, "email"))],
+          );
+          if (reserved.rows[0]) {
+            if (
+              current.ministers.some(
+                (m) => m.id === reserved.rows[0].minister_id,
+              )
+            )
+              throw new Error(
+                "E-mail já cadastrado. Edite o cadastro existente.",
+              );
+            id = reserved.rows[0].minister_id;
+            data.id = id;
+          }
+        }
+        const existingMinister = current.ministers.find((m) => m.id === id);
+        const status = z
+          .enum(["ACTIVE", "FORMER"])
+          .parse(value(form, "participationStatus"));
+        const parsed = ministerSchema.parse({
+          ...data,
+          preferredName: form.has("preferredName")
+            ? value(form, "preferredName")
+            : (existingMinister?.preferredName ?? ""),
+          active: status === "ACTIVE",
+          former: status === "FORMER",
+          monthlyLimit: form.has("monthlyLimit")
+            ? data.monthlyLimit
+            : (existingMinister?.monthlyLimit ?? null),
+          ...ministerLocations(form, existingMinister, current),
+          registrationStatus:
+            value(form, "registrationStatus") === "DRAFT"
+              ? "DRAFT"
+              : "COMPLETE",
+        });
+        const minister =
+          parsed.registrationStatus === "DRAFT"
+            ? parsed
+            : requireCompleteMinister(parsed);
         if (
           minister.email &&
           current.ministers.some(
@@ -105,133 +172,102 @@ export async function save(form: FormData) {
           } as Minister);
         await write(client, "minister", minister);
       } else if (kind === "assisted")
-        await write(client, "assisted", assistedSchema.parse(data));
+        await write(
+          client,
+          "assisted",
+          assistedSchema.parse({
+            ...data,
+            ministersRequired: Number(form.get("ministersRequired")),
+          }),
+        );
       else if (kind === "event") {
-        const event = eventSchema.parse(data);
-        requireFuture(event);
-        if (
-          event.kind === "VISIT" &&
-          !current.assisted.some((a) => a.id === event.assistedId && a.active)
-        )
-          throw new Error("Selecione um assistido ativo.");
-        if (
-          current.events.some(
-            (e) =>
-              e.id !== id &&
-              e.date === event.date &&
-              e.time === event.time &&
-              e.location === event.location &&
-              e.assistedId === event.assistedId,
-          )
-        )
-          throw new Error("Já existe um evento neste horário e local.");
-        const occurrences = z.coerce
-          .number()
-          .int()
-          .min(1)
-          .max(53)
-          .parse(form.get("occurrences") ?? 1);
-        if (current.events.some((e) => e.id === id) && occurrences !== 1)
-          throw new Error(
-            "Edite apenas esta ocorrência; recorrência é criada no cadastro inicial.",
-          );
-        for (let index = 0; index < occurrences; index++) {
-          const date = new Date(event.date + "T12:00:00Z");
-          date.setUTCDate(date.getUTCDate() + index * 7);
-          const occurrence = {
-            ...event,
-            id: index === 0 ? id : crypto.randomUUID(),
-            date: date.toISOString().slice(0, 10),
-          };
-          requireFuture(occurrence);
+        const local = eventLocation(
+          form,
+          current.events.find((e) => e.id === id),
+          current,
+        );
+        if (local.location) form.set("location", local.location);
+        const occurrences = planEventSave(form, id, current).map((e) => ({
+          ...e,
+          locationId: local.locationId,
+        }));
+        eventMonth = occurrences[0]?.date.slice(0, 7) ?? "";
+        for (const occurrence of occurrences) {
+          const previous = current.events.find((e) => e.id === occurrence.id);
+          const changed =
+            previous &&
+            [
+              "date",
+              "time",
+              "duration",
+              "location",
+              "assistedId",
+              "assistedIds",
+              "groupMinistersRequired",
+            ].some(
+              (key) =>
+                JSON.stringify(previous[key as keyof typeof previous]) !==
+                JSON.stringify(occurrence[key as keyof typeof occurrence]),
+            );
+          const saved = changed
+            ? eventChangeNotice(previous, occurrence, current)
+            : occurrence;
+          await write(client, "event", saved);
+          if (changed)
+            await audit(client, user.id, "event:reschedule", saved.id, {
+              before: previous,
+              after: saved,
+              reason: "Edição individual",
+            });
+        }
+      } else if (kind === "absence") {
+        const entries = form.getAll("rows").length
+          ? parseAbsenceBatch(form)
+          : [
+              absenceSchema.parse({
+                ...data,
+                revokedAt: undefined,
+                revokedBy: undefined,
+                withdrawalReason: undefined,
+                end: raw.scope === "DAY" ? raw.start : raw.end,
+              }),
+            ];
+        for (const absence of entries) {
+          validateAbsenceSubmission(absence, currentUser, current);
           if (
-            current.events.some(
-              (e) =>
-                e.id !== occurrence.id &&
-                e.date === occurrence.date &&
-                e.time === occurrence.time &&
-                e.location === occurrence.location &&
-                e.assistedId === occurrence.assistedId,
+            current.absences.some(
+              (a) =>
+                !a.revokedAt &&
+                a.id !== absence.id &&
+                a.ministerId === absence.ministerId &&
+                a.scope === absence.scope &&
+                a.start === absence.start &&
+                a.end === absence.end &&
+                a.eventId === absence.eventId,
             )
           )
             continue;
-          await write(client, "event", occurrence);
+          await write(client, "absence", absence);
+          await audit(client, user.id, "absence:save", absence.id);
         }
-      } else if (kind === "absence") {
-        const absence = absenceSchema.parse(data);
-        const minister = current.ministers.find(
-          (m) => m.id === absence.ministerId,
-        );
-        if (
-          !minister ||
-          (!user.coordinator &&
-            (!user.verified ||
-              !minister.active ||
-              minister.id !== user.ministerId))
-        )
-          throw new Error("Você só pode informar seus impedimentos.");
-        if (
-          absence.scope === "CELEBRATION" &&
-          !current.events.some((e) => e.id === absence.eventId)
-        )
-          throw new Error("Celebração inexistente.");
-        const previous = current.absences.find((a) => a.id === id);
-        if (
-          previous &&
-          !user.coordinator &&
-          previous.ministerId !== minister.id
-        )
-          throw new Error("Impedimento de outro ministro.");
-        if (!user.coordinator) {
-          const now = new Date();
-          const local = new Intl.DateTimeFormat("en-CA", {
-            timeZone: "America/Sao_Paulo",
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit",
-          }).format(now);
-          const parts = local.split("-").map(Number);
-          const next = new Date(Date.UTC(parts[0], parts[1], 1))
-            .toISOString()
-            .slice(0, 7);
-          const date =
-            absence.scope === "CELEBRATION"
-              ? current.events.find((e) => e.id === absence.eventId)!.date
-              : absence.start;
-          if (
-            parts[2] > 25 ||
-            !date.startsWith(next) ||
-            (absence.scope !== "CELEBRATION" && !absence.end.startsWith(next))
-          )
-            throw new Error(
-              "Informe impedimentos do próximo mês até o dia 25. Fora do prazo, procure a coordenação.",
-            );
-        }
-        if (
-          current.absences.some(
-            (a) =>
-              a.id !== id &&
-              a.ministerId === absence.ministerId &&
-              a.scope === absence.scope &&
-              a.start === absence.start &&
-              a.end === absence.end &&
-              a.eventId === absence.eventId,
-          )
-        )
-          throw new Error("Impedimento já informado.");
-        await write(client, "absence", absence);
       } else throw new Error("Cadastro inválido.");
       await audit(client, user.id, `save:${kind}`, id);
     });
   } catch (error) {
-    redirect(`/${page}?error=${encodeURIComponent(message(error))}`);
+    return { error: message(error) };
   }
   revalidatePath("/", "layout");
-  redirect(`/${page}?saved=1`);
+  return {
+    redirectTo:
+      kind === "event"
+        ? calendarReturn(form, "saved", eventMonth)
+        : `/${page}?saved=1`,
+  };
 }
 export async function scheduleAction(form: FormData) {
   const user = await coordinator();
   let selected = "";
+  let deliverySchedule: Schedule | undefined;
   try {
     selected = month(form);
     const operation = value(form, "operation");
@@ -258,6 +294,7 @@ export async function scheduleAction(form: FormData) {
             }
           : generate(data, selected);
         schedule.revision = (existing?.revision ?? 0) + 1;
+        schedule.warnings = validateSchedule(schedule, data);
         await write(client, "schedule", schedule);
         await audit(client, user.id, "schedule:generate", schedule.id);
         return;
@@ -298,13 +335,44 @@ export async function scheduleAction(form: FormData) {
           };
         } else {
           const ministerId = z.string().uuid().parse(form.get("ministerId"));
+          const alreadyAssigned = updated.assignments.some(
+            (a) => a.eventId === eventId && a.ministerId === ministerId,
+          );
+          if (value(form, "mode") !== "remove" && alreadyAssigned)
+            throw new Error(
+              "Este ministro já está designado. Selecione outro ministro para preencher a vaga.",
+            );
+          if (value(form, "mode") === "remove" && !alreadyAssigned)
+            throw new Error("Este ministro não está designado neste encontro.");
           const assignments = updated.assignments.filter(
             (a) => !(a.eventId === eventId && a.ministerId === ministerId),
           );
-          if (value(form, "mode") !== "remove")
+          if (value(form, "mode") !== "remove") {
+            const minister = data.ministers.find((m) => m.id === ministerId);
+            if (
+              !minister ||
+              minister.former ||
+              !minister.active ||
+              minister.registrationStatus === "DRAFT"
+            )
+              throw new Error(
+                "Ministro inexistente, desligado ou com cadastro pendente.",
+              );
+            const targetEvent = updated.events.find((e) => e.id === eventId);
+            if (targetEvent) {
+              const conflict = assignmentConflict(
+                ministerId,
+                targetEvent,
+                assignments,
+                updated.events,
+              );
+              if (conflict) throw new Error(conflict);
+            }
             assignments.push({ eventId, ministerId, origin: "MANUAL" });
+          }
           updated = { ...updated, assignments };
         }
+        updated.status = "IN_REVIEW";
         updated.warnings = validateSchedule(updated, data);
       } else if (operation === "approve") {
         if (!["DRAFT", "IN_REVIEW"].includes(existing.status))
@@ -314,10 +382,14 @@ export async function scheduleAction(form: FormData) {
         updated = {
           ...existing,
           status: "APPROVED",
+          ministers: data.ministers.map((m) => ({
+            id: m.id,
+            name: ministerDisplayName(m),
+          })),
           assistedSnapshot: data.assisted
             .filter((p) =>
               existing.events.some(
-                (e) => e.kind === "VISIT" && e.assistedId === p.id,
+                (e) => e.kind === "VISIT" && visitAssistedIds(e).includes(p.id),
               ),
             )
             .map((p) => ({ ...p, notes: "" })),
@@ -337,6 +409,15 @@ export async function scheduleAction(form: FormData) {
       } else throw new Error("Operação inválida.");
       updated.editVersion = (existing.editVersion ?? 1) + 1;
       await write(client, "schedule", updated);
+      if (operation === "publish" || operation === "cancel") {
+        deliverySchedule = updated;
+        await enqueuePublishedAgenda(
+          client,
+          data,
+          updated,
+          process.env.APP_BASE_URL ?? "http://localhost:3000",
+        );
+      }
       await audit(
         client,
         user.id,
@@ -357,6 +438,13 @@ export async function scheduleAction(form: FormData) {
     redirect(
       `/escalas?month=${selected}&error=${encodeURIComponent(message(error))}`,
     );
+  }
+  if (deliverySchedule) {
+    try {
+      await processOutboxBatch();
+    } catch {
+      // The committed outbox is retried by the protected scheduled worker.
+    }
   }
   revalidatePath("/", "layout");
   redirect(`/escalas?month=${selected}&saved=1`);

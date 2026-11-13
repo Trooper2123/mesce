@@ -1,4 +1,5 @@
 "use server";
+import { calendarReturn } from "@/lib/calendar-navigation";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -6,7 +7,10 @@ import { actor, coordinator, assertCurrentActor } from "@/lib/auth";
 import { transaction, write, audit } from "@/lib/store";
 import { importLegacy } from "@/lib/legacy";
 import { encrypt } from "@/lib/crypto";
-import { requireFuture } from "@/lib/domain";
+import {
+  planAbsenceWithdrawal,
+  planEventChange,
+} from "@/lib/operational-changes";
 export async function legacyImportAction() {
   const user = await coordinator();
   try {
@@ -27,32 +31,68 @@ export async function legacyImportAction() {
   revalidatePath("/", "layout");
   redirect("/configuracao?saved=1");
 }
-export async function cancelEvent(form: FormData) {
-  const user = await coordinator();
+export async function withdrawAbsence(form: FormData) {
+  const user = await actor();
   try {
-    const id = z.string().uuid().parse(form.get("id"));
     await transaction(async (client, data) => {
-      await assertCurrentActor(client, user, true);
-      const event = data.events.find((e) => e.id === id);
-      if (!event) throw new Error("Evento inexistente.");
-      requireFuture(event);
-      const reason = String(form.get("reason") ?? "").trim();
-      if (reason.length < 3) throw new Error("Informe a justificativa.");
-      await write(client, "event", { ...event, cancelled: true });
-      await audit(client, user.id, "event:cancel", id, { reason });
+      const current = await assertCurrentActor(client, user);
+      const id = z.string().uuid().parse(form.get("id"));
+      const updated = planAbsenceWithdrawal(
+        id,
+        String(form.get("reason") ?? ""),
+        current,
+        data,
+      );
+      await write(client, "absence", updated);
+      await audit(client, current.id, "absence:withdraw", id, {
+        before: data.absences.find((a) => a.id === id),
+        after: updated,
+      });
     });
-  } catch (e) {
-    redirect(
-      "/celebracoes?error=" +
-        encodeURIComponent(
-          e instanceof Error && !("code" in e)
-            ? e.message
-            : "Não foi possível cancelar.",
-        ),
-    );
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error && !("code" in error)
+          ? error.message
+          : "Não foi possível retirar o impedimento.",
+    };
   }
   revalidatePath("/", "layout");
-  redirect("/celebracoes?saved=1");
+  return { redirectTo: "/impedimentos?saved=1" };
+}
+export async function changeEvents(form: FormData) {
+  const user = await coordinator();
+  try {
+    await transaction(async (client, data) => {
+      await assertCurrentActor(client, user, true);
+      const plan = planEventChange(form, data);
+      for (const event of plan.events) {
+        await write(client, "event", event);
+        await audit(
+          client,
+          user.id,
+          `event:${plan.operation.toLowerCase()}`,
+          event.id,
+          {
+            before: data.events.find((e) => e.id === event.id),
+            after: event,
+            reason: plan.reason,
+            scope: plan.scope,
+            excluded: plan.excluded,
+          },
+        );
+      }
+    });
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error && !("code" in error)
+          ? error.message
+          : "Não foi possível alterar os eventos.",
+    };
+  }
+  revalidatePath("/", "layout");
+  return { redirectTo: calendarReturn(form, "saved") };
 }
 export async function monthlyResponse(form: FormData) {
   const user = await actor();
@@ -116,15 +156,18 @@ export async function settingsAction(form: FormData) {
     const settings = z
       .object({
         unansweredPolicy: z.enum(["REVIEW", "ELIGIBLE"]),
-        monthlyLimit: z.coerce.number().int().min(1).max(100),
+        monthlyLimit: z.preprocess(
+          (v) => (v === "" ? null : v),
+          z.coerce.number().int().min(1).max(100).nullable(),
+        ),
         historyMonths: z.coerce.number().int().min(1).max(36),
       })
       .parse(Object.fromEntries(form.entries()));
-    await transaction(async (client) => {
+    await transaction(async (client, data) => {
       await assertCurrentActor(client, user, true);
       await client.query(
         "INSERT INTO mesce_settings(id,payload) VALUES(1,$1) ON CONFLICT(id) DO UPDATE SET payload=EXCLUDED.payload",
-        [encrypt(settings)],
+        [encrypt({ ...data.settings, ...settings })],
       );
       await audit(client, user.id, "settings:update", undefined, settings);
     });

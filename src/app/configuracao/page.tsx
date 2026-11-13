@@ -4,6 +4,7 @@ import { Field } from "@/components/fields";
 import { coordinator } from "@/lib/auth";
 import { legacyImportAction } from "@/app/operations";
 import { Notice } from "@/components/fields";
+import Link from "next/link";
 export const dynamic = "force-dynamic";
 export default async function Configuration({
   searchParams,
@@ -15,48 +16,67 @@ export default async function Configuration({
   const settings = (await readData()).settings!;
   return (
     <>
-      <h1>Configuração operacional</h1>
+      <span className="eyebrow">Coordenação</span>
+      <h1>Configurações</h1>
+      <p className="subtitle">
+        Defina como as escalas são preparadas. As alterações valem para as
+        próximas gerações de escala.
+      </p>
       <Notice {...query} />
       <section className="panel">
-        <h2>Regras de planejamento</h2>
+        <h2>Planejamento das escalas</h2>
+        <p>
+          Escolha como tratar respostas ausentes e como equilibrar as
+          designações entre os ministros.
+        </p>
         <form action={settingsAction}>
           <div className="form-grid">
             <Field
               name="unansweredPolicy"
-              label="Ministro sem resposta mensal"
+              label="Quando o ministro não responder aos impedimentos"
               value={settings.unansweredPolicy}
               options={[
-                ["REVIEW", "Exigir resposta ou consolidação pela coordenação"],
+                ["REVIEW", "Deixar pendente para a coordenação revisar"],
                 [
                   "ELIGIBLE",
-                  "Considerar elegível quando não houver impedimento",
+                  "Considerar apto se não houver impedimento registrado",
                 ],
               ]}
             />
             <Field
               name="monthlyLimit"
-              label="Limite padrão para novos cadastros"
+              label="Limite mensal padrão para novos ministros (vazio = sem limite)"
               type="number"
-              value={settings.monthlyLimit}
+              value={settings.monthlyLimit ?? ""}
+              max={100}
             />
             <Field
               name="historyMonths"
-              label="Meses considerados no histórico"
+              label="Período usado para equilibrar a distribuição"
               type="number"
               value={settings.historyMonths}
+              max={36}
             />
           </div>
+          <p className="muted">
+            O limite padrão soma missas e visitas e não altera os limites de
+            ministros já cadastrados. O período de equilíbrio pode ser definido
+            de 1 a 36 meses. Deixar o limite vazio não desativa o equilíbrio.
+          </p>
           <div className="form-actions">
-            <button>Salvar regras</button>
+            <button>Salvar configurações</button>
+            <button type="reset" className="secondary">
+              Cancelar
+            </button>
+            <Link className="button secondary" href="/configuracao">
+              Voltar
+            </Link>
           </div>
         </form>
-        <p>
-          A política é explícita. Nenhuma ausência de resposta confirma
-          disponibilidade.
-        </p>
       </section>
-      <section className="panel">
-        <h2>Preservar dados do sistema anterior</h2>
+      <details className="panel">
+        <summary>Importação técnica do sistema anterior</summary>
+        <h2>Importar cadastros legados</h2>
         <p>
           A importação copia os cadastros legados mantendo identificadores e
           vínculos. O banco original não é apagado. Execute primeiro em
@@ -69,19 +89,7 @@ export default async function Configuration({
         <form action={legacyImportAction}>
           <button>Importar cadastros legados neste ambiente</button>
         </form>
-      </section>
-      <section className="panel">
-        <h2>Regras desta versão</h2>
-        <ul>
-          <li>Novos agendamentos somente futuros, no horário de Brasília.</li>
-          <li>Pré-cadastro por allowlist, sem envio de convites.</li>
-          <li>Ministro edita apenas o próprio cadastro.</li>
-          <li>
-            Impedimentos do próximo mês até o dia 25; exceções pela coordenação.
-          </li>
-          <li>Publicação exige nova validação das restrições.</li>
-        </ul>
-      </section>
+      </details>
     </>
   );
 }

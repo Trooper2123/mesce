@@ -7,9 +7,10 @@
     "test": "tests"
   },
   "scripts": {
-    "test": "node --import tsx --test tests/*.test.ts",
+    "test": "node --max-old-space-size=2048 --import tsx --test --test-concurrency=1 tests/*.test.ts",
     "dev": "next dev --hostname 0.0.0.0",
     "build": "next build",
+    "vercel": "pnpm dlx vercel@65.15.0",
     "start": "next start --hostname 0.0.0.0",
     "typecheck": "tsc --noEmit",
     "db:migrate": "node --env-file=.env.local --import tsx scripts/migrate.ts",
@@ -32,23 +33,32 @@
     "@auth0/nextjs-auth0": "^4.33.0",
     "lucide-react": "^1.70.0",
     "next": "^16.4.6",
+    "nodemailer": "10.5.0",
     "pdf-lib": "^1.17.1",
     "pg": "^8.23.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
+    "web-push": "4.0.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.16",
+    "@playwright/test": "^1.65.0",
     "@types/node": "^26.6.6",
     "@types/pg": "^8.23.1",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "@types/web-push": "3.6.4",
     "prettier": "^3.9.10",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"
   },
   "engines": {
     "node": "24.x"
+  },
+  "allowScripts": {
+    "esbuild@0.27.0": true,
+    "esbuild@0.28.2": true,
+    "esbuild@0.27.2": true
   }
 }

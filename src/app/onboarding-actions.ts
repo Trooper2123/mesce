@@ -1,8 +1,10 @@
 "use server";
+import { ministerLocations } from "@/lib/locations";
 import { redirect } from "next/navigation";
 import { cookies, headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { createHmac } from "node:crypto";
+import { encrypt } from "@/lib/crypto";
 import { z } from "zod";
 import { identity, actor, coordinator, assertCurrentActor } from "@/lib/auth";
 import { pool, transaction, write, audit } from "@/lib/store";
@@ -13,12 +15,20 @@ import {
   completeRegistration,
   rateLimit,
 } from "@/lib/registration";
-import { blankMinister, ownProfile, validateSpouse } from "@/lib/profile";
+import {
+  blankMinister,
+  ownProfile,
+  validateSpouse,
+  requireCompleteMinister,
+} from "@/lib/profile";
 import {
   previewEnabled,
   passwordMatches,
   createPreviewSession,
+  readPreviewSession,
+  previewProfileSchema,
 } from "@/lib/preview-session";
+import { ensurePreviewMinister } from "@/lib/preview-profiles";
 function failure(error: unknown) {
   return error instanceof z.ZodError
     ? error.issues.map((i) => i.message).join(" • ")
@@ -74,7 +84,15 @@ export async function saveOwnProfile(form: FormData) {
       const previous = data.ministers.find((m) => m.id === current.ministerId);
       if (!previous || !previous.active)
         throw new Error("Cadastro indisponível. Procure a coordenação.");
-      const minister = ownProfile(Object.fromEntries(form.entries()), previous);
+      const minister = requireCompleteMinister(
+        ownProfile(
+          {
+            ...Object.fromEntries(form.entries()),
+            ...ministerLocations(form, previous, data),
+          },
+          previous,
+        ),
+      );
       validateSpouse(minister, data.ministers);
       if (previous.spouseId && previous.spouseId !== minister.spouseId) {
         const old = data.ministers.find((m) => m.id === previous.spouseId);
@@ -99,7 +117,32 @@ export async function saveOwnProfile(form: FormData) {
       });
     });
   } catch (e) {
-    redirect("/meus-dados?error=" + encodeURIComponent(failure(e)));
+    return { error: failure(e) };
+  }
+  revalidatePath("/", "layout");
+  redirect("/meus-dados?saved=1");
+}
+export async function saveCoordinatorProfile(form: FormData) {
+  const user = await actor();
+  try {
+    const profile = z
+      .object({
+        name: z.string().trim().min(3).max(200),
+        phone: z.string().trim().max(40),
+      })
+      .parse(Object.fromEntries(form.entries()));
+    await transaction(async (client) => {
+      const current = await assertCurrentActor(client, user, true);
+      if (!current.coordinator)
+        throw new Error("Acesso exclusivo da coordenação.");
+      await client.query(
+        "INSERT INTO mesce_coordinator_profiles(auth0_sub,payload) VALUES($1,$2) ON CONFLICT(auth0_sub) DO UPDATE SET payload=EXCLUDED.payload,updated_at=now()",
+        [user.id, encrypt(profile)],
+      );
+      await audit(client, user.id, "coordinator_profile:update");
+    });
+  } catch (e) {
+    return { error: failure(e) };
   }
   revalidatePath("/", "layout");
   redirect("/meus-dados?saved=1");
@@ -115,15 +158,25 @@ export async function finishRegistration(form: FormData) {
       const prior =
         data.ministers.find((m) => m.id === access.minister_id) ??
         blankMinister(access.minister_id, user.email);
-      const profile = ownProfile(Object.fromEntries(form.entries()), {
-        ...prior,
-        email: user.email,
-      });
+      const profile = ownProfile(
+        {
+          ...Object.fromEntries(form.entries()),
+          ...ministerLocations(form, prior, data),
+        },
+        {
+          ...prior,
+          email: user.email,
+        },
+      );
+      if (prior.former)
+        throw new Error("Cadastro de ex-ministro. Procure a coordenação.");
+      requireCompleteMinister(profile);
+      profile.registrationStatus = "COMPLETE";
       validateSpouse(profile, data.ministers);
       await completeRegistration(client, user, profile);
     });
   } catch (e) {
-    redirect("/cadastro?error=" + encodeURIComponent(failure(e)));
+    return { error: failure(e) };
   }
   revalidatePath("/", "layout");
   redirect("/meus-dados?saved=1");
@@ -137,8 +190,10 @@ export async function previewLogin(form: FormData) {
   )
     .update(h.get("x-forwarded-for")?.split(",")[0].slice(0, 100) ?? "unknown")
     .digest("hex");
+  let profile: import("@/lib/preview-session").PreviewProfile;
   try {
     await rateLimit(pool(), "preview:" + fingerprint, 10);
+    profile = previewProfileSchema.parse(form.get("profile") ?? "COORDINATOR");
     if (
       !passwordMatches(
         String(form.get("password") ?? ""),
@@ -146,17 +201,57 @@ export async function previewLogin(form: FormData) {
       )
     )
       throw new Error("Credenciais inválidas.");
+    await transaction(async (client) => {
+      await ensurePreviewMinister(client, profile);
+      await audit(client, "preview-login", "preview:login", undefined, {
+        profile,
+      });
+    });
   } catch (e) {
     redirect("/acesso-dev?error=" + encodeURIComponent(failure(e)));
   }
-  (await cookies()).set("mesce_preview", createPreviewSession(), {
+  (await cookies()).set(
+    "mesce_preview",
+    createPreviewSession(Date.now(), profile!),
+    {
+      httpOnly: true,
+      secure: true,
+      sameSite: "strict",
+      path: "/",
+      maxAge: 3600,
+    },
+  );
+  revalidatePath("/", "layout");
+  redirect(profile! === "COORDINATOR" ? "/" : "/minhas-escalas");
+}
+export async function switchPreviewProfile(form: FormData) {
+  if (!previewEnabled()) redirect("/");
+  const store = await cookies();
+  const session = readPreviewSession(store.get("mesce_preview")?.value ?? "");
+  if (!session) redirect("/acesso-dev");
+  let profile: import("@/lib/preview-session").PreviewProfile;
+  try {
+    profile = previewProfileSchema.parse(form.get("profile"));
+    await rateLimit(pool(), "preview-switch:" + session.id, 30);
+    await transaction(async (client) => {
+      await ensurePreviewMinister(client, profile);
+      await audit(client, session.id, "preview:switch-profile", undefined, {
+        from: session.previewProfile,
+        to: profile,
+      });
+    });
+  } catch (error) {
+    redirect("/acesso-dev?error=" + encodeURIComponent(failure(error)));
+  }
+  store.set("mesce_preview", createPreviewSession(Date.now(), profile!), {
     httpOnly: true,
     secure: true,
     sameSite: "strict",
     path: "/",
     maxAge: 3600,
   });
-  redirect("/");
+  revalidatePath("/", "layout");
+  redirect(profile! === "COORDINATOR" ? "/" : "/minhas-escalas");
 }
 export async function previewLogout() {
   (await cookies()).delete("mesce_preview");

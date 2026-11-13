@@ -1,25 +1,45 @@
+import { RemoveRecord } from "@/components/remove-record";
 import Link from "next/link";
-import { advisories } from "@/lib/domain";
+import { ministerDisplayName } from "@/lib/minister-name";
+import { AssignmentFields } from "@/components/assignment-fields";
+import {
+  advisories,
+  validateSchedule,
+  agendaChanged,
+  overlappingAgenda,
+} from "@/lib/domain";
 import { coordinator } from "@/lib/auth";
 import { readData } from "@/lib/store";
 import { scheduleAction } from "@/app/actions";
 import { Field, Notice } from "@/components/fields";
+import { nextMonth } from "@/lib/domain";
+import { matchesEventSearch, sortEvents } from "@/lib/event-agenda";
+import type { Event } from "@/lib/domain";
 export const dynamic = "force-dynamic";
 export default async function Schedules({
   searchParams,
 }: {
-  searchParams: Promise<{ month?: string; error?: string; saved?: string }>;
+  searchParams: Promise<{
+    month?: string;
+    error?: string;
+    saved?: string;
+    deleted?: string;
+    q?: string;
+  }>;
 }) {
   await coordinator();
   const query = await searchParams;
   const month = /^\d{4}-(0[1-9]|1[0-2])$/.test(query.month ?? "")
     ? query.month!
-    : new Date().toISOString().slice(0, 7);
+    : nextMonth();
   const data = await readData();
   const history = data.schedules
     .filter((s) => s.month === month)
     .sort((a, b) => b.revision - a.revision);
   const schedule = history[0];
+  const editable = schedule && ["DRAFT", "IN_REVIEW"].includes(schedule.status);
+  const warnings = schedule && editable ? validateSchedule(schedule, data) : [];
+  const overlaps = schedule ? overlappingAgenda(schedule) : [];
   const labels = {
     DRAFT: "Rascunho",
     IN_REVIEW: "Em revisão",
@@ -27,6 +47,29 @@ export default async function Schedules({
     APPROVED: "Aprovada",
     PUBLISHED: "Publicada",
   };
+  const visibleEvents = schedule
+    ? sortEvents(schedule.events).filter((event) => {
+        const names = schedule.assignments
+          .filter((assignment) => assignment.eventId === event.id)
+          .map(
+            (assignment) =>
+              schedule.ministers.find(
+                (minister) => minister.id === assignment.ministerId,
+              )?.name ??
+              data.ministers.find(
+                (minister) => minister.id === assignment.ministerId,
+              )?.name ??
+              "",
+          );
+        return matchesEventSearch(event, query.q, names);
+      })
+    : [];
+  const eventsByDate = new Map<string, Event[]>();
+  for (const event of visibleEvents) {
+    const events = eventsByDate.get(event.date) ?? [];
+    events.push(event);
+    eventsByDate.set(event.date, events);
+  }
   const common = (
     <>
       <input type="hidden" name="month" value={month} />
@@ -38,6 +81,22 @@ export default async function Schedules({
       />
     </>
   );
+  const generateForm = (
+    <form action={scheduleAction}>
+      {common}
+      <button
+        name="operation"
+        value="generate"
+        className={
+          editable || schedule?.status === "APPROVED" ? "secondary" : undefined
+        }
+      >
+        {schedule && ["APPROVED", "PUBLISHED"].includes(schedule.status)
+          ? "Abrir nova revisão"
+          : "Gerar proposta"}
+      </button>
+    </form>
+  );
   return (
     <>
       <span className="eyebrow">Planejamento do ministério</span>
@@ -46,6 +105,14 @@ export default async function Schedules({
         Gere a proposta, revise os encontros e publique após a aprovação.
       </p>
       <Notice error={query.error} saved={query.saved} />
+      {query.deleted && <p role="status">Rascunho excluído com sucesso.</p>}
+      {editable && (
+        <RemoveRecord
+          kind="schedule"
+          record={schedule}
+          label={`Escala ${schedule.month} · revisão ${schedule.revision}`}
+        />
+      )}
       <div className="panel">
         <form className="toolbar">
           <Field
@@ -56,47 +123,62 @@ export default async function Schedules({
           />
           <button className="secondary">Consultar</button>
         </form>
-        <div className="hero-actions">
-          <form action={scheduleAction}>
-            {common}
-            <button name="operation" value="generate">
-              {schedule && ["APPROVED", "PUBLISHED"].includes(schedule.status)
-                ? "Abrir nova revisão"
-                : "Gerar proposta"}
-            </button>
-          </form>
-          {schedule && ["DRAFT", "IN_REVIEW"].includes(schedule.status) && (
-            <form action={scheduleAction}>
-              {common}
-              <button name="operation" value="approve" className="secondary">
-                Validar e aprovar
-              </button>
-            </form>
-          )}
-          {schedule?.status === "APPROVED" && (
-            <form action={scheduleAction}>
-              {common}
-              <button name="operation" value="publish">
-                Publicar escala
-              </button>
-            </form>
-          )}
-          {schedule && ["APPROVED", "PUBLISHED"].includes(schedule.status) && (
-            <Link
-              className="button secondary"
-              href={`/api/schedules/${schedule.id}/pdf`}
-            >
-              Baixar PDF aprovado
-            </Link>
-          )}
-          {schedule && ["DRAFT", "IN_REVIEW"].includes(schedule.status) && (
-            <form action={scheduleAction}>
-              {common}
-              <button className="secondary" name="operation" value="sync">
-                Sincronizar agenda e validar
-              </button>
-            </form>
-          )}
+        <div className="schedule-actions">
+          <div className="schedule-primary-actions">
+            <span className="schedule-actions-label">Próxima etapa</span>
+            {!editable && schedule?.status !== "APPROVED" && generateForm}
+            {editable && (
+              <form action={scheduleAction}>
+                {common}
+                <button name="operation" value="approve">
+                  Validar e aprovar
+                </button>
+              </form>
+            )}
+            {schedule?.status === "APPROVED" && (
+              <form action={scheduleAction}>
+                {common}
+                <button name="operation" value="publish">
+                  Publicar escala
+                </button>
+              </form>
+            )}
+          </div>
+          {schedule &&
+            (editable ||
+              ["APPROVED", "PUBLISHED"].includes(schedule.status)) && (
+              <div className="schedule-support-actions">
+                <span className="schedule-actions-label">Outras ações</span>
+                {editable && generateForm}
+                {schedule.status === "APPROVED" && generateForm}
+                {schedule &&
+                  ["APPROVED", "PUBLISHED"].includes(schedule.status) && (
+                    <Link
+                      className="button secondary"
+                      href={`/api/schedules/${schedule.id}/pdf`}
+                    >
+                      Baixar PDF aprovado
+                    </Link>
+                  )}
+                {schedule?.assistedSnapshot &&
+                  ["APPROVED", "PUBLISHED"].includes(schedule.status) && (
+                    <Link
+                      className="button secondary"
+                      href={`/api/schedules/${schedule.id}/visitas`}
+                    >
+                      Baixar escala completa com contatos (restrita)
+                    </Link>
+                  )}
+                {editable && (
+                  <form action={scheduleAction}>
+                    {common}
+                    <button className="secondary" name="operation" value="sync">
+                      Sincronizar agenda e validar
+                    </button>
+                  </form>
+                )}
+              </div>
+            )}
         </div>
         <p className="muted">
           Limite mensal considera celebrações e visitas em conjunto. O
@@ -122,12 +204,33 @@ export default async function Schedules({
               {schedule.events.length} encontros
             </span>
           </div>
-          {schedule.warnings.length > 0 && (
+          {warnings.length > 0 && (
             <section className="notice error">
               <strong>Pendências para aprovação</strong>
               <ul>
-                {schedule.warnings.map((w) => (
+                {warnings.map((w) => (
                   <li key={w}>{w}</li>
+                ))}
+              </ul>
+            </section>
+          )}
+          {editable && agendaChanged(schedule, data) && (
+            <p role="alert" className="notice error">
+              Há eventos novos ou alterados na agenda. Use Sincronizar agenda e
+              validar para incluir as visitas e celebrações nesta revisão. A
+              versão publicada anterior permanece preservada.
+            </p>
+          )}
+          {overlaps.length > 0 && (
+            <section className="notice" aria-label="Horários sobrepostos">
+              <strong>Atenção aos horários das equipes</strong>
+              <p>
+                Eventos simultâneos podem usar ministros diferentes. Vagas
+                abertas não são designações conflitantes.
+              </p>
+              <ul>
+                {overlaps.map((note) => (
+                  <li key={note}>{note}</li>
                 ))}
               </ul>
             </section>
@@ -142,85 +245,207 @@ export default async function Schedules({
               </ul>
             </div>
           )}
-          {schedule.events.map((event) => {
-            const assigned = schedule.assignments.filter(
-              (a) => a.eventId === event.id,
-            );
-            return (
-              <article key={event.id} className="schedule-event panel">
-                <div className="panel-head">
-                  <div>
-                    <h3>{event.title}</h3>
-                    <span>
-                      {event.date} · {event.time} · {event.location}
-                    </span>
-                  </div>
-                  <span className="tag">
-                    {assigned.length} / {event.required} ministros
-                  </span>
-                </div>
-                <ul>
-                  {assigned.map((a) => (
-                    <li key={a.ministerId}>
-                      {schedule.ministers.find((m) => m.id === a.ministerId)
-                        ?.name ?? "Ministro"}
-                    </li>
-                  ))}
-                </ul>
-                {!assigned.length && <p>Vagas aguardando designação.</p>}
-                {event.notes && <p className="muted">{event.notes}</p>}
-                {["DRAFT", "IN_REVIEW"].includes(schedule.status) && (
-                  <details>
-                    <summary>Ajustar ministros ou quantidade de vagas</summary>
-                    <form action={scheduleAction} className="inline-form">
-                      {common}
-                      <input type="hidden" name="eventId" value={event.id} />
-                      <Field
-                        name="ministerId"
-                        label="Ministro"
-                        options={data.ministers.map((m) => [m.id, m.name])}
-                      />
-                      <Field
-                        name="mode"
-                        label="Ação"
-                        options={[
-                          ["add", "Adicionar"],
-                          ["remove", "Retirar"],
-                        ]}
-                      />
-                      <Field name="reason" label="Justificativa" required />
-                      <button name="operation" value="assign">
-                        Salvar designação
-                      </button>
-                    </form>
-                    <hr />
-                    <form action={scheduleAction} className="inline-form">
-                      {common}
-                      <input type="hidden" name="eventId" value={event.id} />
-                      <Field
-                        name="required"
-                        label="Vagas necessárias"
-                        type="number"
-                        value={event.required}
-                      />
-                      <Field name="reason" label="Justificativa" required />
-                      <button
-                        name="operation"
-                        value="capacity"
-                        className="secondary"
-                      >
-                        Alterar vagas
-                      </button>
-                    </form>
-                    <p className="muted">
-                      Reduzir vagas mantém as designações excedentes visíveis
-                      para retirada explícita.
-                    </p>
+          <form className="toolbar" role="search">
+            <input type="hidden" name="month" value={month} />
+            <Field
+              name="q"
+              label="Buscar na escala por nome, data, horário ou local"
+              value={query.q ?? ""}
+            />
+            <button className="secondary" type="submit">
+              Buscar
+            </button>
+            {query.q && (
+              <Link
+                className="button secondary"
+                href={`/escalas?month=${month}`}
+              >
+                Limpar busca
+              </Link>
+            )}
+          </form>
+          {!visibleEvents.length ? (
+            <p className="empty">
+              {query.q
+                ? "Nenhum encontro corresponde à busca."
+                : "Esta escala não possui encontros."}
+            </p>
+          ) : (
+            [...eventsByDate.entries()].map(
+              ([date, eventsForDate], dayIndex) => {
+                const assignmentsForDate = schedule.assignments.filter((a) =>
+                  eventsForDate.some((event) => event.id === a.eventId),
+                ).length;
+                const vacanciesForDate = eventsForDate.reduce(
+                  (total, event) =>
+                    total +
+                    Math.max(
+                      0,
+                      event.required -
+                        schedule.assignments.filter(
+                          (a) => a.eventId === event.id,
+                        ).length,
+                    ),
+                  0,
+                );
+                const dateLabel = new Intl.DateTimeFormat("pt-BR", {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                  timeZone: "UTC",
+                }).format(new Date(`${date}T12:00:00Z`));
+                return (
+                  <details
+                    className="schedule-day panel"
+                    key={date}
+                    open={dayIndex === 0}
+                  >
+                    <summary>
+                      <span>{dateLabel}</span>
+                      <span className="tag">
+                        {eventsForDate.length} encontros · {assignmentsForDate}{" "}
+                        designações · {vacanciesForDate} vagas
+                      </span>
+                    </summary>
+                    {eventsForDate.map((event) => {
+                      const assigned = schedule.assignments.filter(
+                        (a) => a.eventId === event.id,
+                      );
+                      return (
+                        <article
+                          key={event.id}
+                          className="schedule-event panel"
+                        >
+                          <div className="panel-head">
+                            <div>
+                              <h3>{event.title}</h3>
+                              <span>
+                                {event.date} · {event.time} · {event.location}
+                              </span>
+                            </div>
+                            <span className="tag">
+                              {assigned.length} / {event.required} ministros
+                            </span>
+                          </div>
+                          <ul>
+                            {assigned.map((a) => (
+                              <li key={a.ministerId}>
+                                {schedule.ministers.find(
+                                  (m) => m.id === a.ministerId,
+                                )?.name ?? "Ministro"}
+                              </li>
+                            ))}
+                          </ul>
+                          {!assigned.length && (
+                            <p>Vagas aguardando designação.</p>
+                          )}
+                          {event.notes && (
+                            <p className="muted">{event.notes}</p>
+                          )}
+                          {["DRAFT", "IN_REVIEW"].includes(schedule.status) && (
+                            <details>
+                              <summary>
+                                Ajustar ministros ou quantidade de vagas
+                              </summary>
+                              <form
+                                key={`assign-${event.id}-${schedule.editVersion ?? 1}`}
+                                action={scheduleAction}
+                                className="inline-form"
+                              >
+                                {common}
+                                <input
+                                  type="hidden"
+                                  name="eventId"
+                                  value={event.id}
+                                />
+                                <AssignmentFields
+                                  ministers={data.ministers
+                                    .filter(
+                                      (m) =>
+                                        !m.former &&
+                                        m.registrationStatus !== "DRAFT",
+                                    )
+                                    .map((m) => ({
+                                      id: m.id,
+                                      name: ministerDisplayName(m),
+                                    }))}
+                                  assignedIds={assigned.map(
+                                    (a) => a.ministerId,
+                                  )}
+                                />
+                                <Field
+                                  name="reason"
+                                  label="Justificativa"
+                                  required
+                                />
+                                <button name="operation" value="assign">
+                                  Salvar designação
+                                </button>
+                                <button type="reset" className="secondary">
+                                  Cancelar
+                                </button>
+                                <Link
+                                  className="button secondary"
+                                  href={`/escalas?month=${month}`}
+                                >
+                                  Voltar
+                                </Link>
+                              </form>
+                              <hr />
+                              <form
+                                key={`capacity-${event.id}-${schedule.editVersion ?? 1}`}
+                                action={scheduleAction}
+                                className="inline-form"
+                              >
+                                {common}
+                                <input
+                                  type="hidden"
+                                  name="eventId"
+                                  value={event.id}
+                                />
+                                <Field
+                                  name="required"
+                                  label="Vagas necessárias"
+                                  type="number"
+                                  value={event.required}
+                                />
+                                <Field
+                                  name="reason"
+                                  label="Justificativa"
+                                  required
+                                />
+                                <button
+                                  name="operation"
+                                  value="capacity"
+                                  className="secondary"
+                                >
+                                  Alterar vagas
+                                </button>
+                                <button type="reset" className="secondary">
+                                  Cancelar
+                                </button>
+                                <Link
+                                  className="button secondary"
+                                  href={`/escalas?month=${month}`}
+                                >
+                                  Voltar
+                                </Link>
+                              </form>
+                              <p className="muted">
+                                Reduzir vagas mantém as designações excedentes
+                                visíveis para retirada explícita.
+                              </p>
+                            </details>
+                          )}
+                        </article>
+                      );
+                    })}
                   </details>
-                )}
-              </article>
-            );
-          })}
+                );
+              },
+            )
+          )}
           <section className="panel">
             <h2>Distribuição de participações</h2>
             {[false, true].map((visit) => {

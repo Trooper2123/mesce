@@ -1,12 +1,33 @@
+import { preparationMonth } from "@/lib/calendar-navigation";
+import { EventScopeFields } from "@/components/event-scope-fields";
+import { seriesCandidates } from "@/lib/operational-changes";
+import { RemoveRecord } from "@/components/remove-record";
+import { visitAssistedIds } from "@/lib/visit-group";
+import { specificCelebrations } from "@/lib/celebration-options";
+import { locationCatalog } from "@/lib/locations";
 import Link from "next/link";
-import { cancelEvent } from "@/app/operations";
+import {
+  eventClassOf,
+  eventNameOptions,
+  matchesEventName,
+  matchesEventSearch,
+  sortEvents,
+  eventOverlapNotice,
+} from "@/lib/event-agenda";
+import { ServicePreferences } from "@/components/service-preferences";
+import { EventFields } from "@/components/event-fields";
+import { AbsenceFields, AbsenceBatch } from "@/components/absence-fields";
+import { ActionForm } from "@/components/action-form";
+import { missingMinisterFields } from "@/lib/profile";
+import { changeEvents, withdrawAbsence } from "@/app/operations";
 import { Calendar } from "@/components/calendar";
 import { notFound } from "next/navigation";
 import { actor } from "@/lib/auth";
 import { readData, transaction, audit } from "@/lib/store";
 import { save } from "@/app/actions";
 import { Field, Check, Notice } from "@/components/fields";
-import { Minister, Assisted, Event, Absence } from "@/lib/domain";
+import { impeded, Minister, Assisted, Event, Absence } from "@/lib/domain";
+import { Fragment } from "react";
 export const dynamic = "force-dynamic";
 const sections = {
   ministros: [
@@ -30,12 +51,6 @@ const sections = {
     "absence",
   ],
 } as const;
-const locations = [
-  ["Matriz", "Matriz"],
-  ["Carmelo Nossa Senhora do Carmo", "Carmelo Nossa Senhora do Carmo"],
-  ["Capela Nossa Senhora Aparecida", "Capela Nossa Senhora Aparecida"],
-  ["Eventos Externos", "Eventos Externos"],
-] as const;
 export default async function Registry({
   params,
   searchParams,
@@ -48,6 +63,12 @@ export default async function Registry({
     q?: string;
     month?: string;
     type?: string;
+    eventClass?: string;
+    calendarView?: string;
+    eventName?: string;
+    new?: string;
+    deleted?: string;
+    showCancelled?: string;
   }>;
 }) {
   const { section } = await params;
@@ -77,7 +98,7 @@ export default async function Registry({
       : kind === "assisted"
         ? data.assisted
         : kind === "event"
-          ? data.events
+          ? sortEvents(data.events)
           : data.absences.filter((a) =>
               ministers.some((m) => m.id === a.ministerId),
             );
@@ -97,20 +118,98 @@ export default async function Registry({
   const address = minister ?? assisted;
   const month = /^\d{4}-(0[1-9]|1[0-2])$/.test(query.month ?? "")
     ? query.month!
-    : new Date().toISOString().slice(0, 7);
+    : preparationMonth();
+  const calendarView =
+    query.calendarView === "SPLIT" || query.calendarView === "FULL"
+      ? query.calendarView
+      : "SUMMARY";
+  const nameOptions = eventNameOptions(data.events);
   const filtered = rows.filter(
     (r) =>
-      !query.q ||
-      JSON.stringify("name" in r ? r.name : "title" in r ? r.title : r)
-        .toLowerCase()
-        .includes(query.q.toLowerCase()),
+      (!("cancelled" in r) || !r.cancelled || query.showCancelled === "1") &&
+      (!("kind" in r) ||
+        !["FIXED", "EXTRAORDINARY"].includes(query.eventClass ?? "") ||
+        eventClassOf(r) === query.eventClass) &&
+      (!("kind" in r) || matchesEventName(r, query.eventName)) &&
+      ("kind" in r
+        ? matchesEventSearch(r, query.q)
+        : !query.q ||
+          JSON.stringify("name" in r ? r.name : r)
+            .toLowerCase()
+            .includes(query.q.toLowerCase())),
   );
   return (
     <>
       <span className="eyebrow">Organização pastoral</span>
       <h1>{title}</h1>
-      <p className="subtitle">{subtitle}</p>
+      <p className="subtitle">
+        {user.coordinator && kind === "absence"
+          ? "Registre e corrija impedimentos de qualquer ministro, inclusive fora do prazo mensal."
+          : subtitle}
+      </p>
+      {user.coordinator && kind === "minister" && (
+        <p className="notice">
+          A coordenação pode preencher e editar todo o cadastro. Para permitir
+          que o ministro entre no aplicativo, autorize seu e-mail em{" "}
+          <Link href="/pre-cadastros">Pré-cadastros</Link>. O cadastro pode
+          participar das escalas sem depender do primeiro login.
+        </p>
+      )}
       <Notice error={query.error} saved={query.saved} />
+      {kind === "minister" && user.coordinator && (
+        <div className="cards">
+          <article className="card">
+            <div className="card-title">Ativos</div>
+            <span className="stat">
+              {data.ministers.filter((m) => m.active && !m.former).length}
+            </span>
+          </article>
+          <article className="card">
+            <div className="card-title">Ex-ministros</div>
+            <span className="stat">
+              {data.ministers.filter((m) => m.former || !m.active).length}
+            </span>
+          </article>
+        </div>
+      )}
+      {query.deleted && (
+        <p role="status" className="notice">
+          Cadastro excluído com sucesso.
+        </p>
+      )}
+      {kind === "event" && (
+        <Link
+          href={`/${section}?${new URLSearchParams({ month, showCancelled: query.showCancelled === "1" ? "0" : "1" })}`}
+        >
+          {query.showCancelled === "1"
+            ? "Ocultar eventos cancelados"
+            : "Mostrar eventos cancelados"}
+        </Link>
+      )}
+      {(kind === "minister" || kind === "assisted") && user.coordinator && (
+        <div className="toolbar">
+          <Link
+            className="button secondary"
+            href={
+              kind === "minister"
+                ? "/ministros/importar"
+                : "/assistidos/importar"
+            }
+          >
+            Importar {kind === "minister" ? "ministros" : "assistidos"} por CSV
+          </Link>
+          <a
+            className="button secondary"
+            href={
+              kind === "minister"
+                ? "/api/ministers/template"
+                : "/api/assisted/template"
+            }
+          >
+            Baixar CSV de exemplo
+          </a>
+        </div>
+      )}
       {!user.coordinator && !ministers.length ? (
         <p className="notice">
           Seu e-mail ainda não está vinculado a um ministro ativo. Procure a
@@ -118,15 +217,24 @@ export default async function Registry({
         </p>
       ) : (
         <section className="panel">
-          <details open={!!editing || rows.length === 0}>
+          <details
+            id="cadastro"
+            open={
+              !!editing ||
+              query.new === "1" ||
+              query.type === "VISIT" ||
+              rows.length === 0
+            }
+          >
             <summary>
               {editing
                 ? "Editar cadastro"
                 : `+ ${kind === "absence" ? "Informar impedimento" : kind === "event" ? "Cadastrar celebração ou visita" : "Adicionar cadastro"}`}
             </summary>
-            <form action={save}>
+            <ActionForm key={editing?.id ?? "new"} action={save}>
               <input type="hidden" name="kind" value={kind} />
               <input type="hidden" name="id" value={editing?.id ?? ""} />
+              <input type="hidden" name="returnMonth" value={month} />
               <div className="form-grid">
                 {(kind === "minister" || kind === "assisted") && (
                   <>
@@ -138,6 +246,17 @@ export default async function Registry({
                     />
                     {kind === "minister" && (
                       <>
+                        <Field
+                          name="preferredName"
+                          maxLength={80}
+                          label="Nome de preferência nas escalas"
+                          value={minister?.preferredName}
+                        />
+                        <p className="muted">
+                          Nome usado nas escalas e PDFs. O nome completo
+                          permanece no cadastro; sem preferência, usamos o nome
+                          completo.
+                        </p>
                         <Field
                           name="email"
                           label="E-mail de acesso"
@@ -161,13 +280,6 @@ export default async function Registry({
                           label="Início no ministério"
                           type="date"
                           value={minister?.ministryStart}
-                        />
-                        <Field
-                          name="monthlyLimit"
-                          label="Limite mensal de participações"
-                          type="number"
-                          value={minister?.monthlyLimit ?? 6}
-                          required
                         />
                       </>
                     )}
@@ -213,32 +325,69 @@ export default async function Registry({
                         ["SEPARATE", "Servir separados"],
                       ]}
                     />
-                    <Field
-                      name="location"
-                      label="Local de preferência"
-                      value={minister?.location ?? "Matriz"}
-                      options={locations}
+                    <ServicePreferences
+                      minister={minister}
+                      catalog={locationCatalog(data)}
                     />
                     <Field
-                      name="locationPreference"
-                      label="Tipo de preferência"
-                      value={minister?.locationPreference ?? "ACCEPT"}
+                      name="participationStatus"
+                      label="Situação no ministério"
+                      value={
+                        minister?.former || minister?.active === false
+                          ? "FORMER"
+                          : "ACTIVE"
+                      }
                       options={[
-                        ["ACCEPT", "Aceita outros locais"],
-                        ["PREFER", "Preferencial"],
-                        ["EXCLUSIVE", "Exclusiva"],
+                        ["ACTIVE", "Ativo"],
+                        ["FORMER", "Ex-ministro"],
                       ]}
                     />
-                    <Check
-                      name="active"
-                      label="Ministro ativo"
-                      checked={minister?.active ?? true}
+                    <Field
+                      name="registrationStatus"
+                      label="Situação do cadastro"
+                      value={
+                        minister?.registrationStatus ??
+                        (minister && !missingMinisterFields(minister).length
+                          ? "COMPLETE"
+                          : "DRAFT")
+                      }
+                      options={[
+                        ["DRAFT", "Pendente — preencher dados depois"],
+                        ["COMPLETE", "Concluído — validar dados obrigatórios"],
+                      ]}
                     />
-                    <Check
-                      name="away"
-                      label="Afastado do ministério"
-                      checked={minister?.away}
-                    />
+                    <p className="muted">
+                      Para concluir: nome completo, nascimento, telefone, início
+                      no ministério, endereço, bairro, cidade e UF. Cadastro
+                      pendente não entra em novas escalas.
+                    </p>
+                    {minister && missingMinisterFields(minister).length > 0 && (
+                      <p className="notice">
+                        Dados faltantes:{" "}
+                        {missingMinisterFields(minister).join(", ")}. Registros
+                        antigos devem ser revisados pela coordenação.
+                      </p>
+                    )}
+                    <details className="wide">
+                      <summary>
+                        Configuração avançada de participações (opcional)
+                      </summary>
+                      <Field
+                        name="monthlyLimit"
+                        label="Limite mensal (vazio = sem limite)"
+                        type="number"
+                        value={
+                          minister?.monthlyLimit ??
+                          (minister ? "" : (data.settings?.monthlyLimit ?? ""))
+                        }
+                      />
+                      <p>
+                        Conta celebrações e visitas juntas. Sem limite, a escala
+                        continua equilibrando a participação pelo histórico.
+                        Limites já existentes são preservados até alteração
+                        explícita.
+                      </p>
+                    </details>
                   </>
                 )}
                 {kind === "assisted" && (
@@ -266,6 +415,18 @@ export default async function Registry({
                       type="tel"
                       value={assisted?.familyPhone}
                     />
+                    <Field
+                      name="ministersRequired"
+                      label="Quantidade de ministros indicados por visita"
+                      type="number"
+                      value={assisted?.ministersRequired ?? 1}
+                      required
+                    />
+                    <p className="muted">
+                      Padrão: 1 ministro. Para Altevita, indique 3; aumente
+                      conforme a necessidade. O valor será usado nas novas
+                      visitas e nas visitas editadas.
+                    </p>
                     <Check
                       name="active"
                       label="Assistido ativo"
@@ -281,27 +442,23 @@ export default async function Registry({
                       value={event?.title}
                       required
                     />
-                    <Field
-                      name="kind"
-                      label="Tipo"
-                      value={
-                        event?.kind ??
-                        (query.type === "VISIT" ? "VISIT" : "MASS")
-                      }
-                      options={[
-                        ["MASS", "Missa"],
-                        ["ADORATION", "Adoração"],
-                        ["WEDDING", "Casamento"],
-                        ["SPECIAL", "Evento especial"],
-                        ["VISIT", "Visita dominical"],
-                      ]}
-                    />
-                    <Field
-                      name="date"
-                      label="Data (visitas somente aos domingos)"
-                      type="date"
-                      value={event?.date}
-                      required
+                    <EventFields
+                      catalog={locationCatalog(data)}
+                      event={event}
+                      initialMonth={month}
+                      visit={query.type === "VISIT"}
+                      assisted={data.assisted
+                        .filter(
+                          (a) =>
+                            a.active ||
+                            (event && visitAssistedIds(event).includes(a.id)),
+                        )
+                        .map((a) => ({
+                          ...a,
+                          id: a.id,
+                          name: a.name,
+                          ministersRequired: a.ministersRequired ?? 1,
+                        }))}
                     />
                     <Field
                       name="time"
@@ -310,15 +467,6 @@ export default async function Registry({
                       value={event?.time ?? "08:00"}
                       required
                     />
-                    {!event && (
-                      <Field
-                        name="occurrences"
-                        label="Repetir semanalmente (número de ocorrências)"
-                        type="number"
-                        value={1}
-                        required
-                      />
-                    )}
                     <Field
                       name="duration"
                       label="Duração em minutos"
@@ -326,88 +474,38 @@ export default async function Registry({
                       value={event?.duration ?? 60}
                       required
                     />
-                    <Field
-                      name="required"
-                      label="Quantidade de ministros"
-                      type="number"
-                      value={event?.required ?? 2}
-                      required
-                    />
-                    <Field
-                      name="location"
-                      label="Local"
-                      value={event?.location ?? "Matriz"}
-                      required
-                    />
-                    <Field
-                      name="assistedId"
-                      label="Assistido (obrigatório para visitas)"
-                      value={event?.assistedId}
-                      options={[
-                        ["", "Não se aplica"],
-                        ...data.assisted
-                          .filter((a) => a.active || a.id === event?.assistedId)
-                          .map((a) => [a.id, a.name] as const),
-                      ]}
-                    />
                   </>
                 )}
-                {kind === "absence" && (
-                  <>
-                    <Field
-                      name="ministerId"
-                      label="Ministro"
-                      value={absence?.ministerId ?? ministers[0]?.id}
-                      required
-                      options={ministers.map((m) => [m.id, m.name])}
+                {kind === "absence" &&
+                  (absence ? (
+                    <>
+                      <Field
+                        name="ministerId"
+                        label="Ministro"
+                        value={absence.ministerId}
+                        required
+                        options={ministers.map((m) => [m.id, m.name] as const)}
+                      />
+                      <AbsenceFields
+                        absence={absence}
+                        events={specificCelebrations(data.events).map((e) => ({
+                          id: e.id,
+                          label: `${e.date} ${e.time} • ${e.title} • ${e.location}`,
+                        }))}
+                      />
+                    </>
+                  ) : (
+                    <AbsenceBatch
+                      ministers={ministers.map((m) => ({
+                        id: m.id,
+                        name: m.name,
+                      }))}
+                      events={specificCelebrations(data.events).map((e) => ({
+                        id: e.id,
+                        label: `${e.date} ${e.time} • ${e.title} • ${e.location}`,
+                      }))}
                     />
-                    <Field
-                      name="scope"
-                      label="Abrangência do impedimento"
-                      value={absence?.scope ?? "DAY"}
-                      options={[
-                        ["DAY", "Dia inteiro"],
-                        ["PERIOD", "Período de datas"],
-                        ["CELEBRATION", "Celebração específica"],
-                      ]}
-                    />
-                    <Field
-                      name="start"
-                      label="Data inicial (dia ou período)"
-                      type="date"
-                      value={absence?.start}
-                    />
-                    <Field
-                      name="end"
-                      label="Data final (repita a data para dia inteiro)"
-                      type="date"
-                      value={absence?.end}
-                    />
-                    <Field
-                      name="eventId"
-                      label="Celebração (apenas para impedimento específico)"
-                      value={absence?.eventId}
-                      options={[
-                        ["", "Não se aplica"],
-                        ...data.events
-                          .filter((e) => e.kind !== "VISIT")
-                          .map(
-                            (e) =>
-                              [
-                                e.id,
-                                `${e.date} ${e.time} • ${e.title}`,
-                              ] as const,
-                          ),
-                      ]}
-                    />
-                    <Field
-                      name="reason"
-                      label="Motivo opcional (restrito à coordenação)"
-                      type="textarea"
-                      value={absence?.reason}
-                    />
-                  </>
-                )}
+                  ))}
                 {kind !== "absence" && (
                   <Field
                     name="notes"
@@ -417,24 +515,126 @@ export default async function Registry({
                   />
                 )}
               </div>
-              <div className="form-actions">
-                <button type="submit">
-                  {editing ? "Salvar alterações" : "Salvar cadastro"}
-                </button>
-                {editing && <Link href={`/${section}`}>Cancelar edição</Link>}
-              </div>
-            </form>
+              {(kind !== "absence" || (!!absence && !absence.revokedAt)) && (
+                <div className="form-actions">
+                  <button type="submit">
+                    {editing ? "Salvar alterações" : "Salvar cadastro"}
+                  </button>
+                  <button type="reset" className="secondary">
+                    Cancelar
+                  </button>
+                  {editing && (
+                    <Link
+                      href={`/${section}${kind === "event" ? `?month=${month}` : ""}`}
+                    >
+                      Cancelar edição
+                    </Link>
+                  )}
+                </div>
+              )}
+              {kind === "absence" && !absence && (
+                <div className="form-actions">
+                  <button type="reset" className="secondary">
+                    Cancelar
+                  </button>
+                  <Link className="button secondary" href="/impedimentos">
+                    Voltar
+                  </Link>
+                </div>
+              )}
+            </ActionForm>
           </details>
+          {absence && !absence.revokedAt && (
+            <ActionForm action={withdrawAbsence}>
+              <input type="hidden" name="id" value={absence.id} />
+              <p>
+                A retirada preserva o histórico e não altera escalas publicadas.
+                Fora do prazo, procure a coordenação.
+              </p>
+              <Field name="reason" label="Justificativa da retirada" required />
+              <button type="submit" className="secondary">
+                Retirar este impedimento
+              </button>
+            </ActionForm>
+          )}
+          {editing && user.coordinator && (
+            <RemoveRecord
+              kind={kind}
+              returnMonth={month}
+              events={data.events}
+              record={minister ?? assisted ?? event ?? absence!}
+              label={
+                minister?.name ??
+                assisted?.name ??
+                event?.title ??
+                "Impedimento"
+              }
+            />
+          )}
           {event && !event.cancelled && (
-            <form action={cancelEvent} className="toolbar">
-              <input type="hidden" name="id" value={event.id} />
-              <Field
-                name="reason"
-                label="Justificativa do cancelamento"
-                required
-              />
-              <button className="secondary">Cancelar este agendamento</button>
-            </form>
+            <details>
+              <summary>Remarcar ou cancelar ocorrência / série</summary>
+              {data.absences.some(
+                (a) =>
+                  !a.revokedAt &&
+                  a.scope === "CELEBRATION" &&
+                  a.eventId === event.id,
+              ) && (
+                <p className="notice">
+                  Esta ocorrência possui impedimentos específicos. Eles
+                  continuam vinculados ao evento ao remarcar; confirme com os
+                  ministros e revise a escala.
+                </p>
+              )}
+              <ActionForm action={changeEvents}>
+                <input type="hidden" name="id" value={event.id} />
+                <input type="hidden" name="returnMonth" value={month} />
+                <input type="hidden" name="expectedDate" value={event.date} />
+                <input type="hidden" name="expectedTime" value={event.time} />
+                <div className="form-grid">
+                  <Field
+                    name="operation"
+                    label="Ação"
+                    value="RESCHEDULE"
+                    options={[
+                      ["RESCHEDULE", "Remarcar"],
+                      ["CANCEL", "Cancelar"],
+                    ]}
+                  />
+                  <EventScopeFields
+                    series={!!event.seriesId}
+                    candidates={seriesCandidates(event, data.events).filter(
+                      (e) => e.id !== event.id,
+                    )}
+                  />
+                  <Field
+                    name="date"
+                    label="Nova data (remarcação)"
+                    type="date"
+                    value={event.date}
+                  />
+                  <Field
+                    name="time"
+                    label="Novo horário (remarcação)"
+                    type="time"
+                    value={event.time}
+                  />
+                  <Field name="reason" label="Justificativa" required />
+                </div>
+                <p>
+                  A remarcação da série desloca as datas pelo mesmo número de
+                  dias e aplica o novo horário. Ocorrências passadas, canceladas
+                  e exceções individuais são preservadas. Publicações permanecem
+                  no histórico; revise e publique uma nova versão.
+                </p>
+                <div className="form-actions">
+                  <button type="submit">Confirmar alteração dos eventos</button>
+                  <button type="reset" className="secondary">
+                    Cancelar
+                  </button>
+                </div>
+              </ActionForm>
+            </details>
           )}
         </section>
       )}
@@ -447,11 +647,57 @@ export default async function Registry({
               type="month"
               value={month}
             />
-            <button className="secondary">Ver mês</button>
+            <Field
+              name="eventClass"
+              label="Grupo de eventos"
+              value={query.eventClass ?? "ALL"}
+              options={[
+                ["ALL", "Todos os eventos"],
+                ["FIXED", "Fixos recorrentes"],
+                ["EXTRAORDINARY", "Extraordinários"],
+              ]}
+            />
+            <Field
+              name="calendarView"
+              label="Visualização do calendário"
+              value={calendarView}
+              options={[
+                ["SUMMARY", "Resumido · todos os eventos"],
+                ["SPLIT", "Separado · missas e visitas aos domingos"],
+                ["FULL", "Completo · todos os detalhes"],
+              ]}
+            />
+            <Field
+              name="eventName"
+              label="Evento cadastrado"
+              value={query.eventName ?? ""}
+              options={[["", "Todos os nomes de eventos"], ...nameOptions]}
+            />
+            {query.q && <input type="hidden" name="q" value={query.q} />}
+            <button className="secondary">Ver calendário</button>
           </form>
           <Calendar
+            eventName={query.eventName}
+            view={calendarView}
+            eventClass={query.eventClass ?? "ALL"}
             month={month}
-            events={data.events.filter((e) => e.date.startsWith(month))}
+            agendaEvents={data.events}
+            impediments={Object.fromEntries(
+              data.events.map((e) => [
+                e.id,
+                ministers
+                  .filter((m) => impeded(m.id, e, data.absences))
+                  .map((m) => m.name),
+              ]),
+            )}
+            events={data.events.filter(
+              (e) =>
+                (!e.cancelled || query.showCancelled === "1") &&
+                matchesEventName(e, query.eventName) &&
+                e.date.startsWith(month) &&
+                (!["FIXED", "EXTRAORDINARY"].includes(query.eventClass ?? "") ||
+                  eventClassOf(e) === query.eventClass),
+            )}
           />
         </>
       )}
@@ -462,10 +708,37 @@ export default async function Registry({
               ? "Impedimentos registrados"
               : "Cadastros registrados"}
           </h2>
-          <span className="tag">{rows.length} registros</span>
+          <span className="tag">
+            {filtered.length} de {rows.length} registros
+          </span>
         </div>
         <form className="toolbar" role="search">
-          <Field name="q" label="Buscar" value={query.q} />
+          {kind === "event" && (
+            <>
+              <input
+                type="hidden"
+                name="eventClass"
+                value={query.eventClass ?? "ALL"}
+              />
+              <input type="hidden" name="month" value={month} />
+              <input type="hidden" name="calendarView" value={calendarView} />
+              <Field
+                name="eventName"
+                label="Evento cadastrado"
+                value={query.eventName ?? ""}
+                options={[["", "Todos os nomes de eventos"], ...nameOptions]}
+              />
+            </>
+          )}
+          <Field
+            name="q"
+            label={
+              kind === "event"
+                ? "Buscar por nome, data, horário ou local"
+                : "Buscar"
+            }
+            value={query.q}
+          />
           <button className="secondary" type="submit">
             Buscar
           </button>
@@ -486,70 +759,141 @@ export default async function Registry({
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((r) => (
-                  <tr key={r.id}>
-                    <td>
-                      {"name" in r
-                        ? r.name
-                        : "title" in r
-                          ? r.title
-                          : data.ministers.find((m) => m.id === r.ministerId)
-                              ?.name}
-                    </td>
-                    <td>
-                      {"phone" in r ? (
-                        <>
-                          {r.email}
-                          <small>{r.phone}</small>
-                        </>
-                      ) : "mobile" in r ? (
-                        <>
-                          {r.neighborhood}
-                          <small>{r.mobile || r.landline}</small>
-                        </>
-                      ) : "time" in r ? (
-                        <>
-                          {r.date} · {r.time}
-                          <small>
-                            {r.location} · {r.required} ministros
-                          </small>
-                        </>
-                      ) : (
-                        <>
-                          {r.scope === "CELEBRATION"
-                            ? data.events.find((e) => e.id === r.eventId)?.title
-                            : `${r.start} a ${r.end}`}
-                          <small>
-                            {r.scope === "CELEBRATION"
-                              ? "Somente esta celebração"
-                              : r.scope === "DAY"
-                                ? "Dia inteiro"
-                                : "Intervalo inclusivo"}
-                          </small>
-                        </>
+                {filtered.map((r, index) => (
+                  <Fragment key={r.id}>
+                    {kind === "event" &&
+                      "date" in r &&
+                      (index === 0 ||
+                        !("date" in filtered[index - 1]) ||
+                        (filtered[index - 1] as Event).date.slice(0, 7) !==
+                          r.date.slice(0, 7)) && (
+                        <tr>
+                          <th colSpan={4} scope="rowgroup">
+                            {new Intl.DateTimeFormat("pt-BR", {
+                              month: "long",
+                              year: "numeric",
+                              timeZone: "UTC",
+                            }).format(
+                              new Date(`${r.date.slice(0, 7)}-01T12:00:00Z`),
+                            )}
+                          </th>
+                        </tr>
                       )}
-                    </td>
-                    <td>
-                      <span className="tag">
-                        {"cancelled" in r && r.cancelled
-                          ? "Cancelado"
-                          : "active" in r
-                            ? r.active
-                              ? "away" in r && r.away
-                                ? "Afastado"
-                                : "Ativo"
-                              : "Inativo"
-                            : "kind" in r
-                              ? r.kind === "VISIT"
-                                ? "Visita"
-                                : "Celebração"
-                              : "Registrado"}
-                      </span>
-                    </td>
-                    <td>
-                      <Link href={`/${section}?edit=${r.id}`}>Editar</Link>
-                    </td>
-                  </tr>
+                    <tr>
+                      <td>
+                        {"name" in r
+                          ? r.name
+                          : "title" in r
+                            ? r.title
+                            : data.ministers.find((m) => m.id === r.ministerId)
+                                ?.name}
+                      </td>
+                      <td>
+                        {"phone" in r ? (
+                          <>
+                            {r.email}
+                            <small>{r.phone}</small>
+                            {r.preferredName && (
+                              <small>Nas escalas: {r.preferredName}</small>
+                            )}
+                          </>
+                        ) : "mobile" in r ? (
+                          <>
+                            {r.neighborhood}
+                            <small>{r.mobile || r.landline}</small>
+                            <small>ID para importação: {r.id}</small>
+                            <small>
+                              {r.ministersRequired ?? 1} ministro(s) por visita
+                            </small>
+                          </>
+                        ) : "time" in r ? (
+                          <>
+                            {r.date} · {r.time}
+                            {eventOverlapNotice(r, data.events) && (
+                              <small className="event-overlap">
+                                {eventOverlapNotice(r, data.events)}
+                              </small>
+                            )}
+                            <small>
+                              {eventClassOf(r) === "FIXED"
+                                ? "Fixo recorrente"
+                                : "Extraordinário"}
+                            </small>
+                            <small>
+                              {r.location} · {r.required} ministros
+                            </small>
+                            {r.seriesException && (
+                              <small>Exceção individual da série</small>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            {r.scope === "CELEBRATION"
+                              ? data.events.find((e) => e.id === r.eventId)
+                                  ?.title
+                              : `${r.start} a ${r.end}`}
+                            <small>
+                              {r.scope === "CELEBRATION"
+                                ? "Somente esta celebração"
+                                : r.scope === "DAY"
+                                  ? "Dia inteiro"
+                                  : "Intervalo inclusivo"}
+                            </small>
+                          </>
+                        )}
+                      </td>
+                      <td>
+                        <span className="tag">
+                          {"revokedAt" in r && r.revokedAt
+                            ? "Retirado"
+                            : "former" in r && (r.former || !r.active)
+                              ? "Ex-ministro"
+                              : "registrationStatus" in r &&
+                                  r.registrationStatus === "DRAFT"
+                                ? "Cadastro pendente"
+                                : "cancelled" in r && r.cancelled
+                                  ? "Cancelado"
+                                  : "active" in r
+                                    ? r.active
+                                      ? "Ativo"
+                                      : "Ex-ministro"
+                                    : "kind" in r
+                                      ? r.kind === "VISIT"
+                                        ? "Visita"
+                                        : "Celebração"
+                                      : "Registrado"}
+                        </span>
+                      </td>
+                      <td>
+                        {!("revokedAt" in r && r.revokedAt) && (
+                          <Link
+                            href={
+                              kind === "event"
+                                ? `/${section}?${new URLSearchParams({ edit: r.id, month, calendarView, eventClass: query.eventClass ?? "ALL", eventName: query.eventName ?? "", q: query.q ?? "" })}#cadastro`
+                                : `/${section}?edit=${r.id}`
+                            }
+                          >
+                            Editar
+                          </Link>
+                        )}
+                        {user.coordinator && (
+                          <RemoveRecord
+                            kind={kind}
+                            returnMonth={month}
+                            events={data.events}
+                            record={r}
+                            label={
+                              "name" in r
+                                ? r.name
+                                : "title" in r
+                                  ? `${r.title} · ${r.date} ${r.time}`
+                                  : "Impedimento"
+                            }
+                          />
+                        )}
+                      </td>
+                    </tr>
+                  </Fragment>
                 ))}
               </tbody>
             </table>

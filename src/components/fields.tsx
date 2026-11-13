@@ -4,6 +4,8 @@ type Props = {
   type?: string;
   value?: string | number;
   required?: boolean;
+  maxLength?: number;
+  max?: number;
   options?: readonly (readonly [string, string])[];
 };
 export function Field({
@@ -12,6 +14,8 @@ export function Field({
   type = "text",
   value = "",
   required = false,
+  maxLength = 2000,
+  max,
   options,
 }: Props) {
   return (
@@ -26,15 +30,16 @@ export function Field({
           ))}
         </select>
       ) : type === "textarea" ? (
-        <textarea name={name} defaultValue={value} maxLength={2000} />
+        <textarea name={name} defaultValue={value} maxLength={maxLength} />
       ) : (
         <input
           name={name}
           type={type}
           defaultValue={value}
           required={required}
-          maxLength={type === "number" ? undefined : 2000}
+          maxLength={type === "number" ? undefined : maxLength}
           min={type === "number" ? 1 : undefined}
+          max={type === "number" ? max : undefined}
         />
       )}
     </label>
