@@ -8,7 +8,12 @@ import { PGlite } from "@electric-sql/pglite";
 import type { PoolClient } from "pg";
 import { Calendar } from "../src/components/calendar";
 import { EventFields } from "../src/components/event-fields";
-import { type Event, emptyData, blocked } from "../src/lib/domain";
+import {
+  type Event,
+  emptyData,
+  blocked,
+  assignmentConflict,
+} from "../src/lib/domain";
 import { blankMinister } from "../src/lib/profile";
 import {
   eventClassOf,
@@ -158,6 +163,16 @@ test("cadastro fixo oferece recorrência e visita usa ocorrência extraordinári
   assert.ok(visit.includes('name="eventClass" value="EXTRAORDINARY"'));
   assert.ok(!visit.includes("Repetir semanalmente"));
 });
+test("evento fixo permanente não pede quantidade e cria 53 datas semanais", () => {
+  const fixed = event();
+  const input = form(fixed);
+  input.set("permanent", "on");
+  input.delete("occurrences");
+  const planned = planEventSave(input, fixed.id, emptyData(), now);
+  assert.equal(planned.length, 53);
+  assert.equal(planned[0].date, fixed.date);
+  assert.equal(planned[52].date, "2031-11-02");
+});
 test("eventos simultâneos não liberam a mesma pessoa para duas atividades", () => {
   const minister = {
     ...blankMinister(randomUUID(), "teste@example.invalid"),
@@ -174,6 +189,26 @@ test("eventos simultâneos não liberam a mesma pessoa para duas atividades", ()
       [first, second],
     ),
     /Conflito/,
+  );
+});
+test("visita simultânea à missa dominical das 10h é bloqueada", () => {
+  const ministerId = randomUUID();
+  const mass = event({ time: "10:00" });
+  const visit = event({
+    kind: "VISIT",
+    title: "Visita à assistida",
+    time: "10:30",
+    assistedId: randomUUID(),
+    date: mass.date,
+  });
+  assert.match(
+    assignmentConflict(
+      ministerId,
+      visit,
+      [{ ministerId, eventId: mass.id }],
+      [mass, visit],
+    ),
+    /missa das 10h de domingo/,
   );
 });
 test("PostgreSQL persiste dois eventos de mesmo nome e horário sem sobrescrever", async () => {

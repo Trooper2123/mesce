@@ -7,13 +7,12 @@ import {
   importAssistedCsv,
 } from "@/app/assisted-csv-actions";
 type Preview = Awaited<ReturnType<typeof previewCsv>>;
-export function CsvImport() {
-  const fileInput = useRef<HTMLInputElement>(null);
 export function CsvImport({
   entity = "ministers",
 }: {
   entity?: "ministers" | "assisted";
 }) {
+  const fileInput = useRef<HTMLInputElement>(null);
   const isAssisted = entity === "assisted";
   const previewAction = isAssisted ? previewAssistedCsv : previewCsv;
   const importAction = isAssisted ? importAssistedCsv : importCsv;

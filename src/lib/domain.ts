@@ -228,6 +228,43 @@ export function impeded(ministerId: string, event: Event, absences: Absence[]) {
   );
 }
 
+export function assignmentConflict(
+  ministerId: string,
+  event: Event,
+  assignments: Assignment[],
+  events: Event[],
+) {
+  const assignedEvents = assignments
+    .filter((assignment) => assignment.ministerId === ministerId)
+    .map((assignment) => events.find((item) => item.id === assignment.eventId))
+    .filter((item): item is Event => !!item && !item.cancelled);
+  if (
+    event.kind === "VISIT" &&
+    assignedEvents.some(
+      (assigned) =>
+        assigned.kind === "MASS" &&
+        assigned.time === "10:00" &&
+        assigned.date === event.date &&
+        overlaps(assigned, event),
+    )
+  )
+    return "Ministro já está escalado para a missa das 10h de domingo.";
+  if (
+    event.kind === "MASS" &&
+    event.time === "10:00" &&
+    assignedEvents.some(
+      (assigned) =>
+        assigned.kind === "VISIT" &&
+        assigned.date === event.date &&
+        overlaps(assigned, event),
+    )
+  )
+    return "Ministro já está escalado para visita no mesmo horário.";
+  if (assignedEvents.some((assigned) => overlaps(assigned, event)))
+    return "Conflito de horário: o ministro já está designado para outro evento.";
+  return "";
+}
+
 export function blocked(
   m: Minister,
   e: Event,
@@ -243,7 +280,7 @@ export function blocked(
   )
     return "Resposta mensal pendente de consolidação";
   if (e.cancelled) return "Evento cancelado";
-  if (m.former || !m.active) return "Ex-ministro não pode receber designações";
+  if (m.former || !m.active) return "Ex-ministro";
   if (m.registrationStatus === "DRAFT") return "Cadastro pendente";
   if (
     (m.servicePreference === "VISITS" && e.kind !== "VISIT") ||
@@ -270,27 +307,16 @@ export function blocked(
         .map((a) => s.events.find((x) => x.id === a.eventId)),
     )
     .filter((x): x is Event => !!x && !x.cancelled);
-  const assignedEvents = [...ownEvents, ...outside];
-  if (
-    e.kind === "VISIT" &&
-    assignedEvents.some(
-      (x) =>
-        x.kind === "MASS" &&
-        x.date === e.date &&
-        x.time === "10:00" &&
-        overlaps(x, e),
-    )
-  )
-    return "Ministro já escalado para a missa das 10h";
-  if (
-    e.kind === "MASS" &&
-    e.time === "10:00" &&
-    assignedEvents.some(
-      (x) => x.kind === "VISIT" && x.date === e.date && overlaps(x, e),
-    )
-  )
-    return "Ministro já escalado para visita no mesmo horário";
-  if (assignedEvents.some((x) => overlaps(x, e))) return "Conflito de horário";
+  const conflict = assignmentConflict(
+    m.id,
+    e,
+    [
+      ...own,
+      ...outside.map((event) => ({ ministerId: m.id, eventId: event.id })),
+    ],
+    [...events, ...outside],
+  );
+  if (conflict) return conflict;
   if (
     m.monthlyLimit != null &&
     ownEvents.filter((x) => x.date.slice(0, 7) === e.date.slice(0, 7)).length >=

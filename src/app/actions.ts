@@ -10,14 +10,13 @@ import { transaction, write, audit } from "@/lib/store";
 import {
   ministerSchema,
   assistedSchema,
-  eventSchema,
   absenceSchema,
   generate,
   validateSchedule,
   Minister,
   Schedule,
   syncSchedule,
-  blocked,
+  assignmentConflict,
 } from "@/lib/domain";
 import { z } from "zod";
 import { ministerDisplayName } from "@/lib/minister-name";
@@ -114,18 +113,11 @@ export async function save(form: FormData) {
           .parse(value(form, "participationStatus"));
         const parsed = ministerSchema.parse({
           ...data,
-          active: status === "ACTIVE",
-          former: status === "FORMER",
           preferredName: form.has("preferredName")
             ? value(form, "preferredName")
             : (existingMinister?.preferredName ?? ""),
-          active: status
-            ? status === "ACTIVE" || status === "AWAY"
-            : data.active,
-          away: status ? status === "AWAY" : data.away,
-          former: status
-            ? status === "FORMER"
-            : (existingMinister?.former ?? false),
+          active: status === "ACTIVE",
+          former: status === "FORMER",
           monthlyLimit: form.has("monthlyLimit")
             ? data.monthlyLimit
             : (existingMinister?.monthlyLimit ?? null),
@@ -190,60 +182,6 @@ export async function save(form: FormData) {
           current.events.find((e) => e.id === id),
           current,
         );
-        const additionalDates = String(form.get("additionalDates") ?? "")
-          .split(/[\s,;]+/)
-          .map((date) => date.trim())
-          .filter(Boolean);
-        const permanent = form.has("permanent");
-        if (permanent && additionalDates.length)
-          throw new Error(
-            "Use datas adicionais ou evento permanente, não os dois juntos.",
-          );
-        const dates = permanent
-          ? Array.from({ length: 53 }, (_, index) => {
-              const date = new Date(event.date + "T12:00:00Z");
-              date.setUTCDate(date.getUTCDate() + index * 7);
-              return date.toISOString().slice(0, 10);
-            })
-          : [...new Set([event.date, ...additionalDates])];
-        if (dates.some((date) => !/^\d{4}-\d{2}-\d{2}$/.test(date)))
-          throw new Error("Informe as datas adicionais no formato AAAA-MM-DD.");
-        requireFuture(event);
-        if (
-          current.events.some(
-            (e) =>
-              e.id !== id &&
-              e.date === event.date &&
-              e.time === event.time &&
-              e.location === event.location &&
-              e.assistedId === event.assistedId,
-          )
-        )
-          throw new Error("Já existe um evento neste horário e local.");
-        if (current.events.some((e) => e.id === id) && dates.length !== 1)
-          throw new Error(
-            "Edite apenas esta ocorrência; cadastre novas datas separadamente.",
-          );
-        for (let index = 0; index < dates.length; index++) {
-          const occurrence = {
-            ...event,
-            id: index === 0 ? id : crypto.randomUUID(),
-            date: dates[index],
-          };
-          eventSchema.parse(occurrence);
-          requireFuture(occurrence);
-          if (
-            current.events.some(
-              (e) =>
-                e.id !== occurrence.id &&
-                e.date === occurrence.date &&
-                e.time === occurrence.time &&
-                e.location === occurrence.location &&
-                e.assistedId === occurrence.assistedId,
-            )
-          )
-            continue;
-          await write(client, "event", occurrence);
         if (local.location) form.set("location", local.location);
         const occurrences = planEventSave(form, id, current).map((e) => ({
           ...e,
@@ -415,15 +353,16 @@ export async function scheduleAction(form: FormData) {
               throw new Error(
                 "Ministro inexistente, desligado ou com cadastro pendente.",
               );
-            const event = updated.events.find((e) => e.id === eventId)!;
-            const conflict = blocked(
-              minister,
-              event,
-              data,
-              assignments,
-              updated.events,
-            );
-            if (conflict) throw new Error(conflict);
+            const targetEvent = updated.events.find((e) => e.id === eventId);
+            if (targetEvent) {
+              const conflict = assignmentConflict(
+                ministerId,
+                targetEvent,
+                assignments,
+                updated.events,
+              );
+              if (conflict) throw new Error(conflict);
+            }
             assignments.push({ eventId, ministerId, origin: "MANUAL" });
           }
           updated = { ...updated, assignments };

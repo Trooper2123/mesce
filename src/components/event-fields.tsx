@@ -26,6 +26,7 @@ export function EventFields({
 }) {
   const [dateMode, setDateMode] = useState<"SINGLE" | "MULTIPLE">("SINGLE");
   const [dates, setDates] = useState<string[]>([]);
+  const [permanent, setPermanent] = useState(false);
   const pickerMonth =
     initialMonth ??
     new Intl.DateTimeFormat("en-CA", {
@@ -159,14 +160,25 @@ export function EventFields({
       kind !== "VISIT" &&
       category === "FIXED" ? (
         <>
-          <Field
-            key="weekly"
-            name="occurrences"
-            label="Repetir semanalmente (número de ocorrências)"
-            type="number"
-            value={12}
-            required
-          />
+          <label className="field check">
+            <input
+              type="checkbox"
+              name="permanent"
+              checked={permanent}
+              onChange={(e) => setPermanent(e.target.checked)}
+            />
+            Evento permanente (repetir semanalmente pelas próximas 53 semanas)
+          </label>
+          {!permanent && (
+            <Field
+              key="weekly"
+              name="occurrences"
+              label="Repetir semanalmente (número de ocorrências)"
+              type="number"
+              value={12}
+              required
+            />
+          )}
           <p className="muted">
             Cadastre de 1 a 53 semanas. Cada encontro mantém sua data e horário;
             o nome pode ser repetido.

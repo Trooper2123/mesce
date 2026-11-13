@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { cookies, headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { createHmac } from "node:crypto";
+import { encrypt } from "@/lib/crypto";
 import { z } from "zod";
 import { identity, actor, coordinator, assertCurrentActor } from "@/lib/auth";
 import { pool, transaction, write, audit } from "@/lib/store";

@@ -81,8 +81,13 @@ export function planEventSave(
     eventClass: parsed.eventClass ?? eventClassOf(parsed),
   };
   requireFuture(event, now);
+  const permanent = form.get("permanent") === "on";
+  if (permanent && (mode !== "SINGLE" || event.eventClass !== "FIXED"))
+    throw new Error(
+      "A recorrência permanente está disponível somente para eventos fixos.",
+    );
   const raw = form.get("occurrences");
-  const count = raw === null ? 1 : Number(raw);
+  const count = permanent ? 53 : raw === null ? 1 : Number(raw);
   if (mode === "MULTIPLE" && count !== 1)
     throw new Error(
       "Escolha várias datas ou repetição semanal, sem combinar os dois modos.",
