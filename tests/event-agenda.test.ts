@@ -439,6 +439,8 @@ test("busca combina data com nome e horário sem perder o seletor de evento", ()
     matchesEventName(e, "missa dominical") &&
       matchesEventSearch(e, "2026-12-06"),
   );
+  assert.ok(matchesEventSearch(e, "Maria Silva 06/12/2026", ["Maria Silva"]));
+  assert.ok(!matchesEventSearch(e, "João Silva 06/12/2026", ["Maria Silva"]));
   assert.ok(
     !(
       matchesEventName(e, "outro evento") && matchesEventSearch(e, "2026-12-06")

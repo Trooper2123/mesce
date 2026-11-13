@@ -376,6 +376,27 @@ td small {
 .row:last-child {
   border: 0;
 }
+.notification-link {
+  color: inherit;
+  text-decoration: none;
+  border-radius: 8px;
+}
+.notification-link:hover {
+  background: #f3f6f1;
+}
+.schedule-day {
+  padding: 18px 22px;
+}
+.schedule-day > summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.schedule-day .schedule-event:last-child {
+  margin-bottom: 0;
+}
 .datebox {
   background: #f1f4ed;
   border: 1px solid var(--line);

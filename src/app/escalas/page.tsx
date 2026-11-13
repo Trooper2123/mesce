@@ -13,6 +13,8 @@ import { readData } from "@/lib/store";
 import { scheduleAction } from "@/app/actions";
 import { Field, Notice } from "@/components/fields";
 import { nextMonth } from "@/lib/domain";
+import { matchesEventSearch, sortEvents } from "@/lib/event-agenda";
+import type { Event } from "@/lib/domain";
 export const dynamic = "force-dynamic";
 export default async function Schedules({
   searchParams,
@@ -22,6 +24,7 @@ export default async function Schedules({
     error?: string;
     saved?: string;
     deleted?: string;
+    q?: string;
   }>;
 }) {
   await coordinator();
@@ -44,6 +47,29 @@ export default async function Schedules({
     APPROVED: "Aprovada",
     PUBLISHED: "Publicada",
   };
+  const visibleEvents = schedule
+    ? sortEvents(schedule.events).filter((event) => {
+        const names = schedule.assignments
+          .filter((assignment) => assignment.eventId === event.id)
+          .map(
+            (assignment) =>
+              schedule.ministers.find(
+                (minister) => minister.id === assignment.ministerId,
+              )?.name ??
+              data.ministers.find(
+                (minister) => minister.id === assignment.ministerId,
+              )?.name ??
+              "",
+          );
+        return matchesEventSearch(event, query.q, names);
+      })
+    : [];
+  const eventsByDate = new Map<string, Event[]>();
+  for (const event of visibleEvents) {
+    const events = eventsByDate.get(event.date) ?? [];
+    events.push(event);
+    eventsByDate.set(event.date, events);
+  }
   const common = (
     <>
       <input type="hidden" name="month" value={month} />
@@ -197,110 +223,207 @@ export default async function Schedules({
               </ul>
             </div>
           )}
-          {schedule.events.map((event) => {
-            const assigned = schedule.assignments.filter(
-              (a) => a.eventId === event.id,
-            );
-            return (
-              <article key={event.id} className="schedule-event panel">
-                <div className="panel-head">
-                  <div>
-                    <h3>{event.title}</h3>
-                    <span>
-                      {event.date} · {event.time} · {event.location}
-                    </span>
-                  </div>
-                  <span className="tag">
-                    {assigned.length} / {event.required} ministros
-                  </span>
-                </div>
-                <ul>
-                  {assigned.map((a) => (
-                    <li key={a.ministerId}>
-                      {schedule.ministers.find((m) => m.id === a.ministerId)
-                        ?.name ?? "Ministro"}
-                    </li>
-                  ))}
-                </ul>
-                {!assigned.length && <p>Vagas aguardando designação.</p>}
-                {event.notes && <p className="muted">{event.notes}</p>}
-                {["DRAFT", "IN_REVIEW"].includes(schedule.status) && (
-                  <details>
-                    <summary>Ajustar ministros ou quantidade de vagas</summary>
-                    <form
-                      key={`assign-${event.id}-${schedule.editVersion ?? 1}`}
-                      action={scheduleAction}
-                      className="inline-form"
-                    >
-                      {common}
-                      <input type="hidden" name="eventId" value={event.id} />
-                      <AssignmentFields
-                        ministers={data.ministers
-                          .filter(
-                            (m) =>
-                              !m.former && m.registrationStatus !== "DRAFT",
-                          )
-                          .map((m) => ({
-                            id: m.id,
-                            name: ministerDisplayName(m),
-                          }))}
-                        assignedIds={assigned.map((a) => a.ministerId)}
-                      />
-                      <Field name="reason" label="Justificativa" required />
-                      <button name="operation" value="assign">
-                        Salvar designação
-                      </button>
-                      <button type="reset" className="secondary">
-                        Cancelar
-                      </button>
-                      <Link
-                        className="button secondary"
-                        href={`/escalas?month=${month}`}
-                      >
-                        Voltar
-                      </Link>
-                    </form>
-                    <hr />
-                    <form
-                      key={`capacity-${event.id}-${schedule.editVersion ?? 1}`}
-                      action={scheduleAction}
-                      className="inline-form"
-                    >
-                      {common}
-                      <input type="hidden" name="eventId" value={event.id} />
-                      <Field
-                        name="required"
-                        label="Vagas necessárias"
-                        type="number"
-                        value={event.required}
-                      />
-                      <Field name="reason" label="Justificativa" required />
-                      <button
-                        name="operation"
-                        value="capacity"
-                        className="secondary"
-                      >
-                        Alterar vagas
-                      </button>
-                      <button type="reset" className="secondary">
-                        Cancelar
-                      </button>
-                      <Link
-                        className="button secondary"
-                        href={`/escalas?month=${month}`}
-                      >
-                        Voltar
-                      </Link>
-                    </form>
-                    <p className="muted">
-                      Reduzir vagas mantém as designações excedentes visíveis
-                      para retirada explícita.
-                    </p>
+          <form className="toolbar" role="search">
+            <input type="hidden" name="month" value={month} />
+            <Field
+              name="q"
+              label="Buscar na escala por nome, data, horário ou local"
+              value={query.q ?? ""}
+            />
+            <button className="secondary" type="submit">
+              Buscar
+            </button>
+            {query.q && (
+              <Link
+                className="button secondary"
+                href={`/escalas?month=${month}`}
+              >
+                Limpar busca
+              </Link>
+            )}
+          </form>
+          {!visibleEvents.length ? (
+            <p className="empty">
+              {query.q
+                ? "Nenhum encontro corresponde à busca."
+                : "Esta escala não possui encontros."}
+            </p>
+          ) : (
+            [...eventsByDate.entries()].map(
+              ([date, eventsForDate], dayIndex) => {
+                const assignmentsForDate = schedule.assignments.filter((a) =>
+                  eventsForDate.some((event) => event.id === a.eventId),
+                ).length;
+                const vacanciesForDate = eventsForDate.reduce(
+                  (total, event) =>
+                    total +
+                    Math.max(
+                      0,
+                      event.required -
+                        schedule.assignments.filter(
+                          (a) => a.eventId === event.id,
+                        ).length,
+                    ),
+                  0,
+                );
+                const dateLabel = new Intl.DateTimeFormat("pt-BR", {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                  timeZone: "UTC",
+                }).format(new Date(`${date}T12:00:00Z`));
+                return (
+                  <details
+                    className="schedule-day panel"
+                    key={date}
+                    open={dayIndex === 0}
+                  >
+                    <summary>
+                      <span>{dateLabel}</span>
+                      <span className="tag">
+                        {eventsForDate.length} encontros · {assignmentsForDate}{" "}
+                        designações · {vacanciesForDate} vagas
+                      </span>
+                    </summary>
+                    {eventsForDate.map((event) => {
+                      const assigned = schedule.assignments.filter(
+                        (a) => a.eventId === event.id,
+                      );
+                      return (
+                        <article
+                          key={event.id}
+                          className="schedule-event panel"
+                        >
+                          <div className="panel-head">
+                            <div>
+                              <h3>{event.title}</h3>
+                              <span>
+                                {event.date} · {event.time} · {event.location}
+                              </span>
+                            </div>
+                            <span className="tag">
+                              {assigned.length} / {event.required} ministros
+                            </span>
+                          </div>
+                          <ul>
+                            {assigned.map((a) => (
+                              <li key={a.ministerId}>
+                                {schedule.ministers.find(
+                                  (m) => m.id === a.ministerId,
+                                )?.name ?? "Ministro"}
+                              </li>
+                            ))}
+                          </ul>
+                          {!assigned.length && (
+                            <p>Vagas aguardando designação.</p>
+                          )}
+                          {event.notes && (
+                            <p className="muted">{event.notes}</p>
+                          )}
+                          {["DRAFT", "IN_REVIEW"].includes(schedule.status) && (
+                            <details>
+                              <summary>
+                                Ajustar ministros ou quantidade de vagas
+                              </summary>
+                              <form
+                                key={`assign-${event.id}-${schedule.editVersion ?? 1}`}
+                                action={scheduleAction}
+                                className="inline-form"
+                              >
+                                {common}
+                                <input
+                                  type="hidden"
+                                  name="eventId"
+                                  value={event.id}
+                                />
+                                <AssignmentFields
+                                  ministers={data.ministers
+                                    .filter(
+                                      (m) =>
+                                        !m.former &&
+                                        m.registrationStatus !== "DRAFT",
+                                    )
+                                    .map((m) => ({
+                                      id: m.id,
+                                      name: ministerDisplayName(m),
+                                    }))}
+                                  assignedIds={assigned.map(
+                                    (a) => a.ministerId,
+                                  )}
+                                />
+                                <Field
+                                  name="reason"
+                                  label="Justificativa"
+                                  required
+                                />
+                                <button name="operation" value="assign">
+                                  Salvar designação
+                                </button>
+                                <button type="reset" className="secondary">
+                                  Cancelar
+                                </button>
+                                <Link
+                                  className="button secondary"
+                                  href={`/escalas?month=${month}`}
+                                >
+                                  Voltar
+                                </Link>
+                              </form>
+                              <hr />
+                              <form
+                                key={`capacity-${event.id}-${schedule.editVersion ?? 1}`}
+                                action={scheduleAction}
+                                className="inline-form"
+                              >
+                                {common}
+                                <input
+                                  type="hidden"
+                                  name="eventId"
+                                  value={event.id}
+                                />
+                                <Field
+                                  name="required"
+                                  label="Vagas necessárias"
+                                  type="number"
+                                  value={event.required}
+                                />
+                                <Field
+                                  name="reason"
+                                  label="Justificativa"
+                                  required
+                                />
+                                <button
+                                  name="operation"
+                                  value="capacity"
+                                  className="secondary"
+                                >
+                                  Alterar vagas
+                                </button>
+                                <button type="reset" className="secondary">
+                                  Cancelar
+                                </button>
+                                <Link
+                                  className="button secondary"
+                                  href={`/escalas?month=${month}`}
+                                >
+                                  Voltar
+                                </Link>
+                              </form>
+                              <p className="muted">
+                                Reduzir vagas mantém as designações excedentes
+                                visíveis para retirada explícita.
+                              </p>
+                            </details>
+                          )}
+                        </article>
+                      );
+                    })}
                   </details>
-                )}
-              </article>
-            );
-          })}
+                );
+              },
+            )
+          )}
           <section className="panel">
             <h2>Distribuição de participações</h2>
             {[false, true].map((visit) => {

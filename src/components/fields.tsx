@@ -5,6 +5,7 @@ type Props = {
   value?: string | number;
   required?: boolean;
   maxLength?: number;
+  max?: number;
   options?: readonly (readonly [string, string])[];
 };
 export function Field({
@@ -14,6 +15,7 @@ export function Field({
   value = "",
   required = false,
   maxLength = 2000,
+  max,
   options,
 }: Props) {
   return (
@@ -37,6 +39,7 @@ export function Field({
           required={required}
           maxLength={type === "number" ? undefined : maxLength}
           min={type === "number" ? 1 : undefined}
+          max={type === "number" ? max : undefined}
         />
       )}
     </label>

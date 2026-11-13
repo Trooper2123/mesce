@@ -49,19 +49,21 @@ export default async function Notifications({
             </p>
           ) : (
             notices.map((n) => (
-              <article className="row" key={n.id}>
+              <Link
+                className="row notification-link"
+                key={n.id}
+                href={n.href}
+                aria-label={`Abrir registro: ${n.title}`}
+              >
                 <div>
-                  <h2>
-                    <Link href={`/notificacoes?id=${encodeURIComponent(n.id)}`}>
-                      {n.title}
-                    </Link>
-                  </h2>
+                  <h2>{n.title}</h2>
                   <p>{n.description}</p>
                   <small>
                     {n.month} · Revisão {n.revision}
                   </small>
                 </div>
-              </article>
+                <span className="tag">Abrir registro</span>
+              </Link>
             ))
           )}
         </section>
