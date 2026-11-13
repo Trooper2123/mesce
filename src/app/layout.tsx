@@ -36,7 +36,7 @@ const links = [
   ["/celebracoes", "Celebrações e visitas", CalendarDays],
   ["/impedimentos", "Impedimentos", CalendarOff],
   ["/visitas", "Visitas dominicais", HeartHandshake],
-  ["/configuracao", "Configuração", Church],
+  ["/configuracao", "Configurações", Church],
   ["/escalas", "Escalas", ClipboardList],
   ["/minhas-escalas", "Minhas escalas", UserRound],
   ["/relatorios", "Relatórios e histórico", ClipboardList],

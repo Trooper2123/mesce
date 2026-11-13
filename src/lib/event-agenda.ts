@@ -128,7 +128,11 @@ export function matchesEventName(event: Event, selected?: string) {
 }
 
 /** Search only public event fields, including both supported date formats. */
-export function matchesEventSearch(event: Event, query?: string) {
+export function matchesEventSearch(
+  event: Event,
+  query?: string,
+  ministerNames: string[] = [],
+) {
   const terms =
     query?.trim().toLocaleLowerCase("pt-BR").split(/\s+/).filter(Boolean) ?? [];
   const searchable = [
@@ -137,6 +141,7 @@ export function matchesEventSearch(event: Event, query?: string) {
     event.date.split("-").reverse().join("/"),
     event.time,
     event.location,
+    ...ministerNames,
   ]
     .join(" ")
     .toLocaleLowerCase("pt-BR");
