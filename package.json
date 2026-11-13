@@ -10,6 +10,7 @@
     "test": "node --max-old-space-size=2048 --import tsx --test --test-concurrency=1 tests/*.test.ts",
     "dev": "next dev --hostname 0.0.0.0",
     "build": "next build",
+    "vercel": "pnpm dlx vercel@65.15.0",
     "start": "next start --hostname 0.0.0.0",
     "typecheck": "tsc --noEmit",
     "db:migrate": "node --env-file=.env.local --import tsx scripts/migrate.ts",
@@ -40,6 +41,7 @@
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.16",
+    "@playwright/test": "^1.65.0",
     "@types/node": "^26.6.6",
     "@types/pg": "^8.23.1",
     "@types/react": "^19.3.0",
@@ -50,5 +52,10 @@
   },
   "engines": {
     "node": "24.x"
+  },
+  "allowScripts": {
+    "esbuild@0.27.0": true,
+    "esbuild@0.28.2": true,
+    "esbuild@0.27.2": true
   }
 }

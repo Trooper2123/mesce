@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { PreviewProfileFields } from "@/components/preview-profile-fields";
+import { MainNavigation } from "@/components/main-navigation";
 import {
   previewEnabled,
   readPreviewSession,
@@ -8,39 +9,13 @@ import {
 import { previewLogout, switchPreviewProfile } from "@/app/onboarding-actions";
 import type { Metadata } from "next";
 import Link from "next/link";
-import {
-  Bell,
-  Church,
-  LayoutDashboard,
-  UsersRound,
-  HeartHandshake,
-  CalendarDays,
-  CalendarOff,
-  ClipboardList,
-  UserRound,
-} from "lucide-react";
+import { Church } from "lucide-react";
 import "./globals.css";
 export const metadata: Metadata = {
   title: "MESCE • Gestão pastoral",
   description:
     "Gestão dos Ministros Extraordinários da Sagrada Comunhão Eucarística",
 };
-const links = [
-  ["/", "Visão geral", LayoutDashboard],
-  ["/notificacoes", "Notificações", Bell],
-  ["/meus-dados", "Meus dados", UserRound],
-  ["/pre-cadastros", "Pré-cadastros", UsersRound],
-  ["/ministros", "Ministros", UsersRound],
-  ["/assistidos", "Assistidos", HeartHandshake],
-  ["/locais", "Locais e comunidades", Church],
-  ["/celebracoes", "Celebrações e visitas", CalendarDays],
-  ["/impedimentos", "Impedimentos", CalendarOff],
-  ["/visitas", "Visitas dominicais", HeartHandshake],
-  ["/configuracao", "Configurações", Church],
-  ["/escalas", "Escalas", ClipboardList],
-  ["/minhas-escalas", "Minhas escalas", UserRound],
-  ["/relatorios", "Relatórios e histórico", ClipboardList],
-] as const;
 export default async function RootLayout({
   children,
 }: {
@@ -49,14 +24,6 @@ export default async function RootLayout({
   const preview = previewEnabled()
     ? readPreviewSession((await cookies()).get("mesce_preview")?.value ?? "")
     : null;
-  const ministerLinks = [
-    "/",
-    "/notificacoes",
-    "/meus-dados",
-    "/impedimentos",
-    "/respostas",
-    "/minhas-escalas",
-  ];
   return (
     <html lang="pt-BR">
       <body>
@@ -73,20 +40,7 @@ export default async function RootLayout({
             </span>
           </Link>
           <p className="nav-label">ORGANIZAÇÃO DO MINISTÉRIO</p>
-          <nav aria-label="Principal">
-            {links
-              .filter(
-                ([href]) =>
-                  preview?.previewRole !== "MINISTER" ||
-                  ministerLinks.includes(href),
-              )
-              .map(([href, label, Icon]) => (
-                <Link key={href} href={href}>
-                  <Icon size={21} />
-                  {label}
-                </Link>
-              ))}
-          </nav>
+          <MainNavigation minister={preview?.previewRole === "MINISTER"} />
           <div className="aside-bottom">
             <span className="dot" /> Um ministério, muitas mãos.
             <p>Servir com cuidado e organização.</p>

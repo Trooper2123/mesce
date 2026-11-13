@@ -59,6 +59,9 @@ aside {
   color: var(--muted);
   margin: 48px 8px 14px;
 }
+.nav-toggle {
+  display: none;
+}
 nav {
   display: grid;
   gap: 7px;
@@ -77,6 +80,12 @@ nav a {
 nav a:hover {
   background: #eaf1e9;
   color: var(--green);
+}
+nav a[aria-current="page"] {
+  background: #eaf1e9;
+  color: var(--green);
+  font-weight: bold;
+  box-shadow: inset 4px 0 var(--green);
 }
 .aside-bottom {
   margin-top: auto;
@@ -158,6 +167,28 @@ h3 {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+}
+.schedule-actions {
+  display: grid;
+  gap: 18px;
+  margin: 20px 0;
+}
+.schedule-primary-actions,
+.schedule-support-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.schedule-support-actions {
+  border-top: 1px solid var(--line);
+  padding-top: 18px;
+}
+.schedule-actions-label {
+  flex-basis: 100%;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: bold;
 }
 .button,
 button {
@@ -521,19 +552,27 @@ a.action {
   .aside-bottom {
     display: none;
   }
-  nav {
-    display: flex;
-    overflow-x: auto;
+  .nav-toggle {
+    display: inline-flex;
     margin-top: 18px;
-    gap: 8px;
+    width: 100%;
+  }
+  nav {
+    display: none;
+    margin-top: 12px;
+  }
+  nav[data-open="true"] {
+    display: grid;
   }
   nav a {
-    white-space: nowrap;
     background: #f1f5ef;
     font-size: 16px;
   }
-  nav svg {
-    display: none;
+  .schedule-primary-actions > form,
+  .schedule-support-actions > form,
+  .schedule-actions .button,
+  .schedule-actions button {
+    width: 100%;
   }
   .workspace {
     margin: 0;

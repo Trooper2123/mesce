@@ -94,7 +94,7 @@ export default async function Home() {
           <Link className="button secondary" href="/notificacoes">
             Central de notificações
           </Link>
-          <Link className="button" href="/ministros?new=1">
+          <Link className="button secondary" href="/ministros?new=1">
             Cadastrar ministro
           </Link>
           <Link className="button secondary" href="/assistidos?new=1">

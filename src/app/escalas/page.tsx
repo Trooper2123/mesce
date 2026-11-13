@@ -81,6 +81,22 @@ export default async function Schedules({
       />
     </>
   );
+  const generateForm = (
+    <form action={scheduleAction}>
+      {common}
+      <button
+        name="operation"
+        value="generate"
+        className={
+          editable || schedule?.status === "APPROVED" ? "secondary" : undefined
+        }
+      >
+        {schedule && ["APPROVED", "PUBLISHED"].includes(schedule.status)
+          ? "Abrir nova revisão"
+          : "Gerar proposta"}
+      </button>
+    </form>
+  );
   return (
     <>
       <span className="eyebrow">Planejamento do ministério</span>
@@ -107,56 +123,62 @@ export default async function Schedules({
           />
           <button className="secondary">Consultar</button>
         </form>
-        <div className="hero-actions">
-          <form action={scheduleAction}>
-            {common}
-            <button name="operation" value="generate">
-              {schedule && ["APPROVED", "PUBLISHED"].includes(schedule.status)
-                ? "Abrir nova revisão"
-                : "Gerar proposta"}
-            </button>
-          </form>
-          {schedule && ["DRAFT", "IN_REVIEW"].includes(schedule.status) && (
-            <form action={scheduleAction}>
-              {common}
-              <button name="operation" value="approve" className="secondary">
-                Validar e aprovar
-              </button>
-            </form>
-          )}
-          {schedule?.status === "APPROVED" && (
-            <form action={scheduleAction}>
-              {common}
-              <button name="operation" value="publish">
-                Publicar escala
-              </button>
-            </form>
-          )}
-          {schedule && ["APPROVED", "PUBLISHED"].includes(schedule.status) && (
-            <Link
-              className="button secondary"
-              href={`/api/schedules/${schedule.id}/pdf`}
-            >
-              Baixar PDF aprovado
-            </Link>
-          )}
-          {schedule?.assistedSnapshot &&
-            ["APPROVED", "PUBLISHED"].includes(schedule.status) && (
-              <Link
-                className="button secondary"
-                href={`/api/schedules/${schedule.id}/visitas`}
-              >
-                Baixar escala completa com contatos (restrita)
-              </Link>
+        <div className="schedule-actions">
+          <div className="schedule-primary-actions">
+            <span className="schedule-actions-label">Próxima etapa</span>
+            {!editable && schedule?.status !== "APPROVED" && generateForm}
+            {editable && (
+              <form action={scheduleAction}>
+                {common}
+                <button name="operation" value="approve">
+                  Validar e aprovar
+                </button>
+              </form>
             )}
-          {schedule && ["DRAFT", "IN_REVIEW"].includes(schedule.status) && (
-            <form action={scheduleAction}>
-              {common}
-              <button className="secondary" name="operation" value="sync">
-                Sincronizar agenda e validar
-              </button>
-            </form>
-          )}
+            {schedule?.status === "APPROVED" && (
+              <form action={scheduleAction}>
+                {common}
+                <button name="operation" value="publish">
+                  Publicar escala
+                </button>
+              </form>
+            )}
+          </div>
+          {schedule &&
+            (editable ||
+              ["APPROVED", "PUBLISHED"].includes(schedule.status)) && (
+              <div className="schedule-support-actions">
+                <span className="schedule-actions-label">Outras ações</span>
+                {editable && generateForm}
+                {schedule.status === "APPROVED" && generateForm}
+                {schedule &&
+                  ["APPROVED", "PUBLISHED"].includes(schedule.status) && (
+                    <Link
+                      className="button secondary"
+                      href={`/api/schedules/${schedule.id}/pdf`}
+                    >
+                      Baixar PDF aprovado
+                    </Link>
+                  )}
+                {schedule?.assistedSnapshot &&
+                  ["APPROVED", "PUBLISHED"].includes(schedule.status) && (
+                    <Link
+                      className="button secondary"
+                      href={`/api/schedules/${schedule.id}/visitas`}
+                    >
+                      Baixar escala completa com contatos (restrita)
+                    </Link>
+                  )}
+                {editable && (
+                  <form action={scheduleAction}>
+                    {common}
+                    <button className="secondary" name="operation" value="sync">
+                      Sincronizar agenda e validar
+                    </button>
+                  </form>
+                )}
+              </div>
+            )}
         </div>
         <p className="muted">
           Limite mensal considera celebrações e visitas em conjunto. O

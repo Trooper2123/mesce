@@ -1,5 +1,7 @@
 # TASKS — MVP MESCE
 
+Plano de ajustes visuais do design audit: [especificação](docs/DESIGN-AUDIT-SPEC.md) e [tasks UX-01 a UX-08](docs/DESIGN-AUDIT-TASKS.md). A navegação e as tabelas no celular se relacionam com a issue #80; este plano não cria issues duplicadas.
+
 43 tasks criadas no GitHub a partir da auditoria e das regras confirmadas. Este arquivo acompanha implementação; as issues continuam abertas enquanto houver homologação/aceite pendente. Resend e aceite individual de designações estão fora do fluxo.
 
 ## Escopo do MVP
