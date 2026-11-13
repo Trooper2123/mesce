@@ -55,8 +55,7 @@ Esta entrega inicia a issue #67 pela assinatura pessoal priorizada na issue
 #76. Ainda requer homologação em dispositivos reais. Não confirma integração
 comportamental de cada cliente de calendário.
 
-Permanecem fora desta etapa: transporte Nodemailer/SMTP e sandbox (#71),
-outbox e processamento durável (#73), gestão de entrega e ICS de contingência
-por e-mail (#70), integração completa aos ciclos de publicação e homologação
-de convites iOS/Android (#69, #74, #75), além de Web Push (#32). A habilitação
-em produção depende de revisão de logs, migração e aceite do cliente.
+O transporte Nodemailer/SMTP, outbox durável e Web Push foram iniciados nesta
+etapa. Procedimentos de configuração, retentativa e limites de homologação
+estão em `docs/ENTREGA-AGENDA.md`. A habilitação em produção depende de revisão
+de logs, migração e validação em dispositivos reais.

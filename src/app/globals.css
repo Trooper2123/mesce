@@ -780,3 +780,15 @@ aside {
 .preview-role-banner .toolbar {
   margin-bottom: 0;
 }
+.check-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  margin: 1rem 0;
+}
+
+.check-row input {
+  width: 1.2rem;
+  height: 1.2rem;
+  flex: 0 0 auto;
+}

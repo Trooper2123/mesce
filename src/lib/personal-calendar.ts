@@ -13,7 +13,7 @@ type CalendarEntry = {
 };
 
 const zone = "America/Sao_Paulo";
-const escapeText = (value: string) =>
+export const escapeCalendarText = (value: string) =>
   value
     .replace(/\\/g, "\\\\")
     .replace(/\r?\n/g, "\\n")
@@ -24,10 +24,10 @@ const dateTime = (value: Date) =>
     .toISOString()
     .replace(/[-:]/g, "")
     .replace(/\.\d{3}/, "");
-const uidFor = (eventId: string, ministerId: string) =>
+export const calendarUid = (eventId: string, ministerId: string) =>
   `${createHash("sha256").update(`${eventId}:${ministerId}`).digest("hex")}@calendar.mesce.invalid`;
 
-function localDateTimeToUtc(date: string, time: string) {
+export function localDateTimeToUtc(date: string, time: string) {
   const [year, month, day] = date.split("-").map(Number);
   const [hour, minute] = time.split(":").map(Number);
   const intended = Date.UTC(year, month - 1, day, hour, minute);
@@ -64,7 +64,7 @@ function localDateTimeToUtc(date: string, time: string) {
   return new Date(guess);
 }
 
-const publicSummary = (event: Event) =>
+export const publicCalendarSummary = (event: Pick<Event, "kind">) =>
   event.kind === "VISIT"
     ? "Visita a assistido"
     : event.kind === "MASS"
@@ -130,7 +130,7 @@ function currentAssignments(
       if (start < historyCutoff) continue;
       const entry: CalendarEntry = {
         event,
-        uid: uidFor(event.id, ministerId),
+        uid: calendarUid(event.id, ministerId),
         sequence: Math.max(0, schedule.revision),
         modifiedAt: updatedAt,
         cancelled: false,
@@ -214,12 +214,12 @@ export function personalCalendarIcs(
       `SEQUENCE:${entry.sequence}`,
       `DTSTART:${dateTime(start)}`,
       `DTEND:${dateTime(end)}`,
-      `SUMMARY:${escapeText(publicSummary(entry.event))}`,
+      `SUMMARY:${escapeCalendarText(publicCalendarSummary(entry.event))}`,
       ...(entry.cancelled ? ["STATUS:CANCELLED"] : []),
       ...(entry.event.kind !== "VISIT" && entry.event.location
-        ? [`LOCATION:${escapeText(entry.event.location)}`]
+        ? [`LOCATION:${escapeCalendarText(entry.event.location)}`]
         : []),
-      `DESCRIPTION:${escapeText(`Consulte os detalhes na aplicação MESCE: ${appLink}`)}`,
+      `DESCRIPTION:${escapeCalendarText(`Consulte os detalhes na aplicação MESCE: ${appLink}`)}`,
       "END:VEVENT",
     );
   }

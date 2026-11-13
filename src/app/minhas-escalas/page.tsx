@@ -42,6 +42,15 @@ export default async function Mine() {
           Configurar agenda pessoal
         </Link>
       )}
+      {minister && (
+        <Link
+          className="button secondary"
+          href="/minhas-escalas/avisos"
+          style={{ marginInlineStart: 8 }}
+        >
+          Configurar notificações
+        </Link>
+      )}
       {!minister ? (
         <p className="notice">
           Procure a coordenação para vincular seu e-mail verificado ao cadastro

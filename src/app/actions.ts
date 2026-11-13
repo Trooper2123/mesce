@@ -24,6 +24,10 @@ import { planEventSave } from "@/lib/event-agenda";
 import { requireCompleteMinister } from "@/lib/profile";
 import { emailHash } from "@/lib/registration";
 import {
+  enqueuePublishedAgenda,
+  processOutboxBatch,
+} from "@/lib/agenda-delivery";
+import {
   parseAbsenceBatch,
   validateAbsenceSubmission,
 } from "@/lib/absence-input";
@@ -263,6 +267,7 @@ export async function save(form: FormData) {
 export async function scheduleAction(form: FormData) {
   const user = await coordinator();
   let selected = "";
+  let deliverySchedule: Schedule | undefined;
   try {
     selected = month(form);
     const operation = value(form, "operation");
@@ -404,6 +409,15 @@ export async function scheduleAction(form: FormData) {
       } else throw new Error("Operação inválida.");
       updated.editVersion = (existing.editVersion ?? 1) + 1;
       await write(client, "schedule", updated);
+      if (operation === "publish" || operation === "cancel") {
+        deliverySchedule = updated;
+        await enqueuePublishedAgenda(
+          client,
+          data,
+          updated,
+          process.env.APP_BASE_URL ?? "http://localhost:3000",
+        );
+      }
       await audit(
         client,
         user.id,
@@ -424,6 +438,13 @@ export async function scheduleAction(form: FormData) {
     redirect(
       `/escalas?month=${selected}&error=${encodeURIComponent(message(error))}`,
     );
+  }
+  if (deliverySchedule) {
+    try {
+      await processOutboxBatch();
+    } catch {
+      // The committed outbox is retried by the protected scheduled worker.
+    }
   }
   revalidatePath("/", "layout");
   redirect(`/escalas?month=${selected}&saved=1`);
