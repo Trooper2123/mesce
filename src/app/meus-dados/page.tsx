@@ -1,3 +1,4 @@
+import { locationCatalog } from "@/lib/locations";
 import { actor } from "@/lib/auth";
 import { MinisterForm } from "@/components/minister-form";
 import { Field, Notice } from "@/components/fields";
@@ -68,14 +69,12 @@ export default async function Own({
           </>
         )}
         {minister ? (
-          <>
-            <h2>Dados do ministério</h2>
-            <MinisterForm
-              minister={{ ...minister, email: user.email }}
-              spouses={data.ministers.map(({ id, name }) => ({ id, name }))}
-              action={saveOwnProfile}
-            />
-          </>
+          <MinisterForm
+            catalog={locationCatalog(data)}
+            minister={{ ...minister, email: user.email }}
+            spouses={data.ministers.map(({ id, name }) => ({ id, name }))}
+            action={saveOwnProfile}
+          />
         ) : (
           !user.coordinator && (
             <p>

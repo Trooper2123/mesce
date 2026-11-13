@@ -2,9 +2,21 @@
 import { useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { previewCsv, importCsv } from "@/app/csv-actions";
+import {
+  previewAssistedCsv,
+  importAssistedCsv,
+} from "@/app/assisted-csv-actions";
 type Preview = Awaited<ReturnType<typeof previewCsv>>;
 export function CsvImport() {
   const fileInput = useRef<HTMLInputElement>(null);
+export function CsvImport({
+  entity = "ministers",
+}: {
+  entity?: "ministers" | "assisted";
+}) {
+  const isAssisted = entity === "assisted";
+  const previewAction = isAssisted ? previewAssistedCsv : previewCsv;
+  const importAction = isAssisted ? importAssistedCsv : importCsv;
   const [source, setSource] = useState("");
   const [preview, setPreview] = useState<Preview>();
   const [update, setUpdate] = useState(false),
@@ -21,7 +33,7 @@ export function CsvImport() {
   return (
     <section className="panel">
       <label className="field">
-        Arquivo CSV (até 500 KB e 500 ministros)
+        Arquivo CSV (até 500 KB e 500 registros)
         <input
           ref={fileInput}
           type="file"
@@ -58,14 +70,16 @@ export function CsvImport() {
             setConfirmed(false);
           }}
         />
-        Atualizar cadastros com o mesmo e-mail (desmarcado = ignorar existentes)
+        {isAssisted
+          ? "Atualizar assistidos pelo ID informado (desmarcado = ignorar existentes)"
+          : "Atualizar cadastros com o mesmo e-mail (desmarcado = ignorar existentes)"}
       </label>
       <button
         disabled={!source || pending}
         onClick={() =>
           startTransition(async () => {
             setMessage("");
-            setPreview(await previewCsv(payload()));
+            setPreview(await previewAction(payload()));
             setConfirmed(false);
           })
         }
@@ -81,8 +95,10 @@ export function CsvImport() {
         <>
           <p>
             Colunas são reconhecidas pelos cabeçalhos do modelo. Nenhum dado foi
-            gravado. Cadastros incompletos serão pendentes e não participarão de
-            novas escalas.
+            gravado.{" "}
+            {isAssisted
+              ? "Confira os IDs, nomes e operações antes de confirmar."
+              : "Cadastros incompletos serão pendentes e não participarão de novas escalas."}
           </p>
           <div className="table-scroll">
             <table>
@@ -90,9 +106,10 @@ export function CsvImport() {
                 <tr>
                   <th>Linha</th>
                   <th>Nome</th>
-                  <th>E-mail</th>
+                  <th>{isAssisted ? "ID" : "E-mail"}</th>
                   <th>Operação</th>
-                  <th>Dados faltantes</th>
+                  {isAssisted && <th>Ministros por visita</th>}
+                  {!isAssisted && <th>Dados faltantes</th>}
                 </tr>
               </thead>
               <tbody>
@@ -102,22 +119,29 @@ export function CsvImport() {
                     <td>{r.name}</td>
                     <td>{r.email}</td>
                     <td>{r.operation}</td>
-                    <td>{r.missing.join(", ") || "Cadastro completo"}</td>
+                    {isAssisted && <td>{r.ministersRequired}</td>}
+                    {!isAssisted && (
+                      <td>{r.missing.join(", ") || "Cadastro completo"}</td>
+                    )}
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          <label className="field check">
-            <input
-              type="checkbox"
-              disabled={pending}
-              checked={authorize}
-              onChange={(e) => setAuthorize(e.target.checked)}
-            />
-            Também autorizar na allowlist os e-mails de ministros ativos
-            importados (não envia convites nem restaura acessos revogados)
-          </label>
+          {!isAssisted && (
+            <>
+              <label className="field check">
+                <input
+                  type="checkbox"
+                  disabled={pending}
+                  checked={authorize}
+                  onChange={(e) => setAuthorize(e.target.checked)}
+                />
+                Também autorizar na allowlist os e-mails de ministros ativos
+                importados (não envia convites nem restaura acessos revogados)
+              </label>
+            </>
+          )}
           <label className="field check">
             <input
               type="checkbox"
@@ -135,7 +159,7 @@ export function CsvImport() {
                 f.set("expectedState", preview.expectedState);
                 f.set("authorize", String(authorize));
                 f.set("confirmed", String(confirmed));
-                const result = await importCsv(f);
+                const result = await importAction(f);
                 setMessage(
                   result.error ||
                     `${result.written} cadastro(s) gravado(s); ${result.skipped} existente(s) ignorado(s).`,

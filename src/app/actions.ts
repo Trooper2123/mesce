@@ -1,4 +1,8 @@
 "use server";
+import { calendarReturn } from "@/lib/calendar-navigation";
+import { visitAssistedIds } from "@/lib/visit-group";
+import { ministerLocations, eventLocation } from "@/lib/locations";
+import { eventChangeNotice } from "@/lib/operational-changes";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { actor, coordinator, assertCurrentActor } from "@/lib/auth";
@@ -12,14 +16,14 @@ import {
   validateSchedule,
   Minister,
   Schedule,
-  requireFuture,
   syncSchedule,
   blocked,
 } from "@/lib/domain";
 import { z } from "zod";
+import { ministerDisplayName } from "@/lib/minister-name";
+import { planEventSave } from "@/lib/event-agenda";
 import { requireCompleteMinister } from "@/lib/profile";
 import { emailHash } from "@/lib/registration";
-import { parseEventForm, applyVisitStaffing } from "@/lib/event-input";
 import {
   parseAbsenceBatch,
   validateAbsenceSubmission,
@@ -50,6 +54,7 @@ function message(error: unknown) {
 export async function save(form: FormData) {
   const user = await actor();
   const kind = value(form, "kind");
+  let eventMonth = "";
   const page =
     kind === "minister"
       ? "ministros"
@@ -111,9 +116,20 @@ export async function save(form: FormData) {
           ...data,
           active: status === "ACTIVE",
           former: status === "FORMER",
+          preferredName: form.has("preferredName")
+            ? value(form, "preferredName")
+            : (existingMinister?.preferredName ?? ""),
+          active: status
+            ? status === "ACTIVE" || status === "AWAY"
+            : data.active,
+          away: status ? status === "AWAY" : data.away,
+          former: status
+            ? status === "FORMER"
+            : (existingMinister?.former ?? false),
           monthlyLimit: form.has("monthlyLimit")
             ? data.monthlyLimit
             : (existingMinister?.monthlyLimit ?? null),
+          ...ministerLocations(form, existingMinister, current),
           registrationStatus:
             value(form, "registrationStatus") === "DRAFT"
               ? "DRAFT"
@@ -169,9 +185,10 @@ export async function save(form: FormData) {
           }),
         );
       else if (kind === "event") {
-        const event = applyVisitStaffing(
-          parseEventForm(form, id),
-          current.assisted,
+        const local = eventLocation(
+          form,
+          current.events.find((e) => e.id === id),
+          current,
         );
         const additionalDates = String(form.get("additionalDates") ?? "")
           .split(/[\s,;]+/)
@@ -227,6 +244,39 @@ export async function save(form: FormData) {
           )
             continue;
           await write(client, "event", occurrence);
+        if (local.location) form.set("location", local.location);
+        const occurrences = planEventSave(form, id, current).map((e) => ({
+          ...e,
+          locationId: local.locationId,
+        }));
+        eventMonth = occurrences[0]?.date.slice(0, 7) ?? "";
+        for (const occurrence of occurrences) {
+          const previous = current.events.find((e) => e.id === occurrence.id);
+          const changed =
+            previous &&
+            [
+              "date",
+              "time",
+              "duration",
+              "location",
+              "assistedId",
+              "assistedIds",
+              "groupMinistersRequired",
+            ].some(
+              (key) =>
+                JSON.stringify(previous[key as keyof typeof previous]) !==
+                JSON.stringify(occurrence[key as keyof typeof occurrence]),
+            );
+          const saved = changed
+            ? eventChangeNotice(previous, occurrence, current)
+            : occurrence;
+          await write(client, "event", saved);
+          if (changed)
+            await audit(client, user.id, "event:reschedule", saved.id, {
+              before: previous,
+              after: saved,
+              reason: "Edição individual",
+            });
         }
       } else if (kind === "absence") {
         const entries = form.getAll("rows").length
@@ -234,6 +284,9 @@ export async function save(form: FormData) {
           : [
               absenceSchema.parse({
                 ...data,
+                revokedAt: undefined,
+                revokedBy: undefined,
+                withdrawalReason: undefined,
                 end: raw.scope === "DAY" ? raw.start : raw.end,
               }),
             ];
@@ -242,6 +295,7 @@ export async function save(form: FormData) {
           if (
             current.absences.some(
               (a) =>
+                !a.revokedAt &&
                 a.id !== absence.id &&
                 a.ministerId === absence.ministerId &&
                 a.scope === absence.scope &&
@@ -261,7 +315,12 @@ export async function save(form: FormData) {
     return { error: message(error) };
   }
   revalidatePath("/", "layout");
-  redirect(`/${page}?saved=1`);
+  return {
+    redirectTo:
+      kind === "event"
+        ? calendarReturn(form, "saved", eventMonth)
+        : `/${page}?saved=1`,
+  };
 }
 export async function scheduleAction(form: FormData) {
   const user = await coordinator();
@@ -292,6 +351,7 @@ export async function scheduleAction(form: FormData) {
             }
           : generate(data, selected);
         schedule.revision = (existing?.revision ?? 0) + 1;
+        schedule.warnings = validateSchedule(schedule, data);
         await write(client, "schedule", schedule);
         await audit(client, user.id, "schedule:generate", schedule.id);
         return;
@@ -332,6 +392,15 @@ export async function scheduleAction(form: FormData) {
           };
         } else {
           const ministerId = z.string().uuid().parse(form.get("ministerId"));
+          const alreadyAssigned = updated.assignments.some(
+            (a) => a.eventId === eventId && a.ministerId === ministerId,
+          );
+          if (value(form, "mode") !== "remove" && alreadyAssigned)
+            throw new Error(
+              "Este ministro já está designado. Selecione outro ministro para preencher a vaga.",
+            );
+          if (value(form, "mode") === "remove" && !alreadyAssigned)
+            throw new Error("Este ministro não está designado neste encontro.");
           const assignments = updated.assignments.filter(
             (a) => !(a.eventId === eventId && a.ministerId === ministerId),
           );
@@ -359,6 +428,7 @@ export async function scheduleAction(form: FormData) {
           }
           updated = { ...updated, assignments };
         }
+        updated.status = "IN_REVIEW";
         updated.warnings = validateSchedule(updated, data);
       } else if (operation === "approve") {
         if (!["DRAFT", "IN_REVIEW"].includes(existing.status))
@@ -368,10 +438,14 @@ export async function scheduleAction(form: FormData) {
         updated = {
           ...existing,
           status: "APPROVED",
+          ministers: data.ministers.map((m) => ({
+            id: m.id,
+            name: ministerDisplayName(m),
+          })),
           assistedSnapshot: data.assisted
             .filter((p) =>
               existing.events.some(
-                (e) => e.kind === "VISIT" && e.assistedId === p.id,
+                (e) => e.kind === "VISIT" && visitAssistedIds(e).includes(p.id),
               ),
             )
             .map((p) => ({ ...p, notes: "" })),

@@ -1,0 +1,1244 @@
+# TestSprite test plan — MESCE v2.0 — 12/11/2026
+# Modelo: useCases -> useCase/slug/testCases -> id/priority/name/description/steps.
+# Uma string em steps é ação; um objeto com chave assert verifica o resultado.
+# Credenciais e URL de Preview devem ser configuradas no executor, nunca neste YAML.
+# Estado inicial de todos os casos ativos: A EXECUTAR. Este arquivo não registra execução.
+# 53 casos ativos; 14 futuros comentados ao final para impedir execução prematura.
+# A ausência de chaves enabled/skip/status é intencional: não fazem parte do modelo anexado.
+# Preparação: coordenador C e ministros fictícios A/B ativos, L1/L2/L3 ativas, L4 inativa,
+# assistidos sintéticos de equipe 1 e 3, duas missas sobrepostas, visita dominical,
+# série de 3 ocorrências com exceção, escala V1 publicada e revisão V2, CSVs sintéticos.
+# Datas: T=execução em America/Sao_Paulo, M1=próximo mês, M2=seguinte, domingos reais.
+# Não executar inclusões em datas fixas que já passaram. Não alterar dados de produção.
+# Prazo dia 25 exige relógio controlado; iOS/Android/PDF podem exigir executor manual.
+# Não exigir RSVP/presença. Preferência futura: assinatura pessoal mensal + push consolidado.
+# Passos destrutivos atuam SOMENTE nas fixtures de teste e exigem restauração/preparação por caso.
+# Prioridade: P0/P1 do plano -> High; P2 -> Medium, conforme enum do modelo.
+
+useCases:
+  - useCase: Acesso, perfis e autorização
+    slug: PERM
+    testCases:
+      - id: AUTH-01
+        priority: High
+        name: Entrar e alternar entre coordenador e ministros A/B
+        description:
+          Caso AUTH-01 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato. Quando o passo alternar C/A/B, usar Trocar visão explicitamente
+          e confirmar a faixa do perfil antes de agir.
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Coordenador.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Coordenador e que a página carregou sem erro.
+          - Entrar por /acesso-dev, selecionar cada perfil e trocar pela faixa superior.
+          - assert: Papel e menu correspondem à escolha; A/B têm IDs distintos e não recebem privilégios administrativos.
+      - id: AUTH-02
+        priority: High
+        name: Negar operações administrativas ao ministro
+        description:
+          Caso AUTH-02 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato.
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Ministro de teste A.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Ministro de teste A e que a página carregou sem erro.
+          - Abrir /locais, /configuracao, /pre-cadastros e tentar enviar uma ação administrativa diretamente.
+          - assert: Negativa no servidor, sem gravação; esconder menu não é o único controle.
+      - id: AUTH-03
+        priority: High
+        name: Proteger identidade e cadastro de outro ministro
+        description:
+          Caso AUTH-03 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato.
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Ministro de teste A.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Ministro de teste A e que a página carregou sem erro.
+          - Abrir Meus dados, adulterar ID/papel/e-mail de acesso no envio e tentar editar B como A.
+          - assert: Só campos permitidos de A mudam; identidade, papel e cadastro alheio preservados.
+      - id: AUTH-04
+        priority: High
+        name: Revalidar acesso após revogação ou inativação
+        description:
+          Caso AUTH-04 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato. Quando o passo alternar C/A/B, usar Trocar visão explicitamente
+          e confirmar a faixa do perfil antes de agir.
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Coordenador.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Coordenador e que a página carregou sem erro.
+          - C revoga/inativa A; A tenta ação já aberta; trocar novamente para A e depois B.
+          - assert: A perde acesso; a troca não restaura cadastro/revogação; B continua independente.
+      - id: AUTH-05
+        priority: High
+        name: Rejeitar sessão expirada, adulterada ou usada em produção
+        description:
+          Caso AUTH-05 do plano MESCE v2.0. Exige executor/ambiente autorizado para sessão, provedor ou injeção
+          de falha; se indisponível, registrar bloqueio de ambiente, nunca aprovação. Usar apenas fixtures fictícias
+          independentes, datas futuras de M1/M2 em America/Sao_Paulo e evidência do commit exato.
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Coordenador.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Coordenador e que a página carregou sem erro.
+          - Expirar/adulterar cookie, sair e voltar; verificar modo de teste com configuração Production em ambiente seguro.
+          - Executar o ensaio Production somente em ambiente de teste controlado; não alterar variáveis nem cookies de
+            produção real.
+          - assert:
+              Sessão inválida exige login; cookie de Preview não funciona em Production e o seletor não é disponibilizado
+              lá.
+      - id: AUTH-06
+        priority: High
+        name: Validar origem, callback Auth0 e allowlist
+        description:
+          Caso AUTH-06 do plano MESCE v2.0. Exige executor/ambiente autorizado para sessão, provedor ou injeção
+          de falha; se indisponível, registrar bloqueio de ambiente, nunca aprovação. Usar apenas fixtures fictícias
+          independentes, datas futuras de M1/M2 em America/Sao_Paulo e evidência do commit exato.
+        steps:
+          - Usar ambiente de ensaio Auth0 autorizado e identidades de teste; não usar bypass de Preview como evidência
+            deste caso.
+          - Iniciar login por origem alternativa de produção em ensaio autorizado; verificar origem canônica/callback;
+            testar identidade fora da allowlist.
+          - assert:
+              Transação mantém origem/cookie; state/PKCE preservados; usuário não autorizado não ganha acesso. Não
+              usar sessão Preview como evidência deste teste.
+      - id: AUTH-07
+        priority: High
+        name: Preservar dados ao alternar perfis de homologação
+        description:
+          Caso AUTH-07 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato. Quando o passo alternar C/A/B, usar Trocar visão explicitamente
+          e confirmar a faixa do perfil antes de agir.
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Coordenador.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Coordenador e que a página carregou sem erro.
+          - Alternar papel após editar o cadastro fictício e recarregar.
+          - assert:
+              Dados não são resetados; sessão dura conforme configuração; perfil revogado pode voltar ao seletor
+              sem ser promovido no fluxo comum.
+  - useCase: Cadastros e nomes de preferência
+    slug: MIN
+    testCases:
+      - id: CAD-01
+        priority: High
+        name: Distinguir cadastro pendente de cadastro concluído
+        description:
+          Caso CAD-01 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato.
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Coordenador.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Coordenador e que a página carregou sem erro.
+          - Salvar ministro incompleto como pendente; depois tentar concluir faltando obrigatório.
+          - assert: Pendente identificado; conclusão rejeitada com campos faltantes; pendente não entra na geração.
+      - id: CAD-02
+        priority: High
+        name: Salvar dados próprios e nome de preferência
+        description:
+          Caso CAD-02 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato.
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Ministro de teste A.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Ministro de teste A e que a página carregou sem erro.
+          - Completar/editar perfil, informar nome de preferência e recarregar.
+          - assert: Preferência salva; nome completo preservado no cadastro.
+      - id: CAD-03
+        priority: High
+        name: Usar nome de preferência na escala e preservar PDF anterior
+        description:
+          "Caso CAD-03 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato. Pré-condição: preparar a escala/ocorrência citada
+          como coordenador e publicar somente quando o cenário exigir; A/B não recebem designações automaticamente ao
+          trocar perfil."
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Coordenador.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Coordenador e que a página carregou sem erro.
+          - Gerar escala/PDF com nome de preferência; limpar preferência e gerar nova revisão.
+          - assert: Nova escala usa preferência ou fallback para nome completo; V1 permanece intacta.
+      - id: CAD-04
+        priority: High
+        name: Aplicar quantidade atual de ministros do assistido
+        description:
+          Caso CAD-04 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato.
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Coordenador.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Coordenador e que a página carregou sem erro.
+          - Criar assistidos com equipe 1 e 3; editar quantidade e salvar visita com formulário antigo.
+          - assert:
+              Servidor usa cadastro atual do assistido ativo; não depende de nome “Altevita”; publicação antiga
+              não é reescrita.
+  - useCase: Importação CSV
+    slug: CSV
+    testCases:
+      - id: CSV-01
+        priority: High
+        name: Baixar modelos e importar CSVs sintéticos válidos
+        description:
+          Caso CSV-01 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato.
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Coordenador.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Coordenador e que a página carregou sem erro.
+          - Baixar exemplos de ministros/assistidos; importar UTF-8/BOM e separadores suportados, acentos e aspas.
+          - assert: Modelos válidos; prévia e confirmação antes de gravar; valores/contatos preservados.
+      - id: CSV-02
+        priority: High
+        name: Rejeitar lote inválido e impedir duplicidade na reimportação
+        description:
+          Caso CSV-02 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato.
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Coordenador.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Coordenador e que a página carregou sem erro.
+          - Confirmar lote com erro, duplicidade ambígua ou prévia desatualizada; repetir importação válida.
+          - assert:
+              Erro sem gravação parcial; atualização explícita; não unir pessoas só por nome; repetição não duplica
+              indevidamente.
+      - id: CSV-03
+        priority: High
+        name: Preservar preferências em CSV legado e revisar mudança de comunidade
+        description:
+          Caso CSV-03 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato.
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Coordenador.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Coordenador e que a página carregou sem erro.
+          - Importar arquivo legado sem nome de preferência/coluna de comunidade; depois mudar comunidade explicitamente.
+          - assert:
+              Ausência de coluna preserva preferências atuais; mudança explícita segue compatibilidade documentada,
+              sem reter IDs conflitantes.
+      - id: CSV-04
+        priority: High
+        name: Negar importação direta pelo ministro
+        description:
+          Caso CSV-04 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato.
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Ministro de teste A.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Ministro de teste A e que a página carregou sem erro.
+          - Abrir/enviar importação por URL/ação direta.
+          - assert: Acesso rejeitado no servidor; CSV não concede papel/login silenciosamente.
+  - useCase: Agenda, calendários e busca
+    slug: CAL
+    testCases:
+      - id: AGE-01
+        priority: High
+        name: Permitir eventos distintos com mesmo nome e horário
+        description:
+          Caso AGE-01 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato.
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Coordenador.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Coordenador e que a página carregou sem erro.
+          - Cadastrar dois eventos com mesmo nome, horário e local.
+          - assert: Dois UUIDs/registros independentes, sem sobrescrita; aviso de sobreposição, sem bloquear cadastro.
+      - id: AGE-02
+        priority: High
+        name: Bloquear pessoa designada em compromissos sobrepostos
+        description:
+          "Caso AGE-02 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato. Quando o passo alternar C/A/B, usar Trocar visão explicitamente
+          e confirmar a faixa do perfil antes de agir. Pré-condição: preparar a escala/ocorrência citada como coordenador
+          e publicar somente quando o cenário exigir; A/B não recebem designações automaticamente ao trocar perfil."
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Coordenador.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Coordenador e que a página carregou sem erro.
+          - Designar o mesmo ministro em eventos sobrepostos e depois dois ministros distintos.
+          - assert: Mesma pessoa bloqueada; coincidência entre eventos com pessoas distintas é permitida.
+      - id: AGE-03
+        priority: High
+        name: Distinguir fixos e extraordinários por grupo e rótulo
+        description:
+          Caso AGE-03 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato.
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Coordenador.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Coordenador e que a página carregou sem erro.
+          - Cadastrar fixo recorrente e extraordinário; comparar legenda/cor/rótulo e filtro.
+          - assert: Classificação correta, distinguível sem depender só de cor; visita extraordinária.
+      - id: AGE-04
+        priority: High
+        name: Cadastrar várias datas em meses diferentes
+        description:
+          Caso AGE-04 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato.
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Coordenador.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Coordenador e que a página carregou sem erro.
+          - Selecionar várias datas em meses diferentes; remover uma seleção; salvar.
+          - assert:
+              Um evento por data selecionada, mesmo horário/local, IDs distintos; sem multiplicação indevida pela
+              repetição semanal.
+      - id: AGE-05
+        priority: High
+        name: Rejeitar lote com data inválida ou visita fora de domingo
+        description:
+          Caso AGE-05 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato.
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Coordenador.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Coordenador e que a página carregou sem erro.
+          - Tentar lote com uma data impossível/passada e visita fora de domingo, inclusive envio direto.
+          - assert: Validação integral antes da gravação; nenhum item parcial.
+      - id: AGE-06
+        priority: High
+        name: Ordenar missas antes das visitas e por horário
+        description:
+          Caso AGE-06 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato.
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Coordenador.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Coordenador e que a página carregou sem erro.
+          - Ver todas as visualizações com missas 08:00/19:00 e visita 07:00.
+          - assert: Em cada dia, celebrações por horário antes das visitas por horário; não seguir ordem de cadastramento.
+      - id: AGE-07
+        priority: High
+        name: Abrir edição pelo card no calendário resumido
+        description:
+          Caso AGE-07 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato.
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Coordenador.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Coordenador e que a página carregou sem erro.
+          - Selecionar Resumido e clicar no card por mouse e teclado.
+          - assert: Card mostra horário/nome, abre a ocorrência preenchida; mês, visualização e filtros do link preservados.
+      - id: AGE-08
+        priority: High
+        name: Separar celebrações de visitas apenas aos domingos
+        description:
+          Caso AGE-08 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato.
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Coordenador.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Coordenador e que a página carregou sem erro.
+          - Selecionar Separado em mês com quatro e cinco domingos e fevereiro bissexto.
+          - assert:
+              Calendário mensal de celebrações separado; assistidos só nas colunas de domingos corretos, sem outros
+              dias; sem perder eventos.
+      - id: AGE-09
+        priority: High
+        name: Combinar visualização completa e seletores de eventos
+        description:
+          Caso AGE-09 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato.
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Coordenador.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Coordenador e que a página carregou sem erro.
+          - Selecionar Completo; filtrar grupo e nome cadastrado; combinar busca e trocar mês/modo.
+          - assert: Detalhes completos; seletor único por nome normalizado; filtros coerentes e contagem encontrados/total.
+      - id: AGE-10
+        priority: High
+        name: Buscar por data ISO, data brasileira, nome, horário e local
+        description:
+          Caso AGE-10 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato.
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Coordenador.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Coordenador e que a página carregou sem erro.
+          - Buscar data ISO, brasileira, horário, local e combinação com nome, usando datas das fixtures.
+          - Repetir a busca com a data fictícia no formato AAAA-MM-DD e DD/MM/AAAA, depois com horário/local e nome; usar
+            uma data sem eventos como controle negativo.
+          - assert: Encontrar AAAA-MM-DD e DD/MM/AAAA; não limitar busca ao título; resultado negativo não inventa registro.
+      - id: AGE-11
+        priority: High
+        name: Preservar formulário no erro e confirmar gravação uma única vez
+        description:
+          Caso AGE-11 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato.
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Coordenador.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Coordenador e que a página carregou sem erro.
+          - Forçar falha de validação e depois salvar corretamente; recarregar e conferir banco/lista.
+          - assert:
+              Dados do formulário preservados no erro; sucesso não aparece como erro de redirecionamento e há somente
+              uma inclusão.
+  - useCase: Catálogo de locais e múltiplas preferências
+    slug: LOC
+    testCases:
+      - id: LOC-01
+        priority: High
+        name: Cadastrar local e rejeitar nome duplicado normalizado
+        description:
+          Caso LOC-01 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato.
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Coordenador.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Coordenador e que a página carregou sem erro.
+          - Cadastrar nome novo; repetir com caixa/espaços diferentes.
+          - assert: Novo local recebe ID estável; duplicidade normalizada rejeitada.
+      - id: LOC-02
+        priority: High
+        name: Usar IDs do catálogo e rejeitar local forjado ou inativo
+        description:
+          Caso LOC-02 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato.
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Coordenador.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Coordenador e que a página carregou sem erro.
+          - Criar celebração pelo seletor; adulterar ID ou rótulo no envio.
+          - assert:
+              Nome vem do catálogo; ID desconhecido/inativo em nova escolha rejeitado. Visita não cadastra endereço
+              privado no catálogo.
+      - id: LOC-03
+        priority: High
+        name: Salvar várias comunidades de preferência
+        description:
+          Caso LOC-03 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato. Quando o passo alternar C/A/B, usar Trocar visão explicitamente
+          e confirmar a faixa do perfil antes de agir.
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Coordenador.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Coordenador e que a página carregou sem erro.
+          - Selecionar L1/L2 no cadastro administrativo e no próprio cadastro; recarregar.
+          - assert: As duas seleções persistem e são apresentadas corretamente.
+      - id: LOC-04
+        priority: High
+        name: Respeitar exclusividade de um conjunto de comunidades
+        description:
+          Caso LOC-04 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato.
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Coordenador.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Coordenador e que a página carregou sem erro.
+          - Configurar Somente L1/L2; gerar/revisar atribuições em L1, L2 e L3.
+          - assert: Celebrações permitem qualquer local do conjunto; L3 bloqueado, mantendo outras restrições.
+      - id: LOC-05
+        priority: High
+        name: Priorizar comunidades preferidas sem bloquear as demais
+        description:
+          Caso LOC-05 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato.
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Coordenador.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Coordenador e que a página carregou sem erro.
+          - Usar Prefere L1/L2 e Aceita todas em cenários comparáveis.
+          - assert:
+              Preferência atua no desempate existente; L3 continua permitido. Aceita todas não restringe. Não há
+              ordem interna entre L1/L2.
+      - id: LOC-06
+        priority: High
+        name: Renomear local mantendo vínculos e publicação anterior
+        description:
+          Caso LOC-06 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato.
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Coordenador.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Coordenador e que a página carregou sem erro.
+          - Renomear L1, conferir cadastros/eventos correntes e V1/PDF guardado.
+          - assert:
+              IDs/vínculos mantidos, rótulos correntes atualizados; snapshots/PDFs publicados intactos; agenda afetada
+              exige revisão.
+      - id: LOC-07
+        priority: High
+        name: Inativar local sem apagar vínculos existentes
+        description:
+          Caso LOC-07 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato.
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Coordenador.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Coordenador e que a página carregou sem erro.
+          - Inativar L2; tentar nova escolha e editar registro antes associado.
+          - assert: Não oferece novas escolhas de L2; vínculo anterior é preservado e identificado, sem exclusão do histórico.
+      - id: LOC-08
+        priority: High
+        name: Preservar catálogo nas configurações e tratar legado
+        description:
+          Caso LOC-08 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato.
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Coordenador.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Coordenador e que a página carregou sem erro.
+          - Salvar configurações gerais após editar o catálogo; abrir nomes legados e CSV antigo.
+          - assert:
+              Catálogo não é apagado; correspondências exatas normalizadas recuperadas; abreviações não são mescladas
+              por suposição.
+      - id: LOC-09
+        priority: High
+        name: Proteger gestão de locais e separar preferências das visitas
+        description:
+          Caso LOC-09 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato.
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Ministro de teste A.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Ministro de teste A e que a página carregou sem erro.
+          - Tentar alterar catálogo por URL e envio direto; definir preferência de comunidades e testar visita.
+          - assert:
+              Gestão do catálogo exclusiva da coordenação; preferência de comunidade não restringe endereço das
+              visitas.
+  - useCase: Impedimentos e respostas mensais
+    slug: IMP
+    testCases:
+      - id: IMP-01
+        priority: High
+        name: Salvar lote de impedimentos com abrangências corretas
+        description:
+          Caso IMP-01 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato.
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Ministro de teste A.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Ministro de teste A e que a página carregou sem erro.
+          - Enviar dias avulsos, período inclusivo e celebração específica em lote; repetir.
+          - assert:
+              Campos condicionais; gravação coerente/idempotente; impedimento específico não bloqueia outro evento
+              do mesmo dia.
+      - id: IMP-02
+        priority: High
+        name: Retirar impedimento com prazo e autorização
+        description:
+          Caso IMP-02 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato. Quando o passo alternar C/A/B, usar Trocar visão explicitamente
+          e confirmar a faixa do perfil antes de agir.
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Ministro de teste A.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Ministro de teste A e que a página carregou sem erro.
+          - A retira impedimento próprio com justificativa; tentar outro titular, fora do prazo e após revogação; C registra
+            exceção.
+          - assert:
+              A só retira o próprio, no próximo mês até dia 25; servidor nega demais casos; C pode excepcionalizar;
+              auditoria preservada.
+      - id: IMP-03
+        priority: High
+        name: Preservar histórico após retirada lógica
+        description:
+          Caso IMP-03 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato. Quando o passo alternar C/A/B, usar Trocar visão explicitamente
+          e confirmar a faixa do perfil antes de agir.
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Coordenador.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Coordenador e que a página carregou sem erro.
+          - Retirar impedimento já considerado em V1; gerar revisão; tentar reativar retirado pela edição.
+          - assert:
+              Registro fica Retirado e deixa de bloquear novas escalas; V1 não muda; criar novo registro equivalente
+              é possível, reativação por edição não.
+      - id: IMP-04
+        priority: High
+        name: Concluir resposta mensal com ou sem impedimentos
+        description:
+          Caso IMP-04 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato.
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Ministro de teste A.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Ministro de teste A e que a página carregou sem erro.
+          - Concluir resposta mensal com e sem impedimentos; consultar consolidação.
+          - assert: Distinguir sem resposta de resposta sem impedimentos; prazo/papel respeitados.
+  - useCase: Ocorrências, séries e exceções
+    slug: SER
+    testCases:
+      - id: SER-01
+        priority: High
+        name: Remarcar uma ocorrência e preservar as seguintes
+        description:
+          "Caso SER-01 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato. Pré-condição: preparar a escala/ocorrência citada
+          como coordenador e publicar somente quando o cenário exigir; A/B não recebem designações automaticamente ao
+          trocar perfil."
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Coordenador.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Coordenador e que a página carregou sem erro.
+          - Remarcar só a primeira ocorrência; conferir demais datas e vínculo do impedimento específico.
+          - assert: Mesmo UUID, ocorrência vira exceção, demais datas preservadas; aviso para revisar impedimento vinculado.
+      - id: SER-02
+        priority: High
+        name: Alterar série preservando exceções e exclusões
+        description:
+          "Caso SER-02 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato. Pré-condição: preparar a escala/ocorrência citada
+          como coordenador e publicar somente quando o cenário exigir; A/B não recebem designações automaticamente ao
+          trocar perfil."
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Coordenador.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Coordenador e que a página carregou sem erro.
+          - Alterar “esta e próximas”, ignorando uma ocorrência e preservando exceção individual/passado.
+          - assert: Deslocamento por mesmos dias e novo horário; só alvos permitidos alterados, exceções preservadas.
+      - id: SER-03
+        priority: High
+        name: Cancelar ocorrência ou série sem reescrever publicação
+        description:
+          "Caso SER-03 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato. Pré-condição: preparar a escala/ocorrência citada
+          como coordenador e publicar somente quando o cenário exigir; A/B não recebem designações automaticamente ao
+          trocar perfil."
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Coordenador.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Coordenador e que a página carregou sem erro.
+          - Cancelar ocorrência/série com justificativa; depois gerar/sincronizar rascunho e consultar relatório.
+          - assert:
+              Cancelamento lógico, novas escalas sem cancelados; designações saem ao sincronizar; relatório corrente
+              exclui cancelados; publicação anterior intacta.
+      - id: SER-04
+        priority: High
+        name: Rejeitar alteração inválida ou desatualizada sem gravação parcial
+        description:
+          "Caso SER-04 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato. Pré-condição: preparar a escala/ocorrência citada
+          como coordenador e publicar somente quando o cenário exigir; A/B não recebem designações automaticamente ao
+          trocar perfil."
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Coordenador.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Coordenador e que a página carregou sem erro.
+          - Enviar remarcação para passado, lote inválido, exclusão alheia ou origem desatualizada.
+          - assert: Operação rejeitada sem gravação parcial/sucesso falso.
+      - id: SER-05
+        priority: High
+        name: Notificar apenas responsáveis afetados por mudanças
+        description:
+          "Caso SER-05 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato. Pré-condição: preparar a escala/ocorrência citada
+          como coordenador e publicar somente quando o cenário exigir; A/B não recebem designações automaticamente ao
+          trocar perfil."
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Ministro de teste A.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Ministro de teste A e que a página carregou sem erro.
+          - Publicar designações distintas; remarcar/cancelar evento de A e depois evento compartilhado.
+          - assert:
+              Central interna avisa titulares publicados afetados; B não recebe aviso exclusivo de A; lembrete do
+              horário antigo suprimido e sem dados privados.
+  - useCase: Geração, revisão e publicação de escalas
+    slug: SCL
+    testCases:
+      - id: ESC-01
+        priority: High
+        name: Gerar escala respeitando equipe, casais e disponibilidade
+        description:
+          "Caso ESC-01 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato. Pré-condição: preparar a escala/ocorrência citada
+          como coordenador e publicar somente quando o cenário exigir; A/B não recebem designações automaticamente ao
+          trocar perfil."
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Coordenador.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Coordenador e que a página carregou sem erro.
+          - Gerar com equipe de visita 3, candidatos escassos, casal/preferências/impedimentos e limites opcionais.
+          - assert:
+              Pessoas distintas respeitam regras; vagas não preenchidas explicadas; nenhum teto artificial quando
+              ausente; sem promessa de ótimo global.
+      - id: ESC-02
+        priority: High
+        name: Sincronizar agenda no rascunho preservando ajustes possíveis
+        description:
+          "Caso ESC-02 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato. Pré-condição: preparar a escala/ocorrência citada
+          como coordenador e publicar somente quando o cenário exigir; A/B não recebem designações automaticamente ao
+          trocar perfil."
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Coordenador.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Coordenador e que a página carregou sem erro.
+          - Inserir/remover evento durante revisão, ajustar vagas e sincronizar.
+          - assert:
+              Agenda atualizada preserva alterações possíveis; diferenças/erros visíveis; aprovação exige validação
+              atual.
+      - id: ESC-03
+        priority: High
+        name: Revalidar publicação e conflitos entre meses
+        description:
+          "Caso ESC-03 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato. Pré-condição: preparar a escala/ocorrência citada
+          como coordenador e publicar somente quando o cenário exigir; A/B não recebem designações automaticamente ao
+          trocar perfil."
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Coordenador.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Coordenador e que a página carregou sem erro.
+          - Aprovar, incluir impedimento/mudar agenda e tentar publicar; testar evento que atravessa mês.
+          - assert: Revalidação impede publicação inválida e considera conflitos com publicações de mês vizinho.
+  - useCase: PDF geral e guia restrito
+    slug: PDF
+    testCases:
+      - id: PDF-01
+        priority: High
+        name: Restringir guia de visitas por destinatário
+        description:
+          "Caso PDF-01 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato. Quando o passo alternar C/A/B, usar Trocar visão explicitamente
+          e confirmar a faixa do perfil antes de agir. Pré-condição: preparar a escala/ocorrência citada como coordenador
+          e publicar somente quando o cenário exigir; A/B não recebem designações automaticamente ao trocar perfil."
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Coordenador.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Coordenador e que a página carregou sem erro.
+          - Baixar PDF geral e guia restrito como coordenador, responsável, outro ministro e identidade revogada.
+          - assert:
+              Autorizações por tipo de documento; geral sem endereço/título livre de visita; guia com contatos só
+              para quem tem direito. PDF geral autorizado não é um feed pessoal de agenda.
+      - id: PDF-02
+        priority: High
+        name: Gerar PDF A4 legível e com nome de preferência
+        description:
+          "Caso PDF-02 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato. Pré-condição: preparar a escala/ocorrência citada
+          como coordenador e publicar somente quando o cenário exigir; A/B não recebem designações automaticamente ao
+          trocar perfil."
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Coordenador.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Coordenador e que a página carregou sem erro.
+          - Gerar mês extenso e conferir visualmente nome de preferência, tabelas e páginas.
+          - Abrir o PDF baixado e inspecionar as páginas; se o executor não conseguir visualizar o arquivo, registrar
+            bloqueio para inspeção manual, sem presumir aprovação.
+          - assert: A4 legível, cabeçalhos repetidos, sem corte/omissão/sobreposição; nome completo só como fallback.
+  - useCase: Relatórios e histórico
+    slug: REL
+    testCases:
+      - id: REL-01
+        priority: High
+        name: Consolidar publicação vigente sem dupla contagem
+        description:
+          "Caso REL-01 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato. Pré-condição: preparar a escala/ocorrência citada
+          como coordenador e publicar somente quando o cenário exigir; A/B não recebem designações automaticamente ao
+          trocar perfil."
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Coordenador.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Coordenador e que a página carregou sem erro.
+          - Consultar mensal/12 meses, revisões e cancelamentos; trocar filtro de ministro.
+          - assert:
+              Apenas publicação vigente, sem dupla contagem; modalidades separadas; histórico coerente com snapshots
+              e cancelamento corrente documentado.
+  - useCase: Notificações internas
+    slug: NOTI
+    testCases:
+      - id: NTF-01
+        priority: High
+        name: Restringir notificações por usuário e evitar duplicação
+        description:
+          "Caso NTF-01 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato. Pré-condição: preparar a escala/ocorrência citada
+          como coordenador e publicar somente quando o cenário exigir; A/B não recebem designações automaticamente ao
+          trocar perfil."
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Ministro de teste A.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Ministro de teste A e que a página carregou sem erro.
+          - Consultar central e abrir URL de aviso alheio; recarregar avisos.
+          - assert:
+              Autorização revalidada; destinatários corretos; IDs estáveis e sem duplicação por refresh. Não afirmar
+              entrega externa.
+  - useCase: Persistência e recuperação de falhas
+    slug: OPS
+    testCases:
+      - id: OPS-01
+        priority: High
+        name: Reverter lote diante de indisponibilidade ou falha
+        description:
+          Caso OPS-01 do plano MESCE v2.0. Exige executor/ambiente autorizado para sessão, provedor ou injeção
+          de falha; se indisponível, registrar bloqueio de ambiente, nunca aprovação. Usar apenas fixtures fictícias
+          independentes, datas futuras de M1/M2 em America/Sao_Paulo e evidência do commit exato. Quando o passo alternar
+          C/A/B, usar Trocar visão explicitamente e confirmar a faixa do perfil antes de agir.
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Coordenador.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Coordenador e que a página carregou sem erro.
+          - Simular indisponibilidade/falha no meio de lote em ambiente de teste.
+          - assert: Rollback; mensagem segura; sem dados/segredos em logs; nenhuma gravação parcial.
+  - useCase: Acessibilidade e navegação responsiva
+    slug: UX
+    testCases:
+      - id: UX-01
+        priority: High
+        name: Navegar por teclado e em tela estreita
+        description:
+          Caso UX-01 do plano MESCE v2.0. Usar apenas fixtures fictícias independentes, datas futuras de
+          M1/M2 em America/Sao_Paulo e evidência do commit exato. Quando o passo alternar C/A/B, usar Trocar visão explicitamente
+          e confirmar a faixa do perfil antes de agir.
+        steps:
+          - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+          - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+          - No seletor Perfil para homologar, selecionar Coordenador.
+          - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+            neste arquivo.
+          - Clicar em Entrar no Preview.
+          - assert: Verificar que a faixa de homologação identifica Coordenador e que a página carregou sem erro.
+          - Navegar com teclado e tela estreita; usar seletores, cards, calendário e troca de papel.
+          - assert:
+              Rótulos e foco visíveis; ações alcançáveis; rolagem horizontal sinalizada quando necessária; cor não
+              é único indicador; validação preserva campos.
+
+# ============================================================================
+# CENÁRIOS FUTUROS — NÃO EXECUTADOS PELO TESTSPRITE ENQUANTO COMENTADOS
+# Para habilitar, mover o bloco desejado para useCases acima após implementação.
+# Não basta descomentar criando uma segunda chave useCases na raiz.
+# ============================================================================
+# useCases:
+# - useCase: PLANEJADO — Agenda pessoal e integração móvel
+#   slug: SYNC
+#   testCases:
+#   - id: CAL-01
+#     priority: High
+#     name: A configura assinatura pessoal
+#     description: 'Caso CAL-01 do plano MESCE v2.0. BLOQUEADO POR IMPLEMENTAÇÃO: #72, #76. Não ativar até o recurso
+#       ser entregue e o ambiente preparado. Usar apenas fixtures fictícias independentes, datas futuras de M1/M2
+#       em America/Sao_Paulo e evidência do commit exato.'
+#     steps:
+#     - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+#     - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+#     - No seletor Perfil para homologar, selecionar Ministro de teste A.
+#     - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+#       neste arquivo.
+#     - Clicar em Entrar no Preview.
+#     - assert: Verificar que a faixa de homologação identifica Ministro de teste A e que a página carregou sem erro.
+#     - A configura assinatura pessoal; adulterar titular na emissão e consulta do link.
+#     - assert: Titular vem da sessão; credencial externa é própria, opaca e revogável, sem acesso global.
+#   - id: CAL-02
+#     priority: High
+#     name: Consultar como A/B com evento exclusivo e compartilhado no mesmo eventId
+#     description: 'Caso CAL-02 do plano MESCE v2.0. BLOQUEADO POR IMPLEMENTAÇÃO: #76. Não ativar até o recurso ser
+#       entregue e o ambiente preparado. Usar apenas fixtures fictícias independentes, datas futuras de M1/M2 em America/Sao_Paulo
+#       e evidência do commit exato.'
+#     steps:
+#     - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+#     - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+#     - No seletor Perfil para homologar, selecionar Ministro de teste A.
+#     - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+#       neste arquivo.
+#     - Clicar em Entrar no Preview.
+#     - assert: Verificar que a faixa de homologação identifica Ministro de teste A e que a página carregou sem erro.
+#     - Consultar como A/B com evento exclusivo e compartilhado no mesmo eventId.
+#     - assert: Cada um recebe apenas seus eventos publicados; colega comum não concede acesso às demais atividades
+#         nem ao feed alheio.
+#   - id: CAL-03
+#     priority: High
+#     name: Assinar uma vez
+#     description: 'Caso CAL-03 do plano MESCE v2.0. BLOQUEADO POR IMPLEMENTAÇÃO: #67, #69, #76. Não ativar até o
+#       recurso ser entregue e o ambiente preparado. Usar apenas fixtures fictícias independentes, datas futuras de
+#       M1/M2 em America/Sao_Paulo e evidência do commit exato.'
+#     steps:
+#     - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+#     - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+#     - No seletor Perfil para homologar, selecionar Ministro de teste A.
+#     - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+#       neste arquivo.
+#     - Clicar em Entrar no Preview.
+#     - assert: Verificar que a faixa de homologação identifica Ministro de teste A e que a página carregou sem erro.
+#     - Assinar uma vez; publicar M1, repetir sem mudanças e publicar M2, inclusive dezembro→janeiro.
+#     - assert: Mesma assinatura recebe novas ocorrências; sem reinstalação, convite mensal nem confirmação de presença;
+#         histórico na janela definida.
+#   - id: CAL-04
+#     priority: High
+#     name: Alterar ocorrência/remarcar entre meses e cancelar/remover ministro
+#     description: 'Caso CAL-04 do plano MESCE v2.0. BLOQUEADO POR IMPLEMENTAÇÃO: #68, #69. Não ativar até o recurso
+#       ser entregue e o ambiente preparado. Usar apenas fixtures fictícias independentes, datas futuras de M1/M2
+#       em America/Sao_Paulo e evidência do commit exato.'
+#     steps:
+#     - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+#     - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+#     - No seletor Perfil para homologar, selecionar Ministro de teste A.
+#     - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+#       neste arquivo.
+#     - Clicar em Entrar no Preview.
+#     - assert: Verificar que a faixa de homologação identifica Ministro de teste A e que a página carregou sem erro.
+#     - Alterar ocorrência/remarcar entre meses e cancelar/remover ministro.
+#     - assert: UID estável da ocorrência/titular, versão monotônica; atualização/cancelamento não duplica nem ressuscita
+#         evento.
+#   - id: CAL-05
+#     priority: High
+#     name: Escolher assinatura ou alternativa de e-mail
+#     description: 'Caso CAL-05 do plano MESCE v2.0. BLOQUEADO POR IMPLEMENTAÇÃO: #71–73. Não ativar até o recurso
+#       ser entregue e o ambiente preparado. Usar apenas fixtures fictícias independentes, datas futuras de M1/M2
+#       em America/Sao_Paulo e evidência do commit exato.'
+#     steps:
+#     - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+#     - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+#     - No seletor Perfil para homologar, selecionar Ministro de teste A.
+#     - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+#       neste arquivo.
+#     - Clicar em Entrar no Preview.
+#     - assert: Verificar que a faixa de homologação identifica Ministro de teste A e que a página carregou sem erro.
+#     - Escolher assinatura ou alternativa de e-mail; processar retries, timeout e publicação repetida.
+#     - assert: Menor número de mensagens; nenhuma duplicação push/e-mail por padrão; aceitação SMTP não equivale
+#         a entrega/agenda adicionada.
+#   - id: CAL-06
+#     priority: High
+#     name: Inspecionar ICS, link e prévia de visita
+#     description: 'Caso CAL-06 do plano MESCE v2.0. BLOQUEADO POR IMPLEMENTAÇÃO: #68, #70. Não ativar até o recurso
+#       ser entregue e o ambiente preparado. Usar apenas fixtures fictícias independentes, datas futuras de M1/M2
+#       em America/Sao_Paulo e evidência do commit exato.'
+#     steps:
+#     - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+#     - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+#     - No seletor Perfil para homologar, selecionar Ministro de teste A.
+#     - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+#       neste arquivo.
+#     - Clicar em Entrar no Preview.
+#     - assert: Verificar que a faixa de homologação identifica Ministro de teste A e que a página carregou sem erro.
+#     - Inspecionar ICS, link e prévia de visita; tentar download/reenvio alheio.
+#     - assert: Sem identificação residencial/contatos de assistidos, lista de colegas, cookies ou credenciais; autorização
+#         no servidor.
+#   - id: CAL-07
+#     priority: High
+#     name: Revogar/rotacionar link e acesso, testar cache cruzado e cliente externo após logout
+#     description: 'Caso CAL-07 do plano MESCE v2.0. BLOQUEADO POR IMPLEMENTAÇÃO: #76. Não ativar até o recurso ser
+#       entregue e o ambiente preparado. Usar apenas fixtures fictícias independentes, datas futuras de M1/M2 em America/Sao_Paulo
+#       e evidência do commit exato.'
+#     steps:
+#     - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+#     - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+#     - No seletor Perfil para homologar, selecionar Ministro de teste A.
+#     - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+#       neste arquivo.
+#     - Clicar em Entrar no Preview.
+#     - assert: Verificar que a faixa de homologação identifica Ministro de teste A e que a página carregou sem erro.
+#     - Revogar/rotacionar link e acesso, testar cache cruzado e cliente externo após logout.
+#     - assert: Novas leituras bloqueadas conforme revogação; token não é cookie de login. Não prometer apagar cópia
+#         já baixada.
+#   - id: CAL-08
+#     priority: High
+#     name: Configurar assinatura no iPhone e acompanhar dois meses e cancelamento
+#     description: 'Caso CAL-08 do plano MESCE v2.0. BLOQUEADO POR IMPLEMENTAÇÃO: #74. Não ativar até o recurso ser
+#       entregue e o ambiente preparado. Usar apenas fixtures fictícias independentes, datas futuras de M1/M2 em America/Sao_Paulo
+#       e evidência do commit exato.'
+#     steps:
+#     - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+#     - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+#     - No seletor Perfil para homologar, selecionar Ministro de teste A.
+#     - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+#       neste arquivo.
+#     - Clicar em Entrar no Preview.
+#     - assert: Verificar que a faixa de homologação identifica Ministro de teste A e que a página carregou sem erro.
+#     - Configurar assinatura no iPhone e acompanhar dois meses e cancelamento.
+#     - assert: Atualização sem novo RSVP; atraso de consulta documentado; não declarar atualização imediata.
+#   - id: CAL-09
+#     priority: High
+#     name: Configurar assinatura no Google Agenda web e visualizar no Android
+#     description: 'Caso CAL-09 do plano MESCE v2.0. BLOQUEADO POR IMPLEMENTAÇÃO: #75. Não ativar até o recurso ser
+#       entregue e o ambiente preparado. Usar apenas fixtures fictícias independentes, datas futuras de M1/M2 em America/Sao_Paulo
+#       e evidência do commit exato.'
+#     steps:
+#     - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+#     - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+#     - No seletor Perfil para homologar, selecionar Ministro de teste A.
+#     - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+#       neste arquivo.
+#     - Clicar em Entrar no Preview.
+#     - assert: Verificar que a faixa de homologação identifica Ministro de teste A e que a página carregou sem erro.
+#     - Configurar assinatura no Google Agenda web e visualizar no Android.
+#     - assert: Mesma conta sincroniza a assinatura; instruções distinguem configuração web e app; testar clientes
+#         suportados separadamente.
+# - useCase: PLANEJADO — Web Push iOS e Android
+#   slug: PUSH
+#   testCases:
+#   - id: PUSH-01
+#     priority: High
+#     name: Instalar PWA no iPhone compatível e Android
+#     description: 'Caso PUSH-01 do plano MESCE v2.0. BLOQUEADO POR IMPLEMENTAÇÃO: #32. Não ativar até o recurso ser
+#       entregue e o ambiente preparado. Usar apenas fixtures fictícias independentes, datas futuras de M1/M2 em America/Sao_Paulo
+#       e evidência do commit exato.'
+#     steps:
+#     - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+#     - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+#     - No seletor Perfil para homologar, selecionar Ministro de teste A.
+#     - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+#       neste arquivo.
+#     - Clicar em Entrar no Preview.
+#     - assert: Verificar que a faixa de homologação identifica Ministro de teste A e que a página carregou sem erro.
+#     - Instalar PWA no iPhone compatível e Android; pedir permissão após gesto; recusar/revogar.
+#     - assert: Adesão explícita, sem confundir com presença; sem suporte mantém central interna.
+#   - id: PUSH-02
+#     priority: High
+#     name: Publicar M1 com muitas atividades
+#     description: 'Caso PUSH-02 do plano MESCE v2.0. BLOQUEADO POR IMPLEMENTAÇÃO: #32. Não ativar até o recurso ser
+#       entregue e o ambiente preparado. Usar apenas fixtures fictícias independentes, datas futuras de M1/M2 em America/Sao_Paulo
+#       e evidência do commit exato.'
+#     steps:
+#     - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+#     - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+#     - No seletor Perfil para homologar, selecionar Ministro de teste A.
+#     - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+#       neste arquivo.
+#     - Clicar em Entrar no Preview.
+#     - assert: Verificar que a faixa de homologação identifica Ministro de teste A e que a página carregou sem erro.
+#     - Publicar M1 com muitas atividades; repetir; publicar M2; alterar evento exclusivo/compartilhado.
+#     - assert: Um resumo por ministro/dispositivo/competência e delta pertinente; sem alertas de terceiros nem convite
+#         por atividade para assinantes.
+#   - id: PUSH-03
+#     priority: High
+#     name: Receber com PWA fechado, offline/reconexão, Foco e economia de bateria
+#     description: 'Caso PUSH-03 do plano MESCE v2.0. BLOQUEADO POR IMPLEMENTAÇÃO: #32. Não ativar até o recurso ser
+#       entregue e o ambiente preparado. Usar apenas fixtures fictícias independentes, datas futuras de M1/M2 em America/Sao_Paulo
+#       e evidência do commit exato.'
+#     steps:
+#     - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+#     - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+#     - No seletor Perfil para homologar, selecionar Ministro de teste A.
+#     - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+#       neste arquivo.
+#     - Clicar em Entrar no Preview.
+#     - assert: Verificar que a faixa de homologação identifica Ministro de teste A e que a página carregou sem erro.
+#     - Receber com PWA fechado, offline/reconexão, Foco e economia de bateria.
+#     - assert: Evidências por dispositivo/versão; TTL/retries e limites documentados, sem promessa de entrega/alarme
+#         exato.
+#   - id: PUSH-04
+#     priority: High
+#     name: Sair A, entrar B no mesmo aparelho
+#     description: 'Caso PUSH-04 do plano MESCE v2.0. BLOQUEADO POR IMPLEMENTAÇÃO: #32. Não ativar até o recurso ser
+#       entregue e o ambiente preparado. Usar apenas fixtures fictícias independentes, datas futuras de M1/M2 em America/Sao_Paulo
+#       e evidência do commit exato.'
+#     steps:
+#     - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+#     - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+#     - No seletor Perfil para homologar, selecionar Ministro de teste A.
+#     - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+#       neste arquivo.
+#     - Clicar em Entrar no Preview.
+#     - assert: Verificar que a faixa de homologação identifica Ministro de teste A e que a página carregou sem erro.
+#     - Sair A, entrar B no mesmo aparelho; revogar A em outro aparelho.
+#     - assert: Endpoint antigo não vaza avisos ao novo usuário; acesso revalidado no clique; payload genérico.
+#   - id: PUSH-05
+#     priority: High
+#     name: Receber push e consultar agenda nativa
+#     description: 'Caso PUSH-05 do plano MESCE v2.0. BLOQUEADO POR IMPLEMENTAÇÃO: #32, #76. Não ativar até o recurso
+#       ser entregue e o ambiente preparado. Usar apenas fixtures fictícias independentes, datas futuras de M1/M2
+#       em America/Sao_Paulo e evidência do commit exato.'
+#     steps:
+#     - Iniciar sessão de navegador isolada; não reutilizar o papel de outro teste.
+#     - Abrir /acesso-dev na URL de Preview configurada no projeto TestSprite.
+#     - No seletor Perfil para homologar, selecionar Ministro de teste A.
+#     - Preencher Senha de homologação com a credencial de teste fornecida de forma segura ao executor, sem gravá-la
+#       neste arquivo.
+#     - Clicar em Entrar no Preview.
+#     - assert: Verificar que a faixa de homologação identifica Ministro de teste A e que a página carregou sem erro.
+#     - Receber push e consultar agenda nativa.
+#     - assert: Push avisa, não força refresh nem escrita na agenda; assinatura e permissão de notificação permanecem
+#         independentes.

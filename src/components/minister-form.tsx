@@ -1,3 +1,4 @@
+import { defaultLocations, type Location } from "@/lib/location-rules";
 import type { Minister } from "@/lib/domain";
 import { Field } from "./fields";
 import { ServicePreferences } from "./service-preferences";
@@ -8,11 +9,13 @@ export function MinisterForm({
   spouses = [],
   action,
   complete = false,
+  catalog = defaultLocations,
 }: {
   minister: Minister;
   spouses?: Pick<Minister, "id" | "name">[];
   action: (form: FormData) => Promise<SaveResult>;
   complete?: boolean;
+  catalog?: Location[];
 }) {
   return (
     <ActionForm action={action}>
@@ -26,6 +29,16 @@ export function MinisterForm({
           value={minister.name}
           required
         />
+        <Field
+          name="preferredName"
+          maxLength={80}
+          label="Nome de preferência nas escalas"
+          value={minister.preferredName}
+        />
+        <p className="muted">
+          Use o nome pelo qual deseja aparecer nas escalas e PDFs. Se não
+          preencher, será usado o nome completo.
+        </p>
         <Field
           name="birthDate"
           label="Data de nascimento"
@@ -57,7 +70,7 @@ export function MinisterForm({
         <Field name="city" label="Cidade" value={minister.city} />
         <Field name="state" label="UF" value={minister.state} />
         <Field name="postalCode" label="CEP" value={minister.postalCode} />
-        <ServicePreferences minister={minister} />
+        <ServicePreferences minister={minister} catalog={catalog} />
         {!complete && (
           <>
             <Field

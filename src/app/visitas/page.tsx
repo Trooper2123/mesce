@@ -1,4 +1,6 @@
+import { visitAssistedIds } from "@/lib/visit-group";
 import Link from "next/link";
+import { sortEvents } from "@/lib/event-agenda";
 import { coordinator } from "@/lib/auth";
 import { readData } from "@/lib/store";
 import { Field } from "@/components/fields";
@@ -35,7 +37,7 @@ export default async function Visits({
       {sundays.map((date) => (
         <section className="panel" key={date}>
           <h2>Domingo · {date}</h2>
-          {data.events
+          {sortEvents(data.events)
             .filter(
               (e) => e.kind === "VISIT" && !e.cancelled && e.date === date,
             )
@@ -43,8 +45,10 @@ export default async function Visits({
               <div className="row" key={e.id}>
                 <span>
                   {e.time} ·{" "}
-                  {data.assisted.find((a) => a.id === e.assistedId)?.name ??
-                    "Assistido"}{" "}
+                  {data.assisted
+                    .filter((a) => visitAssistedIds(e).includes(a.id))
+                    .map((a) => a.name)
+                    .join(", ") ?? "Assistido"}{" "}
                   · {e.required} ministros
                 </span>
                 <Link href={`/celebracoes?edit=${e.id}`}>Editar</Link>

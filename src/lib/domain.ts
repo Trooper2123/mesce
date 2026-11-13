@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { matchesLocation, type Location } from "./location-rules";
+import { ministerDisplayName } from "./minister-name";
 const text = z.string().trim().max(2000);
 const date = z
   .string()
@@ -22,6 +24,7 @@ export const ministerSchema = z
   .object({
     ...base,
     name: text.min(3),
+    preferredName: z.string().trim().max(80).optional(),
     email: z.union([z.email(), z.literal("")]),
     birthDate: optionalDate,
     phone: text,
@@ -35,6 +38,7 @@ export const ministerSchema = z
     spouseId: z.union([z.string().uuid(), z.literal("")]),
     couplePreference: z.enum(["TOGETHER", "SEPARATE", "NONE"]),
     location: text,
+    locationIds: z.array(z.string().uuid()).max(100).optional(),
     locationPreference: z.enum(["ACCEPT", "PREFER", "EXCLUSIVE"]),
     notes: text,
   })
@@ -60,13 +64,34 @@ export const eventSchema = z
     duration: z.number().int().min(15).max(1440),
     kind: z.enum(["MASS", "ADORATION", "WEDDING", "SPECIAL", "VISIT"]),
     location: text.min(1),
+    locationId: z.string().uuid().optional(),
     required: z.number().int().min(1).max(100),
+    eventClass: z.enum(["FIXED", "EXTRAORDINARY"]).optional(),
+    seriesId: z.string().uuid().optional(),
+    seriesException: z.boolean().optional(),
+    changeNotice: z
+      .object({
+        id: z.string().uuid(),
+        at: z.string(),
+        kind: z.enum(["CANCEL", "RESCHEDULE"]),
+        previousDate: date,
+        previousTime: z.string(),
+        ministerIds: z.array(z.string().uuid()),
+      })
+      .optional(),
     visitSite: z.enum(["HOME", "ALTEVITA"]).optional(),
     assistedId: z.union([z.string().uuid(), z.literal("")]),
+    assistedIds: z.array(z.string().uuid()).max(100).optional(),
+    groupMinistersRequired: z.number().int().min(1).max(100).optional(),
     notes: text,
     cancelled: z.boolean().optional(),
   })
   .superRefine((v, ctx) => {
+    if (v.kind === "VISIT" && v.eventClass === "FIXED")
+      ctx.addIssue({
+        code: "custom",
+        message: "Visitas são eventos extraordinários.",
+      });
     if (
       v.kind === "VISIT" &&
       (new Date(v.date + "T12:00:00Z").getUTCDay() !== 0 || !v.assistedId)
@@ -85,6 +110,9 @@ export const absenceSchema = z
     end: optionalDate,
     eventId: z.union([z.string().uuid(), z.literal("")]),
     reason: text,
+    revokedAt: z.string().optional(),
+    revokedBy: z.string().optional(),
+    withdrawalReason: text.optional(),
   })
   .superRefine((v, ctx) => {
     if (
@@ -135,6 +163,7 @@ export type Data = {
   settings?: Settings;
 };
 export type Settings = {
+  locations?: Location[];
   unansweredPolicy: "REVIEW" | "ELIGIBLE";
   monthlyLimit: number | null;
   historyMonths: number;
@@ -188,6 +217,17 @@ export function nextMonth(now = new Date()) {
   const [year, month] = currentMonth(now).split("-").map(Number);
   return new Date(Date.UTC(year, month, 1)).toISOString().slice(0, 7);
 }
+export function impeded(ministerId: string, event: Event, absences: Absence[]) {
+  return absences.some(
+    (a) =>
+      !a.revokedAt &&
+      a.ministerId === ministerId &&
+      (a.scope === "CELEBRATION"
+        ? a.eventId === event.id
+        : a.start <= event.date && event.date <= a.end),
+  );
+}
+
 export function blocked(
   m: Minister,
   e: Event,
@@ -213,19 +253,10 @@ export function blocked(
   if (
     e.kind !== "VISIT" &&
     m.locationPreference === "EXCLUSIVE" &&
-    m.location !== e.location
+    !matchesLocation(m, e)
   )
     return "Local fora da preferência exclusiva";
-  if (
-    data.absences.some(
-      (a) =>
-        a.ministerId === m.id &&
-        (a.scope === "CELEBRATION"
-          ? a.eventId === e.id
-          : a.start <= e.date && a.end >= e.date),
-    )
-  )
-    return "Impedimento informado";
+  if (impeded(m.id, e, data.absences)) return "Impedimento informado";
   const own = assignments.filter((a) => a.ministerId === m.id);
   if (own.some((a) => a.eventId === e.id)) return "Ministro já alocado";
   const ownEvents = own
@@ -332,6 +363,10 @@ export function syncSchedule(s: Schedule, data: Data): Schedule {
     assignments: s.assignments.filter((a) =>
       events.some((e) => e.id === a.eventId),
     ),
+    ministers: data.ministers.map((m) => ({
+      id: m.id,
+      name: ministerDisplayName(m),
+    })),
     warnings: [],
   };
 }
@@ -392,10 +427,14 @@ export function generate(data: Data, month: string): Schedule {
             (count(b) + historical(b.id, e.kind === "VISIT")) ||
           Number(consecutive(a)) - Number(consecutive(b)) ||
           Number(
-            b.locationPreference === "PREFER" && b.location === e.location,
+            e.kind !== "VISIT" &&
+              b.locationPreference === "PREFER" &&
+              matchesLocation(b, e),
           ) -
             Number(
-              a.locationPreference === "PREFER" && a.location === e.location,
+              e.kind !== "VISIT" &&
+                a.locationPreference === "PREFER" &&
+                matchesLocation(a, e),
             ) ||
           Number(nearby(b)) - Number(nearby(a)) ||
           a.id.localeCompare(b.id),
@@ -501,7 +540,10 @@ export function generate(data: Data, month: string): Schedule {
     events: events.map((e) => ({ ...e })),
     agendaEvents: events.map((e) => ({ ...e })),
     algorithmVersion: "mvp-scarcity-search-v2",
-    ministers: data.ministers.map(({ id, name }) => ({ id, name })),
+    ministers: data.ministers.map((m) => ({
+      id: m.id,
+      name: ministerDisplayName(m),
+    })),
     warnings,
   };
 }
@@ -530,8 +572,21 @@ export function validateSchedule(s: Schedule, data: Data): string[] {
       errors.push("Designação sem ministro ou evento.");
       continue;
     }
+    if (
+      checked.some(
+        (previous) =>
+          previous.ministerId === m.id &&
+          s.events.some(
+            (other) =>
+              other.id === previous.eventId &&
+              other.id !== e.id &&
+              overlaps(other, e),
+          ),
+      )
+    )
+      errors.push(`${ministerDisplayName(m)}: Conflito de horário.`);
     const reason = blocked(m, e, data, checked, s.events);
-    if (reason) errors.push(`${m.name}: ${reason}.`);
+    if (reason) errors.push(`${ministerDisplayName(m)}: ${reason}.`);
     const spouse = data.ministers.find((x) => x.id === m.spouseId);
     if (spouse) {
       const together = s.assignments.some(
@@ -542,13 +597,15 @@ export function validateSchedule(s: Schedule, data: Data): string[] {
           spouse.couplePreference === "TOGETHER") &&
         !together
       )
-        errors.push(`${m.name}: casal deve servir junto.`);
+        errors.push(`${ministerDisplayName(m)}: casal deve servir junto.`);
       if (
         (m.couplePreference === "SEPARATE" ||
           spouse.couplePreference === "SEPARATE") &&
         together
       )
-        errors.push(`${m.name}: casal prefere servir separado.`);
+        errors.push(
+          `${ministerDisplayName(m)}: casal prefere servir separado.`,
+        );
     }
     checked.push(a);
   }
@@ -566,10 +623,29 @@ export function advisories(s: Schedule) {
     for (let i = 1; i < own.length; i++) {
       const distance = Date.parse(own[i].date) - Date.parse(own[i - 1].date);
       if (distance === 0)
-        result.push(`${m.name}: mais de um compromisso em ${own[i].date}.`);
+        result.push(
+          `${ministerDisplayName(m)}: mais de um compromisso em ${own[i].date}.`,
+        );
       else if (distance === 86400000)
-        result.push(`${m.name}: compromissos em dias consecutivos.`);
+        result.push(
+          `${ministerDisplayName(m)}: compromissos em dias consecutivos.`,
+        );
     }
   }
   return [...new Set(result)];
+}
+
+export function overlappingAgenda(s: Schedule) {
+  return s.events.flatMap((event, index) =>
+    s.events
+      .slice(index + 1)
+      .filter(
+        (other) =>
+          !event.cancelled && !other.cancelled && overlaps(event, other),
+      )
+      .map(
+        (other) =>
+          `${event.date} ${event.time} • ${event.title} e ${other.title}: horários sobrepostos; revisar a disponibilidade das equipes.`,
+      ),
+  );
 }

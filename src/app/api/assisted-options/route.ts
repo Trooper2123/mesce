@@ -8,6 +8,7 @@ export async function GET() {
     return data.assisted
       .filter((a) => a.active)
       .map((a) => ({
+        ...a,
         id: a.id,
         name: a.name,
         ministersRequired: a.ministersRequired ?? 1,

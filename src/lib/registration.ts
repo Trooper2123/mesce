@@ -9,6 +9,8 @@ export type SessionIdentity = {
   email: string;
   verified: boolean;
   preview?: boolean;
+  previewRole?: "COORDINATOR" | "MINISTER";
+  previewProfile?: import("./preview-session").PreviewProfile;
 };
 export type Access = {
   id: string;

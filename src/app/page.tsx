@@ -21,6 +21,9 @@ export default async function Home() {
           mês.
         </p>
         <div className="hero-actions">
+          <Link className="button secondary" href="/notificacoes">
+            Central de notificações
+          </Link>
           <Link className="button" href="/minhas-escalas">
             Minhas escalas
           </Link>
@@ -88,6 +91,9 @@ export default async function Home() {
           impedimentos de qualquer ministro fora do prazo mensal.
         </p>
         <div className="hero-actions">
+          <Link className="button secondary" href="/notificacoes">
+            Central de notificações
+          </Link>
           <Link className="button" href="/ministros?new=1">
             Cadastrar ministro
           </Link>

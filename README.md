@@ -109,3 +109,7 @@ A evolução da auditoria está rastreada em [TASKS.md](TASKS.md), com 43 issues
 **Estado de produção:** build/CI e testes não substituem homologação de login, acesso negado, migração e dados. Não executar promoção automática desta branch sem essa validação. Consulte `docs/MVP-RELEASE.md`.
 
 Campos personalizados, notificações push, relatórios avançados, contratos móveis, retenção e extensões adicionais estão nas issues correspondentes. Resend foi descontinuado e não é pendência.
+
+## Plano de testes
+
+O [plano vigente do produto](docs/PLANO-TESTES.md) reúne cenários por perfil, prioridades, pré-condições, resultados esperados e modelo de evidência. Funcionalidades de agenda externa e push planejadas ficam separadas das entregas implementadas.
