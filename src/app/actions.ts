@@ -178,6 +178,7 @@ export async function save(form: FormData) {
           assistedSchema.parse({
             ...data,
             ministersRequired: Number(form.get("ministersRequired")),
+            groupVisit: form.has("groupVisit"),
           }),
         );
       else if (kind === "event") {
