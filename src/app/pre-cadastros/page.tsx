@@ -1,3 +1,5 @@
+import { removePendingAccess } from "@/app/removal-actions";
+import { ActionForm } from "@/components/action-form";
 import { coordinator } from "@/lib/auth";
 import { pool } from "@/lib/store";
 import { listAccess } from "@/lib/registration";
@@ -7,7 +9,7 @@ export const dynamic = "force-dynamic";
 export default async function Allowlist({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; saved?: string }>;
+  searchParams: Promise<{ error?: string; saved?: string; deleted?: string }>;
 }) {
   await coordinator();
   const query = await searchParams;
@@ -26,6 +28,7 @@ export default async function Allowlist({
         cadastro. Não são enviados convites por e-mail.
       </p>
       <Notice {...query} />
+      {query.deleted && <p role="status">Pré-cadastro excluído com sucesso.</p>}
       <section className="panel">
         <form action={allowlistAction}>
           <input type="hidden" name="operation" value="add" />
@@ -74,6 +77,33 @@ export default async function Allowlist({
                           </button>
                         </form>
                       )}
+                      {entry.role === "MINISTER" &&
+                        entry.status === "PENDING" &&
+                        !entry.auth0_sub && (
+                          <details>
+                            <summary>Excluir pré-cadastro incorreto</summary>
+                            <ActionForm action={removePendingAccess}>
+                              <input type="hidden" name="id" value={entry.id} />
+                              <Field
+                                name="reason"
+                                label="Motivo da exclusão"
+                                required
+                              />
+                              <label className="field check">
+                                <input
+                                  type="checkbox"
+                                  name="confirm"
+                                  value="yes"
+                                  required
+                                />
+                                Confirmo a exclusão de {entry.email}.
+                              </label>
+                              <button className="secondary">
+                                Excluir definitivamente
+                              </button>
+                            </ActionForm>
+                          </details>
+                        )}
                     </td>
                   </tr>
                 ))}

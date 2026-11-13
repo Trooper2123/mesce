@@ -1,3 +1,4 @@
+import { RemoveRecord } from "@/components/remove-record";
 import { coordinator } from "@/lib/auth";
 import { readData } from "@/lib/store";
 import { locationCatalog } from "@/lib/locations";
@@ -8,7 +9,7 @@ export const dynamic = "force-dynamic";
 export default async function Locations({
   searchParams,
 }: {
-  searchParams: Promise<{ saved?: string }>;
+  searchParams: Promise<{ saved?: string; deleted?: string }>;
 }) {
   await coordinator();
   const data = await readData();
@@ -17,6 +18,7 @@ export default async function Locations({
     <>
       <h1>Locais e comunidades</h1>
       <Notice {...query} />
+      {query.deleted && <p role="status">Cadastro excluído com sucesso.</p>}
       <p>
         Use o catálogo nas celebrações e nas preferências dos ministros.
         Renomear mantém os vínculos; inativar impede novas escolhas sem apagar o
@@ -51,6 +53,7 @@ export default async function Locations({
               <Check name="active" label="Local ativo" checked={l.active} />
               <button>Salvar local</button>
             </ActionForm>
+            <RemoveRecord kind="location" record={l} label={l.name} />
           </details>
         ))}
       </section>

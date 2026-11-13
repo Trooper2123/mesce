@@ -1,3 +1,4 @@
+import { RemoveRecord } from "@/components/remove-record";
 import Link from "next/link";
 import { ministerDisplayName } from "@/lib/minister-name";
 import { AssignmentFields } from "@/components/assignment-fields";
@@ -15,7 +16,12 @@ export const dynamic = "force-dynamic";
 export default async function Schedules({
   searchParams,
 }: {
-  searchParams: Promise<{ month?: string; error?: string; saved?: string }>;
+  searchParams: Promise<{
+    month?: string;
+    error?: string;
+    saved?: string;
+    deleted?: string;
+  }>;
 }) {
   await coordinator();
   const query = await searchParams;
@@ -56,6 +62,14 @@ export default async function Schedules({
         Gere a proposta, revise os encontros e publique após a aprovação.
       </p>
       <Notice error={query.error} saved={query.saved} />
+      {query.deleted && <p role="status">Rascunho excluído com sucesso.</p>}
+      {editable && (
+        <RemoveRecord
+          kind="schedule"
+          record={schedule}
+          label={`Escala ${schedule.month} · revisão ${schedule.revision}`}
+        />
+      )}
       <div className="panel">
         <form className="toolbar">
           <Field

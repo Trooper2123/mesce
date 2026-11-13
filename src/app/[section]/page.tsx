@@ -1,3 +1,7 @@
+import { preparationMonth } from "@/lib/calendar-navigation";
+import { EventScopeFields } from "@/components/event-scope-fields";
+import { seriesCandidates } from "@/lib/operational-changes";
+import { RemoveRecord } from "@/components/remove-record";
 import { visitAssistedIds } from "@/lib/visit-group";
 import { specificCelebrations } from "@/lib/celebration-options";
 import { locationCatalog } from "@/lib/locations";
@@ -62,6 +66,8 @@ export default async function Registry({
     calendarView?: string;
     eventName?: string;
     new?: string;
+    deleted?: string;
+    showCancelled?: string;
   }>;
 }) {
   const { section } = await params;
@@ -111,7 +117,7 @@ export default async function Registry({
   const address = minister ?? assisted;
   const month = /^\d{4}-(0[1-9]|1[0-2])$/.test(query.month ?? "")
     ? query.month!
-    : new Date().toISOString().slice(0, 7);
+    : preparationMonth();
   const calendarView =
     query.calendarView === "SPLIT" || query.calendarView === "FULL"
       ? query.calendarView
@@ -119,6 +125,7 @@ export default async function Registry({
   const nameOptions = eventNameOptions(data.events);
   const filtered = rows.filter(
     (r) =>
+      (!("cancelled" in r) || !r.cancelled || query.showCancelled === "1") &&
       (!("kind" in r) ||
         !["FIXED", "EXTRAORDINARY"].includes(query.eventClass ?? "") ||
         eventClassOf(r) === query.eventClass) &&
@@ -148,6 +155,20 @@ export default async function Registry({
         </p>
       )}
       <Notice error={query.error} saved={query.saved} />
+      {query.deleted && (
+        <p role="status" className="notice">
+          Cadastro excluído com sucesso.
+        </p>
+      )}
+      {kind === "event" && (
+        <Link
+          href={`/${section}?${new URLSearchParams({ month, showCancelled: query.showCancelled === "1" ? "0" : "1" })}`}
+        >
+          {query.showCancelled === "1"
+            ? "Ocultar eventos cancelados"
+            : "Mostrar eventos cancelados"}
+        </Link>
+      )}
       {(kind === "minister" || kind === "assisted") && user.coordinator && (
         <div className="toolbar">
           <Link
@@ -196,6 +217,7 @@ export default async function Registry({
             <ActionForm key={editing?.id ?? "new"} action={save}>
               <input type="hidden" name="kind" value={kind} />
               <input type="hidden" name="id" value={editing?.id ?? ""} />
+              <input type="hidden" name="returnMonth" value={month} />
               <div className="form-grid">
                 {(kind === "minister" || kind === "assisted") && (
                   <>
@@ -487,7 +509,13 @@ export default async function Registry({
                   <button type="submit">
                     {editing ? "Salvar alterações" : "Salvar cadastro"}
                   </button>
-                  {editing && <Link href={`/${section}`}>Cancelar edição</Link>}
+                  {editing && (
+                    <Link
+                      href={`/${section}${kind === "event" ? `?month=${month}` : ""}`}
+                    >
+                      Cancelar edição
+                    </Link>
+                  )}
                 </div>
               )}
             </ActionForm>
@@ -504,6 +532,20 @@ export default async function Registry({
                 Retirar este impedimento
               </button>
             </ActionForm>
+          )}
+          {editing && user.coordinator && (
+            <RemoveRecord
+              kind={kind}
+              returnMonth={month}
+              events={data.events}
+              record={minister ?? assisted ?? event ?? absence!}
+              label={
+                minister?.name ??
+                assisted?.name ??
+                event?.title ??
+                "Impedimento"
+              }
+            />
           )}
           {event && !event.cancelled && (
             <details>
@@ -522,6 +564,7 @@ export default async function Registry({
               )}
               <ActionForm action={changeEvents}>
                 <input type="hidden" name="id" value={event.id} />
+                <input type="hidden" name="returnMonth" value={month} />
                 <input type="hidden" name="expectedDate" value={event.date} />
                 <input type="hidden" name="expectedTime" value={event.time} />
                 <div className="form-grid">
@@ -534,18 +577,11 @@ export default async function Registry({
                       ["CANCEL", "Cancelar"],
                     ]}
                   />
-                  <Field
-                    name="scope"
-                    label="Aplicar a"
-                    value="ONE"
-                    options={
-                      event.seriesId
-                        ? [
-                            ["ONE", "Somente esta ocorrência"],
-                            ["FOLLOWING", "Esta e as próximas da série"],
-                          ]
-                        : [["ONE", "Somente esta ocorrência"]]
-                    }
+                  <EventScopeFields
+                    series={!!event.seriesId}
+                    candidates={seriesCandidates(event, data.events).filter(
+                      (e) => e.id !== event.id,
+                    )}
                   />
                   <Field
                     name="date"
@@ -567,28 +603,6 @@ export default async function Registry({
                   e exceções individuais são preservadas. Publicações permanecem
                   no histórico; revise e publique uma nova versão.
                 </p>
-                {event.seriesId && (
-                  <fieldset>
-                    <legend>
-                      Não alterar estas ocorrências nesta operação
-                    </legend>
-                    {data.events
-                      .filter(
-                        (e) =>
-                          e.seriesId === event.seriesId &&
-                          e.id !== event.id &&
-                          !e.cancelled &&
-                          !e.seriesException &&
-                          e.date + e.time >= event.date + event.time,
-                      )
-                      .map((e) => (
-                        <label className="check" key={e.id}>
-                          <input type="checkbox" name="exclude" value={e.id} />
-                          {e.date} · {e.time} · {e.title}
-                        </label>
-                      ))}
-                  </fieldset>
-                )}
                 <button type="submit">Confirmar alteração dos eventos</button>
               </ActionForm>
             </details>
@@ -649,6 +663,7 @@ export default async function Registry({
             )}
             events={data.events.filter(
               (e) =>
+                (!e.cancelled || query.showCancelled === "1") &&
                 matchesEventName(e, query.eventName) &&
                 e.date.startsWith(month) &&
                 (!["FIXED", "EXTRAORDINARY"].includes(query.eventClass ?? "") ||
@@ -813,6 +828,21 @@ export default async function Registry({
                         >
                           Editar
                         </Link>
+                      )}
+                      {user.coordinator && (
+                        <RemoveRecord
+                          kind={kind}
+                          returnMonth={month}
+                          events={data.events}
+                          record={r}
+                          label={
+                            "name" in r
+                              ? r.name
+                              : "title" in r
+                                ? `${r.title} · ${r.date} ${r.time}`
+                                : "Impedimento"
+                          }
+                        />
                       )}
                     </td>
                   </tr>

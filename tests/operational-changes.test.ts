@@ -397,3 +397,13 @@ test("série não toca passado e rejeita exclusão de evento alheio ou da própr
   f.append("exclude", data.events[0].id);
   assert.throws(() => planEventChange(f, data, now.getTime()), /selecionada/);
 });
+
+test("cancelar somente uma ocorrência ignora exceções residuais do formulário de série", () => {
+  const { data } = fixture();
+  const f = form(data.events[0], "CANCEL", "ONE");
+  f.append("exclude", data.events[1].id);
+  const plan = planEventChange(f, data, now.getTime());
+  assert.equal(plan.events.length, 1);
+  assert.equal(plan.events[0].cancelled, true);
+  assert.deepEqual(plan.excluded, []);
+});
