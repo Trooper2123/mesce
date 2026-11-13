@@ -7,7 +7,8 @@ import { calendarUid } from "./personal-calendar";
 import type { InviteEvent, InviteMethod } from "./calendar-invite";
 import { buildCalendarInvite } from "./calendar-invite";
 import nodemailer from "nodemailer";
-import webpush from "web-push";
+import { sendNotification, setVapidDetails } from "web-push";
+import type { PushSubscription } from "web-push";
 import { pool } from "./store";
 
 type InviteSnapshot = {
@@ -583,11 +584,9 @@ async function sendOutbox(row: OutboxRow) {
     [payload.subscriptionId, row.minister_id],
   );
   if (!result.rows[0]) return "OBSOLETE" as const;
-  webpush.setVapidDetails(vapidSubject, vapidPublic, vapidPrivate);
-  const subscription = decrypt(
-    result.rows[0].payload,
-  ) as webpush.PushSubscription;
-  await webpush.sendNotification(
+  setVapidDetails(vapidSubject, vapidPublic, vapidPrivate);
+  const subscription = decrypt(result.rows[0].payload) as PushSubscription;
+  await sendNotification(
     subscription,
     JSON.stringify({
       title: payload.title,
