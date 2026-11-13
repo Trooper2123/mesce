@@ -57,7 +57,36 @@ export async function findAccess(
   if (result.rows.length !== 1) return undefined;
   const row = result.rows[0];
   if (row.auth0_sub && row.auth0_sub !== identity.id) return undefined;
-  if (row.email_hmac && row.email_hmac !== hash) return undefined;
+  if (row.email_hmac && row.email_hmac !== hash) {
+    // The opaque calendar URL is tied to the verified address that issued it.
+    // Invalidate it when the same Auth0 subject returns with a changed email.
+    if (row.auth0_sub === identity.id) {
+      try {
+        const table = await client.query(
+          "SELECT to_regclass('mesce_calendar_feeds') AS table_name",
+        );
+        if (table.rows[0]?.table_name) {
+          const revoked = await client.query(
+            `UPDATE mesce_calendar_feeds
+             SET revoked_at=now(), updated_at=now()
+             WHERE minister_id=$1 AND auth0_sub=$2 AND revoked_at IS NULL
+             RETURNING minister_id`,
+            [row.minister_id, identity.id],
+          );
+          if (revoked.rowCount)
+            await client.query(
+              `INSERT INTO mesce_audit(actor,action,record_id)
+               VALUES($1,'calendar-feed:revoke-email-change',$2)`,
+              [identity.id, row.minister_id],
+            );
+        }
+      } catch {
+        // The feature may be deployed before its additive migration; login
+        // authorization must still fail closed without a calendar table.
+      }
+    }
+    return undefined;
+  }
   return row;
 }
 export async function addEmails(
