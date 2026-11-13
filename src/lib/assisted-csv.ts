@@ -3,7 +3,7 @@ import { z } from "zod";
 import { assistedSchema, type Assisted } from "./domain";
 import { parseCsv, type CsvPlan } from "./minister-csv";
 export const assistedCsvTemplate =
-  "id;nome;endereco;bairro;cidade;uf;cep;telefone_fixo;telefone_movel;familiar;telefone_familiar;quantidade_ministros;ativo;observacoes\n;Assistido Exemplo;Rua Exemplo 10;Centro;Brasilia;DF;70000000;6133333333;61999999999;Familiar Exemplo;61988888888;1;SIM;Dados ficticios - substitua antes de importar\n;Instituicao Exemplo;Rua Exemplo 20;Centro;Brasilia;DF;70000000;;61977777777;Responsavel Exemplo;61966666666;3;SIM;Exemplo de equipe com tres ministros\n";
+  "id;nome;endereco;bairro;cidade;uf;cep;telefone_fixo;telefone_movel;familiar;telefone_familiar;quantidade_ministros;visita_grupal;ativo;observacoes\n;Assistido Exemplo;Rua Exemplo 10;Centro;Brasilia;DF;70000000;6133333333;61999999999;Familiar Exemplo;61988888888;1;NAO;SIM;Dados ficticios - substitua antes de importar\n;Instituicao Exemplo;Rua Exemplo 20;Centro;Brasilia;DF;70000000;;61977777777;Responsavel Exemplo;61966666666;3;SIM;SIM;Exemplo de visita grupal com tres ministros\n";
 const fields = {
   nome: "name",
   endereco: "address",
@@ -61,12 +61,18 @@ export function planAssistedCsv(
           notes: "",
           active: true,
           ministersRequired: 1,
+          groupVisit: false,
         }),
       };
       for (const [column, key] of Object.entries(fields))
         if (column in row) candidate[key] = row[column];
       if ("quantidade_ministros" in row)
         candidate.ministersRequired = Number(row.quantidade_ministros);
+      if ("visita_grupal" in row) {
+        if (!["SIM", "NAO", "NÃO"].includes(row.visita_grupal.toUpperCase()))
+          throw new Error("Visita grupal deve ser SIM ou NAO.");
+        candidate.groupVisit = row.visita_grupal.toUpperCase() === "SIM";
+      }
       if ("ativo" in row) {
         if (!["SIM", "NAO", "NÃO"].includes(row.ativo.toUpperCase()))
           throw new Error("Ativo deve ser SIM ou NAO.");
