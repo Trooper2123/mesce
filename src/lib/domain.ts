@@ -53,6 +53,7 @@ export const assistedSchema = z.object({
   familyPhone: text,
   ministersRequired: z.number().int().min(1).max(100).optional(),
   groupVisit: z.boolean().optional(),
+  groupName: z.string().trim().max(120).optional(),
   notes: text,
   active: z.boolean(),
 });
