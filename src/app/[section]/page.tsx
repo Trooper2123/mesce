@@ -16,6 +16,7 @@ import {
 } from "@/lib/event-agenda";
 import { ServicePreferences } from "@/components/service-preferences";
 import { EventFields } from "@/components/event-fields";
+import { AssistedGroupFields } from "@/components/assisted-group-fields";
 import { AbsenceFields, AbsenceBatch } from "@/components/absence-fields";
 import { ActionForm } from "@/components/action-form";
 import { missingMinisterFields } from "@/lib/profile";
@@ -69,6 +70,7 @@ export default async function Registry({
     new?: string;
     deleted?: string;
     showCancelled?: string;
+    sort?: string;
   }>;
 }) {
   const { section } = await params;
@@ -124,7 +126,38 @@ export default async function Registry({
       ? query.calendarView
       : "SUMMARY";
   const nameOptions = eventNameOptions(data.events);
-  const filtered = rows.filter(
+  const inclusionOrder = new Map(rows.map((row, index) => [row.id, index]));
+  const sortOrder = ["NAME", "STATUS", "OLDEST", "NEWEST"].includes(
+    query.sort ?? "",
+  )
+    ? query.sort!
+    : "NAME";
+  const orderedRows =
+    kind === "minister" || kind === "assisted"
+      ? [...rows].sort((a, b) => {
+          if (sortOrder === "OLDEST" || sortOrder === "NEWEST") {
+            const comparison =
+              (inclusionOrder.get(a.id) ?? 0) - (inclusionOrder.get(b.id) ?? 0);
+            return sortOrder === "NEWEST" ? -comparison : comparison;
+          }
+          if (sortOrder === "STATUS") {
+            const status = (item: (typeof rows)[number]) =>
+              "active" in item &&
+              item.active &&
+              !("former" in item && item.former)
+                ? 0
+                : 1;
+            const difference = status(a) - status(b);
+            if (difference) return difference;
+          }
+          return ("name" in a ? a.name : "").localeCompare(
+            "name" in b ? b.name : "",
+            "pt-BR",
+            { sensitivity: "base" },
+          );
+        })
+      : rows;
+  const filtered = orderedRows.filter(
     (r) =>
       (!("cancelled" in r) || !r.cancelled || query.showCancelled === "1") &&
       (!("kind" in r) ||
@@ -427,6 +460,18 @@ export default async function Registry({
                       conforme a necessidade. O valor será usado nas novas
                       visitas e nas visitas editadas.
                     </p>
+                    <AssistedGroupFields
+                      checked={assisted?.groupVisit ?? false}
+                      currentGroup={assisted?.groupName}
+                      groups={[
+                        ...new Set(
+                          data.assisted
+                            .filter((item) => item.active && item.groupVisit)
+                            .map((item) => item.groupName?.trim() ?? "")
+                            .filter(Boolean),
+                        ),
+                      ]}
+                    />
                     <Check
                       name="active"
                       label="Assistido ativo"
@@ -713,6 +758,19 @@ export default async function Registry({
           </span>
         </div>
         <form className="toolbar" role="search">
+          {(kind === "minister" || kind === "assisted") && (
+            <Field
+              name="sort"
+              label="Ordenar por"
+              value={sortOrder}
+              options={[
+                ["NAME", "Nome (A–Z)"],
+                ["STATUS", "Situação"],
+                ["OLDEST", "Data de inclusão (mais antigos)"],
+                ["NEWEST", "Data de inclusão (mais recentes)"],
+              ]}
+            />
+          )}
           {kind === "event" && (
             <>
               <input
@@ -740,7 +798,7 @@ export default async function Registry({
             value={query.q}
           />
           <button className="secondary" type="submit">
-            Buscar
+            {kind === "minister" || kind === "assisted" ? "Aplicar" : "Buscar"}
           </button>
         </form>
         {!filtered.length ? (
@@ -805,6 +863,13 @@ export default async function Registry({
                             <small>
                               {r.ministersRequired ?? 1} ministro(s) por visita
                             </small>
+                            {r.groupVisit && (
+                              <small>
+                                {r.groupName
+                                  ? `Visita grupal · ${r.groupName}`
+                                  : "Visita grupal · grupo não definido"}
+                              </small>
+                            )}
                           </>
                         ) : "time" in r ? (
                           <>

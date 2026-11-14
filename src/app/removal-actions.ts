@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { coordinator, assertCurrentActor } from "@/lib/auth";
 import { transaction, audit } from "@/lib/store";
 import { executeRecordRemoval, removalPages } from "@/lib/record-removal";
+import { RemediationError } from "@/lib/remediation";
 export async function removeRecord(form: FormData) {
   const user = await coordinator();
   let page = "";
@@ -14,11 +15,27 @@ export async function removeRecord(form: FormData) {
       page = removalPages[plan.kind];
     });
   } catch (error) {
+    if (error instanceof RemediationError)
+      return { error: error.message, remediation: error.remediation };
+    const code =
+      error && typeof error === "object" && "code" in error
+        ? String(error.code)
+        : "";
+    if (code) {
+      console.error("record removal failed", {
+        kind: String(form.get("kind") ?? "unknown"),
+        sqlstate: code,
+      });
+    }
     return {
       error:
         error instanceof Error && !("code" in error)
           ? error.message
-          : "Não foi possível excluir. Nenhum dado foi removido.",
+          : code === "42501"
+            ? "O banco de dados recusou a exclusão por falta de permissão técnica. Nenhum dado foi removido. A coordenação deve encaminhar o código SQLSTATE 42501 ao suporte do sistema."
+            : code === "23503"
+              ? "O banco bloqueou a exclusão porque ainda existe um vínculo com este cadastro. Nenhum dado foi removido. Reabra o cadastro, revise as escalas e os registros relacionados e tente novamente."
+              : "Não foi possível excluir por uma falha no banco de dados. Nenhum dado foi removido. Atualize a tela e tente novamente; se persistir, encaminhe o código SQLSTATE ao suporte.",
     };
   }
   revalidatePath("/", "layout");

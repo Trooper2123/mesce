@@ -293,6 +293,19 @@ button {
   border-color: #e9b8aa;
   color: #792d19;
 }
+.error-remediation {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin: 10px 0 0;
+  padding-left: 20px;
+}
+.error-remediation a {
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
 .intro {
   background: #e8eee3;
   border-radius: 12px;
@@ -346,6 +359,14 @@ select {
   display: flex;
   flex-direction: row;
   align-items: center;
+}
+.assisted-group-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.assisted-group-options .muted {
+  grid-column: 1 / -1;
 }
 .check input {
   width: 22px;
@@ -595,6 +616,9 @@ a.action {
     font-size: 32px;
   }
   .form-grid {
+    grid-template-columns: 1fr;
+  }
+  .assisted-group-options {
     grid-template-columns: 1fr;
   }
   .card,
