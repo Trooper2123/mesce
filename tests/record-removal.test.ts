@@ -62,7 +62,7 @@ test("exclusão exige confirmação, motivo e versão atual, e aceita evento err
   assert.throws(() => planRecordRemoval(f, data));
   f.set("reason", "Erro de teste");
   data.events[0] = { ...e, title: "Alteração concorrente" };
-  assert.throws(() => planRecordRemoval(f, data), /mudou desde que a página/);
+  assert.throws(() => planRecordRemoval(f, data), /cadastro mudou /);
   f.set("kind", "invalid");
   assert.throws(() => planRecordRemoval(f, data));
 });
@@ -113,7 +113,7 @@ test("assistido em visita agrupada, ministro com cônjuge e local legado não s�
   ];
   assert.throws(
     () => planRecordRemoval(form("assisted", person), data),
-    /visita.*cadastrada/,
+    / visitas futuras/,
   );
   const m = blankMinister(randomUUID(), "teste@example.invalid"),
     spouse = {
@@ -123,7 +123,7 @@ test("assistido em visita agrupada, ministro com cônjuge e local legado não s�
   data.ministers = [m, spouse];
   assert.throws(
     () => planRecordRemoval(form("minister", m), data),
-    /vínculo conjugal/,
+    /excluir este ministro/,
   );
   data.events = [e];
   const location = { id: randomUUID(), name: "Matriz", active: true };
@@ -143,7 +143,7 @@ test("somente rascunho ou revisão sem aprovação pode ser excluído", () => {
     data.schedules = [protectedSchedule];
     assert.throws(
       () => planRecordRemoval(form("schedule", protectedSchedule), data),
-      /cancelamento registrado/,
+      /já foi aprovada ou publicada/,
     );
   }
 });
