@@ -6,6 +6,8 @@ import { transaction } from "@/lib/store";
 import { buildCalendarInvite, type InviteEvent } from "@/lib/calendar-invite";
 import nodemailer from "nodemailer";
 
+const SMTP_TEST_FINGERPRINT = "mesce:smtp-test:preview-single-send:v1";
+
 function previewTestEnabled() {
   return (
     process.env.VERCEL_ENV === "preview" &&
@@ -38,25 +40,28 @@ export async function sendSingleSmtpTest() {
   const appUrl =
     process.env.APP_BASE_URL ||
     (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "");
-  if (!host || !smtpUser || !password || !from || !appUrl)
+  if (
+    !host ||
+    !smtpUser ||
+    !password ||
+    !from ||
+    !appUrl ||
+    !Number.isInteger(port) ||
+    port < 1 ||
+    port > 65535
+  )
     redirect("/minhas-escalas/teste-email?error=config");
 
   const reserved = await transaction(async (client) => {
     await assertCurrentActor(client, user, true);
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS mesce_smtp_test_attempts (
-        test_key text PRIMARY KEY,
-        actor text NOT NULL,
-        attempted_at timestamptz NOT NULL DEFAULT now(),
-        accepted_at timestamptz,
-        result_code text
-      )
-    `);
+    // The existing unique fingerprint table provides an atomic, one-time claim
+    // without granting the runtime database role permission to create tables.
     const result = await client.query(
-      `INSERT INTO mesce_smtp_test_attempts(test_key,actor)
-       VALUES('preview-single-send-v1',$1)
-       ON CONFLICT(test_key) DO NOTHING RETURNING test_key`,
-      [user.id],
+      `INSERT INTO mesce_attempts(fingerprint)
+       VALUES($1)
+       ON CONFLICT(fingerprint) DO NOTHING
+       RETURNING fingerprint`,
+      [SMTP_TEST_FINGERPRINT],
     );
     return result.rowCount === 1;
   });
@@ -72,18 +77,18 @@ export async function sendSingleSmtpTest() {
     kind: "MASS",
     location: "",
   };
-  const transport = nodemailer.createTransport({
-    host,
-    port,
-    secure: port === 465,
-    requireTLS: port !== 465,
-    auth: { user: smtpUser, pass: password },
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 20000,
-  });
 
   try {
+    const transport = nodemailer.createTransport({
+      host,
+      port,
+      secure: port === 465,
+      requireTLS: port !== 465,
+      auth: { user: smtpUser, pass: password },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 20000,
+    });
     const calendar = buildCalendarInvite({
       event,
       ministerId: "smtp-test",
@@ -101,19 +106,7 @@ export async function sendSingleSmtpTest() {
       text: "Este é um único e-mail de teste do envio de convites de calendário MESCE.",
       icalEvent: { method: "REQUEST", content: calendar },
     });
-    await transaction(async (client) => {
-      await client.query(
-        `UPDATE mesce_smtp_test_attempts SET accepted_at=now(),result_code='ACCEPTED_SMTP'
-         WHERE test_key='preview-single-send-v1'`,
-      );
-    });
   } catch {
-    await transaction(async (client) => {
-      await client.query(
-        `UPDATE mesce_smtp_test_attempts SET result_code='SMTP_ERROR'
-         WHERE test_key='preview-single-send-v1'`,
-      );
-    });
     redirect("/minhas-escalas/teste-email?error=send");
   }
   redirect("/minhas-escalas/teste-email?sent=1");
