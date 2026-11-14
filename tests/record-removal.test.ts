@@ -229,7 +229,7 @@ test("exclusão persistida é auditada, transacional e restrita à coordenação
         user,
         form("event", e),
       ),
-      /inexistente/,
+      /não está mais disponível/,
     );
   } finally {
     await db.close();
