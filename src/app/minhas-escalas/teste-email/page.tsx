@@ -6,6 +6,8 @@ import { pool } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
+const SMTP_TEST_FINGERPRINT = "mesce:smtp-test:preview-single-send:v1";
+
 export default async function SmtpTestPage({
   searchParams,
 }: {
@@ -19,14 +21,10 @@ export default async function SmtpTestPage({
 
   await coordinator();
   const params = await searchParams;
-  const table = await pool().query(
-    "SELECT to_regclass('mesce_smtp_test_attempts') AS name",
+  const attempted = await pool().query(
+    "SELECT fingerprint FROM mesce_attempts WHERE fingerprint=$1",
+    [SMTP_TEST_FINGERPRINT],
   );
-  const attempted = table.rows[0]?.name
-    ? await pool().query(
-        "SELECT result_code FROM mesce_smtp_test_attempts WHERE test_key='preview-single-send-v1'",
-      )
-    : { rows: [] };
   return (
     <>
       <Link className="button secondary" href="/minhas-escalas/avisos">
@@ -38,12 +36,13 @@ export default async function SmtpTestPage({
         MESCE_SMTP_USER, com um convite de calendário fictício. Nenhum ministro
         ou dado de escala real é usado.
       </p>
-      {params.sent || attempted.rows.length ? (
+      {attempted.rows.length ? (
         <p className="notice" role="status">
-          {attempted.rows[0]?.result_code === "SMTP_ERROR" ||
-          params.error === "send"
-            ? "A única tentativa foi realizada, mas o SMTP não confirmou o envio. Confira as credenciais antes de preparar outro teste."
-            : "A tentativa única foi concluída. O SMTP aceitou a mensagem; confira a caixa de entrada e a pasta de spam."}
+          {params.error === "send"
+            ? "A tentativa única falhou. Nenhum segundo envio será realizado por esta tela."
+            : params.sent
+              ? "O SMTP aceitou a mensagem. Confira a caixa de entrada e a pasta de spam."
+              : "Uma tentativa já foi registrada neste ambiente. Confira a caixa de entrada; não haverá um segundo envio."}
         </p>
       ) : (
         <form action={sendSingleSmtpTest}>
@@ -54,18 +53,13 @@ export default async function SmtpTestPage({
       )}
       {params.error === "config" && (
         <p className="notice" role="alert">
-          Faltam variáveis SMTP para enviar o teste.
-        </p>
-      )}
-      {params.error === "send" && (
-        <p className="notice" role="alert">
-          O SMTP não aceitou o e-mail. Verifique as credenciais e tente
-          novamente.
+          Faltam variáveis SMTP válidas para enviar o teste.
         </p>
       )}
       {params.attempted && !attempted.rows.length && (
         <p className="notice" role="alert">
-          O teste já foi iniciado neste ambiente; não haverá um segundo envio.
+          O teste já foi iniciado neste ambiente; atualize a página antes de
+          tentar novamente.
         </p>
       )}
     </>
