@@ -22,6 +22,8 @@ type InviteSnapshot = {
 const hash = (value: string) =>
   createHash("sha256").update(value).digest("hex");
 const enabled = (name: string) => process.env[name] === "true";
+export const OUTBOX_LEASE_MS = 120_000;
+export const PUSH_TIMEOUT_MS = 30_000;
 
 function inviteEvent(event: Event): InviteEvent {
   return {
@@ -498,9 +500,10 @@ async function claimOutbox(owner: string): Promise<OutboxRow | undefined> {
     }
     await client.query(
       `UPDATE mesce_outbox SET status='PROCESSING',lease_owner=$2,
-       lease_until=now()+interval '2 minutes',attempts=attempts+1,updated_at=now()
+       lease_until=now()+($3::text||' milliseconds')::interval,
+       attempts=attempts+1,updated_at=now()
        WHERE id=$1`,
-      [row.id, owner],
+      [row.id, owner, OUTBOX_LEASE_MS],
     );
     await client.query("COMMIT");
     return { ...row, attempts: Number(row.attempts) + 1 };
@@ -593,7 +596,7 @@ async function sendOutbox(row: OutboxRow) {
       body: payload.body,
       url: payload.url,
     }),
-    { TTL: 3600 },
+    { TTL: 3600, timeout: PUSH_TIMEOUT_MS },
   );
   await pool().query(
     `UPDATE mesce_push_subscriptions SET last_accepted_at=now(),updated_at=now()

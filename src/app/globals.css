@@ -293,6 +293,17 @@ button {
   border-color: #e9b8aa;
   color: #792d19;
 }
+.warning {
+  background: #fff7ed;
+  border-color: #d29c50;
+  color: #573913;
+}
+.csv-change-list {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding-left: 22px;
+}
 .error-remediation {
   display: flex;
   flex-wrap: wrap;

@@ -31,6 +31,52 @@ export function emailHash(email: string) {
     .update("mesce:email:v1:" + normalizeEmail(email))
     .digest("hex");
 }
+export async function syncMinisterEmail(
+  client: PoolClient,
+  ministerId: string,
+  email: string,
+  changedBy: string,
+) {
+  const result = await client.query<Access>(
+    "SELECT * FROM mesce_access WHERE minister_id=$1 FOR UPDATE",
+    [ministerId],
+  );
+  const access = result.rows[0];
+  if (!access) return;
+
+  const normalized = normalizeEmail(email);
+  const hash = emailHash(normalized);
+  if (access.email_hmac?.trim() === hash) return;
+  if (access.auth0_sub === changedBy)
+    throw new Error(
+      "Peça a outro coordenador para alterar o e-mail vinculado à sua própria conta.",
+    );
+
+  await client.query(
+    `UPDATE mesce_access SET email_hmac=$2,email_ciphertext=$3,updated_at=now()
+     WHERE minister_id=$1`,
+    [ministerId, hash, encrypt(normalized)],
+  );
+  const table = await client.query(
+    "SELECT to_regclass('mesce_calendar_feeds') AS table_name",
+  );
+  if (table.rows[0]?.table_name) {
+    const revoked = await client.query(
+      `UPDATE mesce_calendar_feeds
+       SET revoked_at=now(),updated_at=now()
+       WHERE minister_id=$1 AND revoked_at IS NULL
+       RETURNING minister_id`,
+      [ministerId],
+    );
+    if (revoked.rowCount)
+      await audit(
+        client,
+        changedBy,
+        "calendar-feed:revoke-email-change",
+        ministerId,
+      );
+  }
+}
 export function parseEmails(raw: string) {
   const emails = [
     ...new Set(

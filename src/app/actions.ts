@@ -22,7 +22,7 @@ import { z } from "zod";
 import { ministerDisplayName } from "@/lib/minister-name";
 import { planEventSave } from "@/lib/event-agenda";
 import { requireCompleteMinister } from "@/lib/profile";
-import { emailHash } from "@/lib/registration";
+import { emailHash, syncMinisterEmail } from "@/lib/registration";
 import {
   enqueuePublishedAgenda,
   processOutboxBatch,
@@ -171,6 +171,7 @@ export async function save(form: FormData) {
             couplePreference: minister.couplePreference,
           } as Minister);
         await write(client, "minister", minister);
+        await syncMinisterEmail(client, minister.id, minister.email, user.id);
       } else if (kind === "assisted") {
         const groupVisit = form.has("groupVisit");
         const requestedGroup = String(form.get("groupName") ?? "").trim();

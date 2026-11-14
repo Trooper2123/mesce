@@ -62,7 +62,7 @@ test("exclusão exige confirmação, motivo e versão atual, e aceita evento err
   assert.throws(() => planRecordRemoval(f, data));
   f.set("reason", "Erro de teste");
   data.events[0] = { ...e, title: "Alteração concorrente" };
-  assert.throws(() => planRecordRemoval(f, data), /alterado/);
+  assert.throws(() => planRecordRemoval(f, data), /cadastro mudou/);
   f.set("kind", "invalid");
   assert.throws(() => planRecordRemoval(f, data));
 });
@@ -79,10 +79,10 @@ test("evento em qualquer revisão, snapshot de agenda ou impedimento mantém his
     "CANCELLED",
   ] as const) {
     data.schedules = [{ ...schedule(e), status }];
-    assert.throws(() => planRecordRemoval(f, data), /vínculos/);
+    assert.throws(() => planRecordRemoval(f, data), /vinculado/);
   }
   data.schedules = [{ ...schedule(e), events: [], agendaEvents: [e] }];
-  assert.throws(() => planRecordRemoval(f, data), /vínculos/);
+  assert.throws(() => planRecordRemoval(f, data), /vinculado/);
   data.schedules = [];
   data.absences = [
     {

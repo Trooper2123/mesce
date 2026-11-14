@@ -11,7 +11,10 @@ import {
   completeRegistration,
   findAccess,
   rateLimit,
+  syncMinisterEmail,
+  emailHash,
 } from "../src/lib/registration";
+import { decrypt } from "../src/lib/crypto";
 import { blankMinister, ownProfile } from "../src/lib/profile";
 import { write } from "../src/lib/store";
 import {
@@ -126,6 +129,60 @@ test("cadastro usa identidade autenticada, mantém UUID e é idempotente", async
       await findAccess(client, { ...user, id: "auth0|other" }),
       undefined,
     );
+  } finally {
+    await db.close();
+  }
+});
+test("trocar e-mail sincroniza o vínculo verificado e revoga o feed anterior", async () => {
+  const { db, client } = await setup();
+  try {
+    await db.exec(await readFile("migrations/004_calendar_feeds.sql", "utf8"));
+    const user = {
+      id: "auth0|synthetic-email-change",
+      email: "old@example.invalid",
+      verified: true,
+    };
+    await addEmails(client, "coord", [user.email]);
+    const member = await completeRegistration(client, user, m());
+    await client.query(
+      `INSERT INTO mesce_calendar_feeds
+       (minister_id,auth0_sub,owner_email_hmac,token_hash)
+       VALUES($1,$2,$3,$4)`,
+      [member.id, user.id, emailHash(user.email), "a".repeat(64)],
+    );
+
+    await syncMinisterEmail(
+      client,
+      member.id,
+      "new@example.invalid",
+      "auth0|coordinator",
+    );
+
+    const access = await client.query(
+      "SELECT email_hmac,email_ciphertext,auth0_sub,status FROM mesce_access WHERE minister_id=$1",
+      [member.id],
+    );
+    assert.equal(
+      access.rows[0].email_hmac.trim(),
+      emailHash("new@example.invalid"),
+    );
+    assert.equal(
+      decrypt(access.rows[0].email_ciphertext),
+      "new@example.invalid",
+    );
+    assert.equal(access.rows[0].auth0_sub, user.id);
+    assert.equal(access.rows[0].status, "ACTIVE");
+    assert.equal(await resolveActor(client, user), null);
+    assert.equal(
+      (await resolveActor(client, { ...user, email: "new@example.invalid" }))
+        ?.ministerId,
+      member.id,
+    );
+    const feed = await client.query(
+      "SELECT revoked_at FROM mesce_calendar_feeds WHERE minister_id=$1",
+      [member.id],
+    );
+    assert.ok(feed.rows[0].revoked_at);
   } finally {
     await db.close();
   }
