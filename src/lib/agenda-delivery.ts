@@ -565,7 +565,15 @@ async function sendOutbox(row: OutboxRow) {
         method === "CANCEL"
           ? "Atualização de compromisso MESCE"
           : "Convite de agenda MESCE",
-      text: "Há uma atualização de agenda do MESCE. Consulte o convite ou acesse o sistema.",
+      text:
+        method === "CANCEL"
+          ? "Este compromisso foi cancelado. Abra seu aplicativo de calendário e remova ou confirme o cancelamento do evento."
+          : [
+              "Este e-mail contém o convite de calendário do compromisso.",
+              "Para adicionar o evento, abra o convite anexado (.ics), escolha o aplicativo de calendário e confirme em Adicionar ou Salvar.",
+              "Confira a data, o horário e o local antes de confirmar. Se o e-mail mostrar o botão Aceitar convite, use essa opção.",
+              "Se o arquivo não abrir automaticamente, baixe o .ics e use a opção Importar do seu aplicativo de calendário.",
+            ].join("\n\n"),
       icalEvent: { method, content: ical },
     });
     return {
