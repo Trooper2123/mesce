@@ -62,7 +62,7 @@ test("exclusão exige confirmação, motivo e versão atual, e aceita evento err
   assert.throws(() => planRecordRemoval(f, data));
   f.set("reason", "Erro de teste");
   data.events[0] = { ...e, title: "Alteração concorrente" };
-  assert.throws(() => planRecordRemoval(f, data), /alterado/);
+  assert.throws(() => planRecordRemoval(f, data), /mudou desde que a página/);
   f.set("kind", "invalid");
   assert.throws(() => planRecordRemoval(f, data));
 });
@@ -79,10 +79,10 @@ test("evento em qualquer revisão, snapshot de agenda ou impedimento mantém his
     "CANCELLED",
   ] as const) {
     data.schedules = [{ ...schedule(e), status }];
-    assert.throws(() => planRecordRemoval(f, data), /vínculos/);
+    assert.throws(() => planRecordRemoval(f, data), /vinculado/);
   }
   data.schedules = [{ ...schedule(e), events: [], agendaEvents: [e] }];
-  assert.throws(() => planRecordRemoval(f, data), /vínculos/);
+  assert.throws(() => planRecordRemoval(f, data), /vinculado/);
   data.schedules = [];
   data.absences = [
     {
@@ -95,7 +95,7 @@ test("evento em qualquer revisão, snapshot de agenda ou impedimento mantém his
       eventId: e.id,
     },
   ];
-  assert.throws(() => planRecordRemoval(f, data), /vínculos/);
+  assert.throws(() => planRecordRemoval(f, data), /impedimento\\(s\\) vinculado/);
 });
 test("assistido em visita agrupada, ministro com cônjuge e local legado não são apagados", () => {
   const data = emptyData(),
@@ -113,7 +113,7 @@ test("assistido em visita agrupada, ministro com cônjuge e local legado não s�
   ];
   assert.throws(
     () => planRecordRemoval(form("assisted", person), data),
-    /vínculos/,
+    /visita\\(s\\) cadastrada/,
   );
   const m = blankMinister(randomUUID(), "teste@example.invalid"),
     spouse = {
@@ -121,13 +121,13 @@ test("assistido em visita agrupada, ministro com cônjuge e local legado não s�
       spouseId: m.id,
     };
   data.ministers = [m, spouse];
-  assert.throws(() => planRecordRemoval(form("minister", m), data), /vínculos/);
+  assert.throws(() => planRecordRemoval(form("minister", m), data), /vínculo conjugal/);
   data.events = [e];
   const location = { id: randomUUID(), name: "Matriz", active: true };
   data.settings = { ...emptyData().settings!, locations: [location] };
   assert.throws(
     () => planRecordRemoval(form("location", location), data),
-    /vínculos/,
+    /preferência\\(s\\) de ministro/,
   );
 });
 test("somente rascunho ou revisão sem aprovação pode ser excluído", () => {
@@ -140,7 +140,7 @@ test("somente rascunho ou revisão sem aprovação pode ser excluído", () => {
     data.schedules = [protectedSchedule];
     assert.throws(
       () => planRecordRemoval(form("schedule", protectedSchedule), data),
-      /vínculos/,
+      /cancelamento registrado/,
     );
   }
 });
@@ -191,7 +191,7 @@ test("exclusão persistida é auditada, transacional e restrita à coordenação
     seriesData.schedules = [schedule(second)];
     await assert.rejects(
       executeRecordRemoval(client, seriesData, user, batch),
-      /vínculos/,
+      /vinculado/,
     );
     assert.equal((await readData(client)).events.length, 3);
     seriesData = await readData(client);
