@@ -77,6 +77,17 @@ export default async function NoticeSettingsPage() {
           )}
         </>
       )}
+      {process.env.VERCEL_ENV === "preview" &&
+        process.env.MESCE_SMTP_TEST_ENABLED === "true" && (
+          <p style={{ marginTop: 20 }}>
+            <Link
+              className="button secondary"
+              href="/minhas-escalas/teste-email"
+            >
+              Testar envio de um e-mail
+            </Link>
+          </p>
+        )}
     </>
   );
 }
