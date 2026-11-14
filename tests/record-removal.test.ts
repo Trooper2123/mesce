@@ -121,7 +121,10 @@ test("assistido em visita agrupada, ministro com cônjuge e local legado não s�
       spouseId: m.id,
     };
   data.ministers = [m, spouse];
-  assert.throws(() => planRecordRemoval(form("minister", m), data), /vínculo conjugal/);
+  assert.throws(
+    () => planRecordRemoval(form("minister", m), data),
+    /vínculo conjugal/,
+  );
   data.events = [e];
   const location = { id: randomUUID(), name: "Matriz", active: true };
   data.settings = { ...emptyData().settings!, locations: [location] };
