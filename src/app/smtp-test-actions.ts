@@ -103,7 +103,13 @@ export async function sendSingleSmtpTest() {
       from,
       to: smtpUser,
       subject: "Teste de convite de calendário MESCE",
-      text: "Este é um único e-mail de teste do envio de convites de calendário MESCE.",
+      text: [
+        "Este é um único e-mail de teste do envio de convites de calendário MESCE.",
+        "",
+        "Para usar o convite: abra o arquivo de calendário anexado (.ics), escolha seu aplicativo de calendário e confirme em Adicionar ou Salvar.",
+        "Confira a data e o horário antes de confirmar. Se o e-mail mostrar o botão Aceitar convite, use essa opção.",
+        "Se o arquivo não abrir automaticamente, baixe o .ics e use a opção Importar do seu aplicativo de calendário.",
+      ].join("\\n"),
       icalEvent: { method: "REQUEST", content: calendar },
     });
   } catch {
