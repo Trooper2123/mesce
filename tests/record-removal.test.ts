@@ -95,7 +95,7 @@ test("evento em qualquer revisão, snapshot de agenda ou impedimento mantém his
       eventId: e.id,
     },
   ];
-  assert.throws(() => planRecordRemoval(f, data), /impedimento\\(s\\) vinculado/);
+  assert.throws(() => planRecordRemoval(f, data), /impedimento.*vinculado/);
 });
 test("assistido em visita agrupada, ministro com cônjuge e local legado não são apagados", () => {
   const data = emptyData(),
@@ -113,7 +113,7 @@ test("assistido em visita agrupada, ministro com cônjuge e local legado não s�
   ];
   assert.throws(
     () => planRecordRemoval(form("assisted", person), data),
-    /visita\\(s\\) cadastrada/,
+    /visita.*cadastrada/,
   );
   const m = blankMinister(randomUUID(), "teste@example.invalid"),
     spouse = {
@@ -127,7 +127,7 @@ test("assistido em visita agrupada, ministro com cônjuge e local legado não s�
   data.settings = { ...emptyData().settings!, locations: [location] };
   assert.throws(
     () => planRecordRemoval(form("location", location), data),
-    /preferência\\(s\\) de ministro/,
+    /preferência.*ministro/,
   );
 });
 test("somente rascunho ou revisão sem aprovação pode ser excluído", () => {
