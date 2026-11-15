@@ -6,7 +6,7 @@ import {
   requireCompleteMinister,
   missingMinisterFields,
   ownProfile,
-} from "../src/lib/profile";
+} from "@/lib/profile";
 import {
   blocked,
   assistedSchema,
@@ -15,18 +15,18 @@ import {
   emptyData,
   type Event,
   absenceCountForMonth,
-} from "../src/lib/domain";
-import { parseEventForm, applyVisitStaffing } from "../src/lib/event-input";
+} from "@/lib/domain";
+import { parseEventForm, applyVisitStaffing } from "@/lib/event-input";
 import {
   parseAbsenceBatch,
   validateAbsenceSubmission,
-} from "../src/lib/absence-input";
+} from "@/lib/absence-input";
 import {
   parseMinisterCsv,
   planMinisterCsv,
   csvState,
   csvTemplate,
-} from "../src/lib/minister-csv";
+} from "@/lib/minister-csv";
 const minister = () => ({
   ...blankMinister(randomUUID(), "pessoa@example.invalid"),
   name: "Pessoa Sintética",

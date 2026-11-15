@@ -1,10 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { encrypt, decrypt } from "../src/lib/crypto";
-import { canDownload, canVisit, Identity } from "../src/lib/access";
-import { emptyData, Schedule, Minister } from "../src/lib/domain";
-import { schedulePdf } from "../src/lib/pdf";
+import { encrypt, decrypt } from "@/lib/crypto";
+import { canDownload, canVisit, Identity } from "@/lib/access";
+import { emptyData, Schedule, Minister } from "@/lib/domain";
+import { schedulePdf } from "@/lib/pdf";
 import { PDFDocument, PDFRawStream, decodePDFRawStream } from "pdf-lib";
 process.env.MESCE_DATA_KEY_HEX = "a".repeat(64);
 test("AES-GCM protege conteúdo e rejeita adulteração", () => {

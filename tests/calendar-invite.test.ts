@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import {
   buildCalendarInvite,
   type CalendarInvite,
-} from "../src/lib/calendar-invite";
+} from "@/lib/calendar-invite";
 
 const invite = (method: CalendarInvite["method"]): CalendarInvite => ({
   event: {

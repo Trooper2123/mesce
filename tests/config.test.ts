@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { databaseUrl } from "../src/lib/config";
+import { databaseUrl } from "@/lib/config";
 test("reconhece nomes de conexão existentes na integração Neon da Vercel", () => {
   for (const key of [
     "DATABASE_URL",

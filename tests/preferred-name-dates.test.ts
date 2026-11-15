@@ -11,20 +11,20 @@ import {
   blankMinister,
   ownProfile,
   requireCompleteMinister,
-} from "../src/lib/profile";
+} from "@/lib/profile";
 import {
   ministerSchema,
   emptyData,
   generate,
   syncSchedule,
   type Event,
-} from "../src/lib/domain";
-import { ministerDisplayName } from "../src/lib/minister-name";
-import { planEventSave } from "../src/lib/event-agenda";
-import { planMinisterCsv } from "../src/lib/minister-csv";
-import { schedulePdf } from "../src/lib/pdf";
-import { write, readData } from "../src/lib/store";
-import { MultiDatePicker } from "../src/components/multi-date-picker";
+} from "@/lib/domain";
+import { ministerDisplayName } from "@/lib/minister-name";
+import { planEventSave } from "@/lib/event-agenda";
+import { planMinisterCsv } from "@/lib/minister-csv";
+import { schedulePdf } from "@/lib/pdf";
+import { write, readData } from "@/lib/store";
+import { MultiDatePicker } from "@/components/multi-date-picker";
 const event = (extra: Partial<Event> = {}): Event => ({
   id: randomUUID(),
   title: "Missa semanal",

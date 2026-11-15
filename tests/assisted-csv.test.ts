@@ -1,13 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { assistedCsvTemplate, planAssistedCsv } from "../src/lib/assisted-csv";
-import { assistedCsvChanges, ministerCsvChanges } from "../src/lib/csv-diff";
+import { assistedCsvTemplate, planAssistedCsv } from "@/lib/assisted-csv";
+import { assistedCsvChanges, ministerCsvChanges } from "@/lib/csv-diff";
 import {
   csvPreviewFingerprint,
   csvState,
   csvTemplate,
   planMinisterCsv,
-} from "../src/lib/minister-csv";
+} from "@/lib/minister-csv";
 test("modelos de exemplo são válidos nos dois importadores e contêm só dados fictícios", () => {
   const a = planAssistedCsv("\uFEFF" + assistedCsvTemplate, [], false);
   assert.equal(a.assisted.length, 2);

@@ -11,17 +11,17 @@ import {
   syncSchedule,
   type Event,
   type Absence,
-} from "../src/lib/domain";
-import { blankMinister } from "../src/lib/profile";
+} from "@/lib/domain";
+import { blankMinister } from "@/lib/profile";
 import {
   planAbsenceWithdrawal,
   planEventChange,
-} from "../src/lib/operational-changes";
-import { operationalReport } from "../src/lib/reports";
-import { notificationsFor } from "../src/lib/notifications";
-import { validateAbsenceSubmission } from "../src/lib/absence-input";
-import type { Identity } from "../src/lib/access";
-import { readData, write, audit } from "../src/lib/store";
+} from "@/lib/operational-changes";
+import { operationalReport } from "@/lib/reports";
+import { notificationsFor } from "@/lib/notifications";
+import { validateAbsenceSubmission } from "@/lib/absence-input";
+import type { Identity } from "@/lib/access";
+import { readData, write, audit } from "@/lib/store";
 const now = new Date("2026-11-20T12:00:00Z");
 const admin: Identity = {
   id: "admin",

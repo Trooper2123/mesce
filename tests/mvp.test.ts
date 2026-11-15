@@ -13,10 +13,10 @@ import {
   rateLimit,
   syncMinisterEmail,
   emailHash,
-} from "../src/lib/registration";
-import { decrypt } from "../src/lib/crypto";
-import { blankMinister, ownProfile } from "../src/lib/profile";
-import { write } from "../src/lib/store";
+} from "@/lib/registration";
+import { decrypt } from "@/lib/crypto";
+import { blankMinister, ownProfile } from "@/lib/profile";
+import { write } from "@/lib/store";
 import {
   generate,
   emptyData,
@@ -27,16 +27,16 @@ import {
   Minister,
   Event,
   Assisted,
-} from "../src/lib/domain";
-import { visitGuidePdf, schedulePdf } from "../src/lib/pdf";
-import { resolveActor } from "../src/lib/auth";
-import { openLegacy } from "../src/lib/legacy";
+} from "@/lib/domain";
+import { visitGuidePdf, schedulePdf } from "@/lib/pdf";
+import { resolveActor } from "@/lib/auth";
+import { openLegacy } from "@/lib/legacy";
 import {
   previewEnabled,
   passwordMatches,
   createPreviewSession,
   readPreviewSession,
-} from "../src/lib/preview-session";
+} from "@/lib/preview-session";
 process.env.MESCE_DATA_KEY_HEX = "c".repeat(64);
 const m = (extra: Partial<Minister> = {}): Minister => ({
   ...blankMinister(randomUUID(), "synthetic@example.invalid"),

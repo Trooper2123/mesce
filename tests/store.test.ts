@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { PGlite } from "@electric-sql/pglite";
 import type { PoolClient } from "pg";
-import { write, readData, audit } from "../src/lib/store";
+import { write, readData, audit } from "@/lib/store";
 process.env.MESCE_DATA_KEY_HEX = "b".repeat(64);
 test("migração PostgreSQL, persistência cifrada, atualização e rollback atômico", async () => {
   const db = new PGlite();

@@ -6,9 +6,9 @@ import {
   type Event,
   type Schedule,
   type Assisted,
-} from "../src/lib/domain";
-import { blankMinister } from "../src/lib/profile";
-import { operationalReport, reportPeriod } from "../src/lib/reports";
+} from "@/lib/domain";
+import { blankMinister } from "@/lib/profile";
+import { operationalReport, reportPeriod } from "@/lib/reports";
 const m1 = {
   ...blankMinister(randomUUID(), "um@example.invalid"),
   name: "Pessoa um",
