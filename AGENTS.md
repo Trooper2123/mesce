@@ -1,12 +1,14 @@
 # AGENTS.md — Messe
 
 ## Objetivo e escopo
+
 - Repositório oficial: `Trooper2123/mescef`; branch principal: `main`.
 - Linguagem principal do projeto: ** Next.js com PostgreSQL**. Não substituir por Java, Go ou outro stack sem decisão explícita e documentada.
-- A interface web será publicada no Vercel; 
--  Não inventar regras de negócio, modelos de dados ou papéis de usuário.
+- A interface web será publicada no Vercel;
+- Não inventar regras de negócio, modelos de dados ou papéis de usuário.
 
 ## Antes de implementar
+
 1. Ler `AGENTS.md`, `README.md`, documentação e código existente relacionado à alteração.
 2. Consultar documentação da **versão real** do compilador e das bibliotecas Node.js e TypeScript utilizadas; registrar limitações e comandos reprodutíveis.
 3. Identificar arquivos, consumidores, testes, configurações e possível impacto sobre usuários e dados.
@@ -14,6 +16,7 @@
 5. Identificar o ambiente e o destino de qualquer operação que altere dados ou publique código.
 
 ## Planejamento por SPEC
+
 - Para funcionalidades relevantes, criar `.codex/specs/<feature>/requirements.md`, `design.md` e `tasks.md`, ou seguir o padrão de documentação equivalente que venha a ser definido no repositório.
 - Em `requirements.md`, descrever objetivo, escopo, critérios de aceitação, regras de negócio confirmadas e casos de erro.
 - Em `design.md`, documentar arquitetura, fluxos, limites de confiança, testes, riscos e dependências.
@@ -22,6 +25,7 @@
 - Documentação em `.codex/` é de planejamento local; mantê-la fora dos commits, exceto se uma decisão explícita alterar esta política.
 
 ## Interface, UX e acessibilidade
+
 - Todo texto de interface deverá estar em **português do Brasil**.
 - Antes de criar páginas ou componentes, consultar `UI-GUIDE.md` e `design-system.md` **quando esses documentos existirem**.
 - Centralizar cores, espaçamentos, tipografia e estados visuais em tokens; não criar hexadecimais avulsos em cada componente.
@@ -29,6 +33,7 @@
 - HTML e CSS podem ser usados como recursos da web, mas lógica de domínio deverá permanecer em Node.js ou TypeScript sempre que tecnicamente viável.
 
 ## Arquitetura e deploy
+
 - Separar código-fonte Node.js, artefatos compilados, arquivos estáticos e configurações de publicação.
 - Não editar manualmente artefatos gerados como substituição permanente do código-fonte.
 - Manter a configuração de produção vinculada ao repositório `Trooper2123/mesce` e à branch `main`.
@@ -37,11 +42,13 @@
 - Não inventar comandos: incluir no README os comandos exatos apenas quando confirmados por execução ou documentação compatível.
 
 ## Persistência
+
 - Nunca limpar ou migrar dados de produção ou de ambientes compartilhados sem autorização e identificação do destino.
 - Manter credenciais fora do repositório, usar consultas parametrizadas e testar integridade e isolamento de dados.
 - Documentar mudanças de schema, migrações e seeds no `CHANGELOG.md`.
 
 ## Segurança obrigatória
+
 - Aplicar OWASP Top 10, OWASP ASVS e práticas aplicáveis às tecnologias efetivamente usadas.
 - Verificar autorização **no servidor** para operações protegidas; controles visuais não equivalem a autorização.
 - Para APIs e entradas: validar formato, tamanho e tipo; prevenir injeção, XSS, CSRF, SSRF e acesso indevido por identificadores (IDOR/BOLA).
@@ -52,6 +59,7 @@
 - Problemas críticos ou altos conhecidos relacionados à mudança impedem considerá-la concluída. Registrar bloqueios e riscos residuais.
 
 ## Testes e revisão pré-commit
+
 1. Executar os testes pertinentes, verificações de tipos/compilação e lint disponibilizados pelo stack.
 2. Validar build com os **comandos documentados e efetivamente disponíveis**.
 3. Validar saída estática e fluxo Vercel quando houver alteração de publicação.
@@ -63,6 +71,7 @@
 9. Não realizar push com verificações obrigatórias falhando ou não realizadas; registrar o bloqueio em `tasks.md`.
 
 ## Ponytail — lazy senior dev mode
+
 - O melhor código é o que não precisa ser escrito. Entregar a **menor mudança completa**.
 - Reaproveitar padrões locais e bibliotecas existentes; evitar dependências para soluções de poucas linhas.
 - Não criar abstrações, conversões, wrappers, opções ou arquivos “para o futuro” sem necessidade.
@@ -72,6 +81,7 @@
 - Em respostas de implementação, indicar em uma ou duas linhas o que não foi verificado e os riscos restantes.
 
 ## Critérios para concluir
+
 - Requisitos e critérios de aceitação verificados.
 - Código, documentação e CHANGELOG alinhados.
 - Testes, compilação e build pertinentes aprovados, com evidências registradas.

@@ -474,7 +474,12 @@ export default async function Schedules({
                 </p>
               );
             })}
-            <div className="table-scroll">
+            <div
+              className="table-scroll"
+              role="region"
+              aria-label="Resumo de designações por ministro"
+              tabIndex={0}
+            >
               <table>
                 <thead>
                   <tr>

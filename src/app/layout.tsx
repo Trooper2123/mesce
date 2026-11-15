@@ -42,8 +42,10 @@ export default async function RootLayout({
           <p className="nav-label">ORGANIZAÇÃO DO MINISTÉRIO</p>
           <MainNavigation minister={preview?.previewRole === "MINISTER"} />
           <div className="aside-bottom">
-            <span className="dot" /> Um ministério, muitas mãos.
-            <p>Servir com cuidado e organização.</p>
+            <div className="aside-note">
+              <span className="dot" /> Um ministério, muitas mãos.
+              <p>Servir com cuidado e organização.</p>
+            </div>
             {previewEnabled() ? (
               <form action={previewLogout}>
                 <button className="secondary">Sair do Preview</button>

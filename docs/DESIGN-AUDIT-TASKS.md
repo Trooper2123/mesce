@@ -26,3 +26,10 @@ Referência de aceite: [DESIGN-AUDIT-SPEC.md](DESIGN-AUDIT-SPEC.md). UX-02 a UX-
 - Não remover textos operacionais da escala sem verificar o fluxo descrito na especificação.
 - Preservar o link de salto, os rótulos acessíveis, o foco visível e a legenda das categorias do calendário.
 - O repositório tem alterações locais pré-existentes; limitar cada task aos arquivos indicados e às dependências reais encontradas na implementação.
+
+## Revisão móvel — branch `codex/ui-mobile-accessibility`
+
+- `completed`: saída da conta acessível no celular; cartões em uma coluna até 600 px; indicação de rolagem em tabelas e calendários até 1100 px; regiões de tabela nomeadas e focáveis; seleção de datas com alvos de 48 px e rolagem contida.
+- `completed`: 147 testes, checagem de tipos e build; verificação visual do CSS em Chromium a 320, 390, 768 e 1280 px, sem rolagem horizontal da página no cenário verificado.
+- `blocked`: homologação nos fluxos autenticados de coordenação e ministro, com dados fictícios, teclado e zoom de 200%, ainda exige ambiente Preview acessível. A verificação visual feita usou uma amostra local das classes modificadas.
+- `blocked`: `cs scan` inicial incluiu arquivos locais alheios à mudança; a execução focada no diretório padrão falhou pela proteção de credenciais no Windows. Com diretório temporário isolado, iniciou mas não retornou resultado e foi interrompida. Revisão manual do diff não encontrou alteração de permissões, APIs ou persistência. A checagem global de formatação passou após `prettier --write .`.

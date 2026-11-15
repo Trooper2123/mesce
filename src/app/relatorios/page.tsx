@@ -108,7 +108,12 @@ export default async function Reports({
       )}
       <section className="panel">
         <h2>Participação por ministro</h2>
-        <div className="table-scroll">
+        <div
+          className="table-scroll"
+          role="region"
+          aria-label="Participação por ministro"
+          tabIndex={0}
+        >
           <table>
             <thead>
               <tr>
@@ -138,7 +143,12 @@ export default async function Reports({
       </section>
       <section className="panel">
         <h2>Escalas publicadas</h2>
-        <div className="table-scroll">
+        <div
+          className="table-scroll"
+          role="region"
+          aria-label="Escalas publicadas"
+          tabIndex={0}
+        >
           <table>
             <thead>
               <tr>
@@ -181,7 +191,12 @@ export default async function Reports({
           publicação. Contatos atuais devem ser conferidos no cadastro de
           Assistidos.
         </p>
-        <div className="table-scroll">
+        <div
+          className="table-scroll"
+          role="region"
+          aria-label="Assistidos e responsáveis pelas visitas"
+          tabIndex={0}
+        >
           <table>
             <thead>
               <tr>
@@ -226,7 +241,12 @@ export default async function Reports({
       </section>
       <section className="panel">
         <h2>Histórico detalhado de designações</h2>
-        <div className="table-scroll">
+        <div
+          className="table-scroll"
+          role="region"
+          aria-label="Histórico detalhado de designações"
+          tabIndex={0}
+        >
           <table>
             <thead>
               <tr>

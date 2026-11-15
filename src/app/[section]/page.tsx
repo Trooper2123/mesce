@@ -804,7 +804,12 @@ export default async function Registry({
         {!filtered.length ? (
           <p className="empty">Nenhum registro encontrado.</p>
         ) : (
-          <div className="table-scroll">
+          <div
+            className="table-scroll"
+            role="region"
+            aria-label="Registros encontrados"
+            tabIndex={0}
+          >
             <table>
               <thead>
                 <tr>

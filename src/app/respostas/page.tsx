@@ -47,7 +47,12 @@ export default async function Responses({
         <h2>
           {user.coordinator ? "Consolidação do mês" : "Minha resposta mensal"}
         </h2>
-        <div className="table-scroll">
+        <div
+          className="table-scroll"
+          role="region"
+          aria-label="Respostas mensais"
+          tabIndex={0}
+        >
           <table>
             <thead>
               <tr>

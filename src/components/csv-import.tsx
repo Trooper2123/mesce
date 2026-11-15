@@ -125,7 +125,12 @@ export function CsvImport({
                       <p className="muted">
                         {isAssisted ? "ID" : "E-mail"}: {change.identifier}
                       </p>
-                      <div className="table-scroll">
+                      <div
+                        className="table-scroll"
+                        role="region"
+                        aria-label={`Alterações de ${change.identifier}`}
+                        tabIndex={0}
+                      >
                         <table>
                           <thead>
                             <tr>
@@ -151,7 +156,12 @@ export function CsvImport({
               </ul>
             </section>
           )}
-          <div className="table-scroll">
+          <div
+            className="table-scroll"
+            role="region"
+            aria-label="Resultado da importação"
+            tabIndex={0}
+          >
             <table>
               <thead>
                 <tr>
