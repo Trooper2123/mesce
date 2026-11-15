@@ -1,11 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { assistedCsvTemplate, planAssistedCsv } from "../src/lib/assisted-csv";
+import { assistedCsvTemplate, planAssistedCsv } from "@/lib/assisted-csv";
+import { assistedCsvChanges, ministerCsvChanges } from "@/lib/csv-diff";
 import {
+  csvPreviewFingerprint,
   csvState,
   csvTemplate,
   planMinisterCsv,
-} from "../src/lib/minister-csv";
+} from "@/lib/minister-csv";
 test("modelos de exemplo são válidos nos dois importadores e contêm só dados fictícios", () => {
   const a = planAssistedCsv("\uFEFF" + assistedCsvTemplate, [], false);
   assert.equal(a.assisted.length, 2);
@@ -140,4 +142,51 @@ test("limites, cabeçalhos e aspas são verificados; estado muda com alteração
   );
   const a = planAssistedCsv("nome\nPessoa Sintética", [], false).assisted;
   assert.notEqual(csvState(a), csvState([{ ...a[0], ministersRequired: 3 }]));
+});
+
+test("CSV preview compares old and new values and binds acceptance to the file", () => {
+  const current = planAssistedCsv(
+    "nome;endereco\nPessoa Sintetica;Rua A",
+    [],
+    false,
+  ).assisted;
+  const updated = planAssistedCsv(
+    `id;nome;endereco\n${current[0].id};Nome corrigido;Rua B`,
+    current,
+    true,
+  ).assisted;
+  assert.deepEqual(
+    assistedCsvChanges(current, updated)[0].fields.map(({ before, after }) => [
+      before,
+      after,
+    ]),
+    [
+      ["Pessoa Sintetica", "Nome corrigido"],
+      ["Rua A", "Rua B"],
+    ],
+  );
+  assert.equal(
+    csvPreviewFingerprint("a", true, "state"),
+    csvPreviewFingerprint("a", true, "state"),
+  );
+  assert.notEqual(
+    csvPreviewFingerprint("a", true, "state"),
+    csvPreviewFingerprint("b", true, "state"),
+  );
+});
+
+test("minister preview reports changed fields", () => {
+  const current = planMinisterCsv(csvTemplate, [], false).ministers;
+  const source = csvTemplate
+    .replace("Ministro Exemplo", "Ministro Novo")
+    .replace("Rua Exemplo 10", "Rua Nova 1");
+  const updated = planMinisterCsv(source, current, true).ministers;
+  const changes = ministerCsvChanges(current, updated, []);
+  assert.deepEqual(
+    changes[0].fields.map(({ label, before, after }) => [label, before, after]),
+    [
+      ["Nome", "Ministro Exemplo", "Ministro Novo"],
+      ["Endereço", "Rua Exemplo 10", "Rua Nova 1"],
+    ],
+  );
 });

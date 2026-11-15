@@ -66,10 +66,14 @@ export function MultiDatePicker({
           Próximo
         </button>
       </div>
+      <p className="picker-scroll-hint">
+        Deslize para ver todos os dias do mês.
+      </p>
       <div
         role="group"
         aria-label={`Datas de ${label}`}
         className="multi-date-grid"
+        tabIndex={0}
       >
         {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((day) => (
           <strong key={day}>{day}</strong>

@@ -26,6 +26,7 @@ const links = [
   ["/locais", "Locais e comunidades", Church],
   ["/celebracoes", "Celebrações e visitas", CalendarDays],
   ["/impedimentos", "Impedimentos", CalendarOff],
+  ["/respostas", "Respostas mensais", ClipboardList],
   ["/visitas", "Visitas dominicais", HeartHandshake],
   ["/configuracao", "Configurações", Church],
   ["/escalas", "Escalas", ClipboardList],

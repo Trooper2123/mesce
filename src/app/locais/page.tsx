@@ -36,7 +36,7 @@ export default async function Locations({
       <section className="panel">
         <h2>Locais cadastrados</h2>
         {locationCatalog(data).map((l) => (
-          <details key={l.id}>
+          <details key={l.id} id={`local-${l.id}`}>
             <summary>
               {l.name} · {l.active ? "Ativo" : "Inativo"}
             </summary>

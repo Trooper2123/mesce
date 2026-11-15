@@ -2,31 +2,46 @@
 import { revalidatePath } from "next/cache";
 import { coordinator, assertCurrentActor } from "@/lib/auth";
 import { transaction, write, audit } from "@/lib/store";
-import { csvState, planMinisterCsv } from "@/lib/minister-csv";
-import { addEmails, emailHash } from "@/lib/registration";
+import {
+  csvPreviewFingerprint,
+  csvState,
+  planMinisterCsv,
+} from "@/lib/minister-csv";
+import { addEmails, emailHash, syncMinisterEmail } from "@/lib/registration";
+import { ministerCsvChanges } from "@/lib/csv-diff";
+import { locationCatalog } from "@/lib/locations";
 export async function previewCsv(form: FormData) {
   const user = await coordinator();
   try {
     return await transaction(async (client, data) => {
       await assertCurrentActor(client, user, true);
-      const plan = planMinisterCsv(
-        String(form.get("source") ?? ""),
-        data.ministers,
-        form.get("update") === "true",
-      );
+      const source = String(form.get("source") ?? "");
+      const update = form.get("update") === "true";
+      const state = csvState(data.ministers);
+      const plan = planMinisterCsv(source, data.ministers, update);
       await audit(client, user.id, "minister:csv-preview", undefined, {
         rows: plan.summary.length,
       });
       return {
         summary: plan.summary,
-        expectedState: csvState(data.ministers),
+        changes: ministerCsvChanges(
+          data.ministers,
+          plan.ministers,
+          locationCatalog(data),
+        ),
+        plannedCount: plan.ministers.length,
+        expectedState: state,
+        expectedPreview: csvPreviewFingerprint(source, update, state),
         error: "",
       };
     });
   } catch (e) {
     return {
       summary: [],
+      changes: [],
+      plannedCount: 0,
       expectedState: "",
+      expectedPreview: "",
       error:
         e instanceof Error && !("code" in e)
           ? e.message
@@ -43,11 +58,15 @@ export async function importCsv(form: FormData) {
       await assertCurrentActor(client, user, true);
       if (csvState(data.ministers) !== form.get("expectedState"))
         throw new Error("Os cadastros mudaram. Gere uma nova prévia.");
-      const plan = planMinisterCsv(
-        String(form.get("source") ?? ""),
-        data.ministers,
-        form.get("update") === "true",
-      );
+      const source = String(form.get("source") ?? "");
+      const update = form.get("update") === "true";
+      const state = csvState(data.ministers);
+      const plan = planMinisterCsv(source, data.ministers, update);
+      if (
+        csvPreviewFingerprint(source, update, state) !==
+        form.get("expectedPreview")
+      )
+        throw new Error("A prévia não corresponde ao arquivo. Gere novamente.");
       const remap = new Map<string, string>();
       for (const m of plan.ministers) {
         if (!m.email) continue;
@@ -73,6 +92,7 @@ export async function importCsv(form: FormData) {
           spouseId: remap.get(m.spouseId) ?? m.spouseId,
         };
         await write(client, "minister", next);
+        await syncMinisterEmail(client, next.id, next.email, user.id);
         await audit(client, user.id, "minister:csv", next.id, {
           before: previous,
           after: next,

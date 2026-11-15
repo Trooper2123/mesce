@@ -99,7 +99,69 @@ export function CsvImport({
               ? "Confira os IDs, nomes e operações antes de confirmar."
               : "Cadastros incompletos serão pendentes e não participarão de novas escalas."}
           </p>
-          <div className="table-scroll">
+          {preview.changes.length > 0 && (
+            <section
+              className="notice warning"
+              role="alert"
+              aria-labelledby="csv-changes-title"
+            >
+              <strong id="csv-changes-title">
+                Confira as alterações em {preview.changes.length} cadastro(s)
+              </strong>
+              <p>
+                Os valores atuais serão substituídos pelos novos abaixo. Nenhuma
+                alteração foi gravada.
+              </p>
+              <ul className="csv-change-list">
+                {preview.changes.map((change) => (
+                  <li key={change.key}>
+                    <details>
+                      <summary>
+                        {change.beforeName === change.afterName
+                          ? change.beforeName
+                          : `${change.beforeName} → ${change.afterName}`}{" "}
+                        · {change.fields.length} campo(s)
+                      </summary>
+                      <p className="muted">
+                        {isAssisted ? "ID" : "E-mail"}: {change.identifier}
+                      </p>
+                      <div
+                        className="table-scroll"
+                        role="region"
+                        aria-label={`Alterações de ${change.identifier}`}
+                        tabIndex={0}
+                      >
+                        <table>
+                          <thead>
+                            <tr>
+                              <th>Campo</th>
+                              <th>Valor atual</th>
+                              <th>Novo valor</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {change.fields.map((field) => (
+                              <tr key={field.label}>
+                                <th scope="row">{field.label}</th>
+                                <td>{field.before}</td>
+                                <td>{field.after}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </details>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+          <div
+            className="table-scroll"
+            role="region"
+            aria-label="Resultado da importação"
+            tabIndex={0}
+          >
             <table>
               <thead>
                 <tr>
@@ -134,7 +196,10 @@ export function CsvImport({
                   type="checkbox"
                   disabled={pending}
                   checked={authorize}
-                  onChange={(e) => setAuthorize(e.target.checked)}
+                  onChange={(e) => {
+                    setAuthorize(e.target.checked);
+                    setConfirmed(false);
+                  }}
                 />
                 Também autorizar na allowlist os e-mails de ministros ativos
                 importados (não envia convites nem restaura acessos revogados)
@@ -148,14 +213,16 @@ export function CsvImport({
               checked={confirmed}
               onChange={(e) => setConfirmed(e.target.checked)}
             />
-            Revisei a prévia e confirmo as alterações indicadas
+            Revisei os comparativos e aceito a importação do grupo inteiro (
+            {preview.plannedCount} cadastro(s))
           </label>
           <button
-            disabled={!confirmed || pending}
+            disabled={!confirmed || pending || preview.plannedCount === 0}
             onClick={() =>
               startTransition(async () => {
                 const f = payload();
                 f.set("expectedState", preview.expectedState);
+                f.set("expectedPreview", preview.expectedPreview);
                 f.set("authorize", String(authorize));
                 f.set("confirmed", String(confirmed));
                 const result = await importAction(f);

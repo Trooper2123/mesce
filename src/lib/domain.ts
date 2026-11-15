@@ -52,6 +52,8 @@ export const assistedSchema = z.object({
   familyName: text,
   familyPhone: text,
   ministersRequired: z.number().int().min(1).max(100).optional(),
+  groupVisit: z.boolean().optional(),
+  groupName: z.string().trim().max(120).optional(),
   notes: text,
   active: z.boolean(),
 });
@@ -226,6 +228,26 @@ export function impeded(ministerId: string, event: Event, absences: Absence[]) {
         ? a.eventId === event.id
         : a.start <= event.date && event.date <= a.end),
   );
+}
+
+export function absenceCountForMonth(
+  data: Pick<Data, "absences" | "events">,
+  ministerId: string,
+  month: string,
+) {
+  return data.absences.filter(
+    (absence) =>
+      !absence.revokedAt &&
+      absence.ministerId === ministerId &&
+      (absence.scope === "CELEBRATION"
+        ? data.events.some(
+            (event) =>
+              event.id === absence.eventId &&
+              !event.cancelled &&
+              event.date.startsWith(month),
+          )
+        : absence.start <= month + "-31" && absence.end >= month + "-01"),
+  ).length;
 }
 
 export function assignmentConflict(

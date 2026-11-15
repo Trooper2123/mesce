@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
   preparationMonth,
   calendarReturn,
-} from "../src/lib/calendar-navigation";
+} from "@/lib/calendar-navigation";
 test("calendário abre no próximo mês em Brasília, inclusive na virada de ano", () => {
   assert.equal(preparationMonth(new Date("2026-11-12T12:00:00Z")), "2026-12");
   assert.equal(preparationMonth(new Date("2027-01-01T01:00:00Z")), "2027-01");

@@ -1,6 +1,6 @@
 import { Pool } from "pg";
 import { readFile, readdir } from "node:fs/promises";
-import { databaseUrl } from "../src/lib/config";
+import { databaseUrl } from "@/lib/config";
 const pool = new Pool({
   connectionString: databaseUrl(process.env, true),
   connectionTimeoutMillis: 5000,

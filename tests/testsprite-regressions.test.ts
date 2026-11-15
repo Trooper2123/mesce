@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createElement } from "react";
-import { Calendar } from "../src/components/calendar";
-import { blankMinister } from "../src/lib/profile";
+import { Calendar } from "@/components/calendar";
+import { blankMinister } from "@/lib/profile";
 import {
   emptyData,
   generate,
@@ -14,9 +14,9 @@ import {
   overlappingAgenda,
   type Event,
   type Schedule,
-} from "../src/lib/domain";
-import { notificationsFor } from "../src/lib/notifications";
-import type { Identity } from "../src/lib/access";
+} from "@/lib/domain";
+import { notificationsFor } from "@/lib/notifications";
+import type { Identity } from "@/lib/access";
 const event = (extra: Partial<Event> = {}): Event => ({
   id: randomUUID(),
   title: "Celebração fictícia",
@@ -100,6 +100,12 @@ test("aviso de revisão preserva publicação anterior e só revela rascunho à 
 test("cancelamento deixa aviso e desativação remove feed pessoal", () => {
   const { data, s, user } = fixture();
   s.status = "CANCELLED";
+  data.schedules.push({
+    ...structuredClone(s),
+    id: randomUUID(),
+    revision: s.revision + 1,
+    status: "DRAFT",
+  });
   assert.deepEqual(
     notificationsFor(data, user).map((n) => n.type),
     ["CANCELLATION"],

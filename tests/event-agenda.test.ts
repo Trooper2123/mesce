@@ -6,15 +6,15 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { PGlite } from "@electric-sql/pglite";
 import type { PoolClient } from "pg";
-import { Calendar } from "../src/components/calendar";
-import { EventFields } from "../src/components/event-fields";
+import { Calendar } from "@/components/calendar";
+import { EventFields } from "@/components/event-fields";
 import {
   type Event,
   emptyData,
   blocked,
   assignmentConflict,
-} from "../src/lib/domain";
-import { blankMinister } from "../src/lib/profile";
+} from "@/lib/domain";
+import { blankMinister } from "@/lib/profile";
 import {
   eventClassOf,
   eventNameOptions,

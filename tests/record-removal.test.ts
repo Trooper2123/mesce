@@ -4,16 +4,16 @@ import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { PGlite } from "@electric-sql/pglite";
 import type { PoolClient } from "pg";
-import { emptyData, type Event, type Schedule } from "../src/lib/domain";
-import { blankMinister } from "../src/lib/profile";
+import { emptyData, type Event, type Schedule } from "@/lib/domain";
+import { blankMinister } from "@/lib/profile";
 import {
   planRecordRemoval,
   recordVersion,
   removalSeries,
   executeRecordRemoval,
   type RemovalKind,
-} from "../src/lib/record-removal";
-import { write, readData } from "../src/lib/store";
+} from "@/lib/record-removal";
+import { write, readData } from "@/lib/store";
 const event = (): Event => ({
   id: randomUUID(),
   title: "Registro errado",
@@ -62,7 +62,7 @@ test("exclusão exige confirmação, motivo e versão atual, e aceita evento err
   assert.throws(() => planRecordRemoval(f, data));
   f.set("reason", "Erro de teste");
   data.events[0] = { ...e, title: "Alteração concorrente" };
-  assert.throws(() => planRecordRemoval(f, data), /alterado/);
+  assert.throws(() => planRecordRemoval(f, data), /cadastro mudou /);
   f.set("kind", "invalid");
   assert.throws(() => planRecordRemoval(f, data));
 });
@@ -79,10 +79,10 @@ test("evento em qualquer revisão, snapshot de agenda ou impedimento mantém his
     "CANCELLED",
   ] as const) {
     data.schedules = [{ ...schedule(e), status }];
-    assert.throws(() => planRecordRemoval(f, data), /vínculos/);
+    assert.throws(() => planRecordRemoval(f, data), /vinculado/);
   }
   data.schedules = [{ ...schedule(e), events: [], agendaEvents: [e] }];
-  assert.throws(() => planRecordRemoval(f, data), /vínculos/);
+  assert.throws(() => planRecordRemoval(f, data), /vinculado/);
   data.schedules = [];
   data.absences = [
     {
@@ -95,7 +95,7 @@ test("evento em qualquer revisão, snapshot de agenda ou impedimento mantém his
       eventId: e.id,
     },
   ];
-  assert.throws(() => planRecordRemoval(f, data), /vínculos/);
+  assert.throws(() => planRecordRemoval(f, data), /impedimento.*vinculado/);
 });
 test("assistido em visita agrupada, ministro com cônjuge e local legado não são apagados", () => {
   const data = emptyData(),
@@ -113,7 +113,7 @@ test("assistido em visita agrupada, ministro com cônjuge e local legado não s�
   ];
   assert.throws(
     () => planRecordRemoval(form("assisted", person), data),
-    /vínculos/,
+    / visitas futuras/,
   );
   const m = blankMinister(randomUUID(), "teste@example.invalid"),
     spouse = {
@@ -121,13 +121,16 @@ test("assistido em visita agrupada, ministro com cônjuge e local legado não s�
       spouseId: m.id,
     };
   data.ministers = [m, spouse];
-  assert.throws(() => planRecordRemoval(form("minister", m), data), /vínculos/);
+  assert.throws(
+    () => planRecordRemoval(form("minister", m), data),
+    /excluir este ministro/,
+  );
   data.events = [e];
   const location = { id: randomUUID(), name: "Matriz", active: true };
   data.settings = { ...emptyData().settings!, locations: [location] };
   assert.throws(
     () => planRecordRemoval(form("location", location), data),
-    /vínculos/,
+    /preferência.*ministro/,
   );
 });
 test("somente rascunho ou revisão sem aprovação pode ser excluído", () => {
@@ -140,7 +143,7 @@ test("somente rascunho ou revisão sem aprovação pode ser excluído", () => {
     data.schedules = [protectedSchedule];
     assert.throws(
       () => planRecordRemoval(form("schedule", protectedSchedule), data),
-      /vínculos/,
+      /já foi aprovada ou publicada/,
     );
   }
 });
@@ -191,7 +194,7 @@ test("exclusão persistida é auditada, transacional e restrita à coordenação
     seriesData.schedules = [schedule(second)];
     await assert.rejects(
       executeRecordRemoval(client, seriesData, user, batch),
-      /vínculos/,
+      /vinculado/,
     );
     assert.equal((await readData(client)).events.length, 3);
     seriesData = await readData(client);
@@ -226,7 +229,7 @@ test("exclusão persistida é auditada, transacional e restrita à coordenação
         user,
         form("event", e),
       ),
-      /inexistente/,
+      /não está mais disponível/,
     );
   } finally {
     await db.close();
