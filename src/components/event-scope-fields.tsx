@@ -1,11 +1,12 @@
 "use client";
 import { useState } from "react";
+import { eventTimeLabel, type Event } from "@/lib/domain";
 export function EventScopeFields({
   series,
   candidates,
 }: {
   series: boolean;
-  candidates: { id: string; date: string; time: string; title: string }[];
+  candidates: Pick<Event, "id" | "date" | "time" | "title" | "kind">[];
 }) {
   const [scope, setScope] = useState("ONE");
   return (
@@ -32,7 +33,7 @@ export function EventScopeFields({
           {candidates.map((e) => (
             <label className="check" key={e.id}>
               <input type="checkbox" name="exclude" value={e.id} />
-              {e.date} · {e.time} · {e.title}
+              {e.date} · {eventTimeLabel(e)} · {e.title}
             </label>
           ))}
         </fieldset>

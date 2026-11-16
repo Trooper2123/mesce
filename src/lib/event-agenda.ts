@@ -33,11 +33,14 @@ export function sortCalendarEvents(events: Event[]) {
   );
 }
 export function overlappingEvents(event: Event, events: Event[]) {
-  if (event.cancelled) return [];
+  if (event.cancelled || event.kind === "VISIT") return [];
   return sortEvents(
     events.filter(
       (other) =>
-        other.id !== event.id && !other.cancelled && overlaps(event, other),
+        other.id !== event.id &&
+        !other.cancelled &&
+        other.kind !== "VISIT" &&
+        overlaps(event, other),
     ),
   );
 }

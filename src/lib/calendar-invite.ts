@@ -55,6 +55,8 @@ export function inviteUid(eventId: string, ministerId: string) {
 export function buildCalendarInvite(input: CalendarInvite) {
   const start = localDateTimeToUtc(input.event.date, input.event.time);
   const end = new Date(start.getTime() + input.event.duration * 60000);
+  const visitEnd = new Date(`${input.event.date}T12:00:00Z`);
+  visitEnd.setUTCDate(visitEnd.getUTCDate() + 1);
   const appUrl = new URL("/minhas-escalas", input.applicationUrl).toString();
   const lines = [
     "BEGIN:VCALENDAR",
@@ -65,8 +67,12 @@ export function buildCalendarInvite(input: CalendarInvite) {
     `UID:${inviteUid(input.event.id, input.ministerId)}`,
     `DTSTAMP:${utc(new Date(input.dtstamp))}`,
     `SEQUENCE:${input.sequence}`,
-    `DTSTART:${utc(start)}`,
-    `DTEND:${utc(end)}`,
+    ...(input.event.kind === "VISIT"
+      ? [
+          `DTSTART;VALUE=DATE:${input.event.date.replaceAll("-", "")}`,
+          `DTEND;VALUE=DATE:${visitEnd.toISOString().slice(0, 10).replaceAll("-", "")}`,
+        ]
+      : [`DTSTART:${utc(start)}`, `DTEND:${utc(end)}`]),
     `SUMMARY:${escapeCalendarText(publicCalendarSummary(input.event))}`,
     `ORGANIZER:mailto:${input.organizerEmail}`,
     `ATTENDEE;ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=FALSE:mailto:${input.attendeeEmail}`,

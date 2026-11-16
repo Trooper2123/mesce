@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { eventTimeLabel } from "@/lib/domain";
+import { isAltevitaGroupVisit } from "@/lib/visit-group";
 import { coordinator, assertCurrentActor } from "@/lib/auth";
 import { transaction, audit } from "@/lib/store";
 import { operationalReport } from "@/lib/reports";
@@ -153,10 +155,13 @@ export default async function Reports({
               {report.events.map((row) => (
                 <tr key={row.scheduleId + row.event.id}>
                   <td>
-                    {row.event.date} · {row.event.time}
+                    {row.event.date} · {eventTimeLabel(row.event)}
                   </td>
                   <td>
-                    {row.event.title} · {row.event.location}
+                    {isAltevitaGroupVisit(row.event, row.assistedPeople)
+                      ? "Atendimento ao grupo Altevita"
+                      : row.event.title}{" "}
+                    · {row.event.location}
                   </td>
                   <td>
                     {row.ministers.join(", ") || "Sem designação"} ({row.filled}
@@ -197,26 +202,31 @@ export default async function Reports({
                 .map((row) => (
                   <tr key={row.scheduleId + row.event.id}>
                     <td>
-                      {row.event.date} · {row.event.time}
+                      {row.event.date} · {eventTimeLabel(row.event)}
                     </td>
                     <td>
-                      {row.assistedPeople.map((p) => p.name).join(", ") ||
-                        "Snapshot indisponível"}
+                      {isAltevitaGroupVisit(row.event, row.assistedPeople)
+                        ? "Atendimento ao grupo Altevita"
+                        : row.assistedPeople.map((p) => p.name).join(", ") ||
+                          "Snapshot indisponível"}
                     </td>
                     <td>{row.ministers.join(", ") || "Sem responsável"}</td>
                     <td>
-                      {row.assistedPeople.length
-                        ? row.assistedPeople.map((person) => (
-                            <div key={person.id}>
-                              {person.mobile || person.landline}
-                              <br />
-                              {person.address} · {person.neighborhood} ·{" "}
-                              {person.city}/{person.state}
-                              <br />
-                              Familiar: {person.familyName} {person.familyPhone}
-                            </div>
-                          ))
-                        : "Sem dados históricos; consulte o cadastro."}
+                      {isAltevitaGroupVisit(row.event, row.assistedPeople)
+                        ? "Atendimento coletivo; sem identificação individual de assistidos."
+                        : row.assistedPeople.length
+                          ? row.assistedPeople.map((person) => (
+                              <div key={person.id}>
+                                {person.mobile || person.landline}
+                                <br />
+                                {person.address} · {person.neighborhood} ·{" "}
+                                {person.city}/{person.state}
+                                <br />
+                                Familiar: {person.familyName}{" "}
+                                {person.familyPhone}
+                              </div>
+                            ))
+                          : "Sem dados históricos; consulte o cadastro."}
                     </td>
                   </tr>
                 ))}
@@ -241,7 +251,8 @@ export default async function Reports({
                 <tr key={e.scheduleId + e.eventId + e.ministerId}>
                   <td>{e.minister}</td>
                   <td>
-                    {e.date} · {e.time}
+                    {e.date} ·{" "}
+                    {e.kind === "VISIT" ? "Horário a combinar" : e.time}
                   </td>
                   <td>{e.kind === "VISIT" ? "Visita" : "Celebração"}</td>
                   <td>

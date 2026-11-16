@@ -8,32 +8,63 @@ import {
 } from "lucide-react";
 import { actor } from "@/lib/auth";
 import { readData } from "@/lib/store";
-import { nextMonth } from "@/lib/domain";
+import { eventTimeLabel, nextMonth } from "@/lib/domain";
+import { linkedMinister } from "@/lib/access";
+import { missingMinisterFields } from "@/lib/profile";
 export const dynamic = "force-dynamic";
 export default async function Home() {
   const user = await actor();
+  const data = await readData();
   if (!user.coordinator)
     return (
-      <section className="panel">
-        <h1>Bem-vindo ao ministério</h1>
-        <p>
-          Consulte suas designações e informe seus impedimentos para o próximo
-          mês.
-        </p>
-        <div className="hero-actions">
-          <Link className="button secondary" href="/notificacoes">
-            Central de notificações
-          </Link>
-          <Link className="button" href="/minhas-escalas">
-            Minhas escalas
-          </Link>
-          <Link className="button secondary" href="/impedimentos">
-            Informar impedimentos
-          </Link>
-        </div>
-      </section>
+      <>
+        <section className="panel">
+          <h1>Bem-vindo ao ministério</h1>
+          <p>
+            Siga estes passos para manter seus dados e sua disponibilidade em
+            dia e consultar as escalas publicadas.
+          </p>
+          <div className="hero-actions">
+            <Link className="button secondary" href="/notificacoes">
+              Central de notificações
+            </Link>
+          </div>
+        </section>
+        <section className="panel" aria-labelledby="minister-steps">
+          <h2 id="minister-steps">Próximos passos</h2>
+          <ol className="steps">
+            <li>
+              <Link href="/meus-dados">
+                Preencha seu cadastro e preferências
+              </Link>
+              {(() => {
+                const minister = linkedMinister(user, data);
+                const missing = minister ? missingMinisterFields(minister) : [];
+                return (
+                  <small>
+                    {minister
+                      ? missing.length
+                        ? `Pendente: ${missing.join(", ")}`
+                        : "Cadastro principal preenchido. Revise suas preferências quando necessário."
+                      : "A coordenação precisa vincular seu acesso a um cadastro de ministro."}
+                  </small>
+                );
+              })()}
+            </li>
+            <li>
+              <Link href="/impedimentos">Informe seus impedimentos</Link>
+              <small>
+                Registre datas, períodos ou celebrações específicas.
+              </small>
+            </li>
+            <li>
+              <Link href="/minhas-escalas">Consulte suas escalas</Link>
+              <small>As designações aparecem depois da publicação.</small>
+            </li>
+          </ol>
+        </section>
+      </>
     );
-  const data = await readData();
   const month = nextMonth();
   const events = data.events
     .filter((e) => e.date.startsWith(month))
@@ -146,7 +177,7 @@ export default async function Home() {
               <div className="row" key={e.id}>
                 <div className="datebox">
                   {e.date.slice(8)}
-                  <small>{e.time}</small>
+                  <small>{eventTimeLabel(e)}</small>
                 </div>
                 <div style={{ flex: 1 }}>
                   <strong>{e.title}</strong>

@@ -12,7 +12,7 @@ import Link from "next/link";
 import { Church } from "lucide-react";
 import "./globals.css";
 export const metadata: Metadata = {
-  title: "MESCE • Gestão pastoral",
+  title: "Paróquia Nossa Senhora do Rosário, Lago Sul • MESCE",
   description:
     "Gestão dos Ministros Extraordinários da Sagrada Comunhão Eucarística",
 };
@@ -56,7 +56,8 @@ export default async function RootLayout({
         <div className="workspace">
           <header>
             <span>
-              Ministros Extraordinários da Sagrada Comunhão Eucarística
+              Paróquia Nossa Senhora do Rosário, Lago Sul · Ministros
+              Extraordinários da Sagrada Comunhão Eucarística
             </span>
             <Link href="/">MESCE</Link>
           </header>
@@ -79,7 +80,7 @@ export default async function RootLayout({
             </section>
           )}
           <main id="conteudo">{children}</main>
-          <footer>MESCE · Organização a serviço da comunhão</footer>
+          <footer>Paróquia Nossa Senhora do Rosário · Lago Sul · MESCE</footer>
         </div>
       </body>
     </html>

@@ -705,9 +705,21 @@ aside {
 }
 .calendar td .calendar-event-visit,
 .event-key-visit {
-  background: #e6f0ff;
-  border-left-color: #225a9c;
-  color: #153758;
+  background: #eee8fa;
+  border-left-color: #6845a0;
+  color: #38245e;
+}
+.calendar td .calendar-event-wedding,
+.event-key-wedding {
+  background: #fbe8ee;
+  border-left-color: #a52d55;
+  color: #5e1730;
+}
+.calendar td .calendar-event-adoration,
+.event-key-adoration {
+  background: #fff6d9;
+  border-left-color: #927000;
+  color: #514000;
 }
 
 .event-overlap {
