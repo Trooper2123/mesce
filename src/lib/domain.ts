@@ -94,13 +94,10 @@ export const eventSchema = z
         code: "custom",
         message: "Visitas são eventos extraordinários.",
       });
-    if (
-      v.kind === "VISIT" &&
-      (new Date(v.date + "T12:00:00Z").getUTCDay() !== 0 || !v.assistedId)
-    )
+    if (v.kind === "VISIT" && !v.assistedId && v.visitSite !== "ALTEVITA")
       ctx.addIssue({
         code: "custom",
-        message: "Visita exige domingo e assistido",
+        message: "Visita exige um assistido ou atendimento no Altevita",
       });
   });
 export const absenceSchema = z
@@ -205,6 +202,9 @@ export function overlaps(a: Event, b: Event) {
     start(b) < start(a) + a.duration * 60000
   );
 }
+export function eventTimeLabel(event: Pick<Event, "kind" | "time">) {
+  return event.kind === "VISIT" ? "Horário a combinar" : event.time;
+}
 export function currentMonth(now = new Date()) {
   const parts = new Intl.DateTimeFormat("en-CA", {
     year: "numeric",
@@ -241,28 +241,11 @@ export function assignmentConflict(
     .map((assignment) => events.find((item) => item.id === assignment.eventId))
     .filter((item): item is Event => !!item && !item.cancelled);
   if (
-    event.kind === "VISIT" &&
+    event.kind !== "VISIT" &&
     assignedEvents.some(
-      (assigned) =>
-        assigned.kind === "MASS" &&
-        assigned.time === "10:00" &&
-        assigned.date === event.date &&
-        overlaps(assigned, event),
+      (assigned) => assigned.kind !== "VISIT" && overlaps(assigned, event),
     )
   )
-    return "Ministro já está escalado para a missa das 10h de domingo.";
-  if (
-    event.kind === "MASS" &&
-    event.time === "10:00" &&
-    assignedEvents.some(
-      (assigned) =>
-        assigned.kind === "VISIT" &&
-        assigned.date === event.date &&
-        overlaps(assigned, event),
-    )
-  )
-    return "Ministro já está escalado para visita no mesmo horário.";
-  if (assignedEvents.some((assigned) => overlaps(assigned, event)))
     return "Conflito de horário: o ministro já está designado para outro evento.";
   return "";
 }
@@ -446,10 +429,22 @@ export function generate(data: Data, month: string): Schedule {
           a.id === e.assistedId &&
           a.neighborhood.toLowerCase() === m.neighborhood.toLowerCase(),
       );
+    const spouseServingOnVisitDay = (m: Minister) => {
+      if (e.kind !== "VISIT" || !m.spouseId) return false;
+      return used.some((assignment) => {
+        if (assignment.ministerId !== m.spouseId) return false;
+        const assignedEvent = events.find(
+          (event) => event.id === assignment.eventId,
+        );
+        return assignedEvent?.kind === "VISIT" && assignedEvent.date === e.date;
+      });
+    };
     const candidates = data.ministers
       .filter((m) => !blocked(m, e, data, used, events))
       .sort(
         (a, b) =>
+          Number(spouseServingOnVisitDay(b)) -
+            Number(spouseServingOnVisitDay(a)) ||
           count(a) +
             historical(a.id, e.kind === "VISIT") -
             (count(b) + historical(b.id, e.kind === "VISIT")) ||
@@ -472,6 +467,7 @@ export function generate(data: Data, month: string): Schedule {
     for (const m of candidates) {
       const spouse = data.ministers.find((x) => x.id === m.spouseId);
       const pair =
+        e.kind === "MASS" &&
         spouse &&
         (m.couplePreference === "TOGETHER" ||
           spouse.couplePreference === "TOGETHER")
@@ -479,6 +475,7 @@ export function generate(data: Data, month: string): Schedule {
           : [m];
       if (pair.some((p) => blocked(p, e, data, used, events))) continue;
       if (
+        e.kind === "MASS" &&
         spouse &&
         (m.couplePreference === "SEPARATE" ||
           spouse.couplePreference === "SEPARATE") &&
@@ -553,7 +550,7 @@ export function generate(data: Data, month: string): Schedule {
   for (const e of events)
     if (assignments.filter((a) => a.eventId === e.id).length < e.required)
       warnings.push(
-        `${e.date} ${e.time} • ${e.title}: vagas pendentes de revisão.`,
+        `${e.date} ${eventTimeLabel(e)} • ${e.title}: vagas pendentes de revisão.`,
       );
   if (nodes > 50000)
     warnings.push(
@@ -583,9 +580,12 @@ export function validateSchedule(s: Schedule, data: Data): string[] {
       "A agenda mudou. Sincronize a revisão antes de aprovar ou publicar.",
     );
   for (const e of s.events) {
-    if (s.assignments.filter((a) => a.eventId === e.id).length !== e.required)
+    const assignedCount = s.assignments.filter(
+      (a) => a.eventId === e.id,
+    ).length;
+    if (assignedCount !== e.required)
       errors.push(
-        `${e.title}: quantidade de ministros diferente da necessária.`,
+        `${e.title}: precisa de ${e.required} ministro(s), mas há ${assignedCount} designado(s).`,
       );
     try {
       eventSchema.parse(e);
@@ -608,6 +608,8 @@ export function validateSchedule(s: Schedule, data: Data): string[] {
             (other) =>
               other.id === previous.eventId &&
               other.id !== e.id &&
+              other.kind !== "VISIT" &&
+              e.kind !== "VISIT" &&
               overlaps(other, e),
           ),
       )
@@ -616,7 +618,7 @@ export function validateSchedule(s: Schedule, data: Data): string[] {
     const reason = blocked(m, e, data, checked, s.events);
     if (reason) errors.push(`${ministerDisplayName(m)}: ${reason}.`);
     const spouse = data.ministers.find((x) => x.id === m.spouseId);
-    if (spouse) {
+    if (spouse && e.kind === "MASS") {
       const together = s.assignments.some(
         (x) => x.eventId === e.id && x.ministerId === spouse.id,
       );
@@ -637,6 +639,32 @@ export function validateSchedule(s: Schedule, data: Data): string[] {
     }
     checked.push(a);
   }
+  for (const minister of data.ministers) {
+    const spouse = data.ministers.find(
+      (person) => person.id === minister.spouseId,
+    );
+    if (!spouse || minister.id.localeCompare(spouse.id) > 0) continue;
+    const visitDates = (ministerId: string) =>
+      new Set(
+        s.assignments
+          .filter((assignment) => assignment.ministerId === ministerId)
+          .map((assignment) =>
+            s.events.find((event) => event.id === assignment.eventId),
+          )
+          .filter((event) => event?.kind === "VISIT")
+          .map((event) => event!.date),
+      );
+    const dates = visitDates(minister.id);
+    const spouseDates = visitDates(spouse.id);
+    if (
+      dates.size > 0 &&
+      spouseDates.size > 0 &&
+      ![...dates].some((date) => spouseDates.has(date))
+    )
+      errors.push(
+        `${ministerDisplayName(minister)} e ${ministerDisplayName(spouse)}: as visitas do casal devem ocorrer no mesmo dia; podem ser em assistidos diferentes.`,
+      );
+  }
   return [...new Set(errors)];
 }
 
@@ -650,11 +678,7 @@ export function advisories(s: Schedule) {
       .sort((a, b) => a.date.localeCompare(b.date));
     for (let i = 1; i < own.length; i++) {
       const distance = Date.parse(own[i].date) - Date.parse(own[i - 1].date);
-      if (distance === 0)
-        result.push(
-          `${ministerDisplayName(m)}: mais de um compromisso em ${own[i].date}.`,
-        );
-      else if (distance === 86400000)
+      if (distance === 86400000)
         result.push(
           `${ministerDisplayName(m)}: compromissos em dias consecutivos.`,
         );
@@ -669,7 +693,11 @@ export function overlappingAgenda(s: Schedule) {
       .slice(index + 1)
       .filter(
         (other) =>
-          !event.cancelled && !other.cancelled && overlaps(event, other),
+          !event.cancelled &&
+          !other.cancelled &&
+          event.kind !== "VISIT" &&
+          other.kind !== "VISIT" &&
+          overlaps(event, other),
       )
       .map(
         (other) =>

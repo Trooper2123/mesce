@@ -4,10 +4,12 @@ import {
   sortCalendarEvents,
   eventOverlapNotice,
 } from "@/lib/event-agenda";
-import type { Event } from "@/lib/domain";
+import { eventTimeLabel, type Assisted, type Event } from "@/lib/domain";
+import { isAltevitaGroupVisit } from "@/lib/visit-group";
 export function Calendar({
   month,
   events,
+  assisteds = [],
   impediments = {},
   agendaEvents = events,
   view = "FULL",
@@ -16,6 +18,7 @@ export function Calendar({
 }: {
   month: string;
   events: Event[];
+  assisteds?: Assisted[];
   impediments?: Record<string, string[]>;
   agendaEvents?: Event[];
   view?: "FULL" | "SUMMARY" | "SPLIT" | "MASSES" | "VISITS";
@@ -29,6 +32,7 @@ export function Calendar({
           {...{
             month,
             events,
+            assisteds,
             impediments,
             agendaEvents,
             eventClass,
@@ -40,6 +44,7 @@ export function Calendar({
           {...{
             month,
             events,
+            assisteds,
             impediments,
             agendaEvents,
             eventClass,
@@ -70,27 +75,25 @@ export function Calendar({
     { length: Math.ceil((days + first) / 7) * 7 },
     (_, i) => i - first + 1,
   );
-  const sundays = Array.from({ length: days }, (_, i) => i + 1).filter(
-    (day) => new Date(Date.UTC(year, number - 1, day)).getUTCDay() === 0,
+  const weeks = Array.from({ length: cells.length / 7 }, (_, week) =>
+    cells.slice(week * 7, week * 7 + 7),
   );
-  const weeks = visitsOnly
-    ? [sundays]
-    : Array.from({ length: cells.length / 7 }, (_, week) =>
-        cells.slice(week * 7, week * 7 + 7),
-      );
   const heading = visitsOnly
-    ? "Visitas aos assistidos · Domingos"
+    ? "Visitas aos assistidos"
     : view === "MASSES"
       ? "Missas e celebrações"
       : compact
         ? "Calendário resumido"
         : "Calendário";
-  const headers = visitsOnly
-    ? sundays.map(
-        (day) =>
-          `Domingo ${String(day).padStart(2, "0")}/${String(number).padStart(2, "0")}`,
-      )
-    : ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
+  const headers = [
+    "Domingo",
+    "Segunda",
+    "Terça",
+    "Quarta",
+    "Quinta",
+    "Sexta",
+    "Sábado",
+  ];
   return (
     <section className="panel">
       <h2>
@@ -99,8 +102,12 @@ export function Calendar({
       <p className="calendar-legend">
         {!visitsOnly && (
           <>
-            <span className="event-key-fixed">Fixo recorrente</span>{" "}
-            <span className="event-key-extraordinary">Extraordinário</span>{" "}
+            <span className="event-key-fixed">Missa fixa</span>{" "}
+            <span className="event-key-extraordinary">
+              Celebração extraordinária
+            </span>{" "}
+            <span className="event-key-wedding">Casamento</span>{" "}
+            <span className="event-key-adoration">Adoração</span>{" "}
           </>
         )}
         {view !== "MASSES" && (
@@ -114,10 +121,8 @@ export function Calendar({
         tabIndex={0}
       >
         <table
-          style={
-            visitsOnly ? { minWidth: `${sundays.length * 210}px` } : undefined
-          }
-          className={`calendar${visitsOnly ? " calendar-sundays" : ""}${compact ? " calendar-compact" : ""}`}
+          style={visitsOnly ? { minWidth: "850px" } : undefined}
+          className={`calendar${compact ? " calendar-compact" : ""}`}
         >
           <thead>
             <tr>
@@ -156,18 +161,25 @@ export function Calendar({
                                   : undefined
                               }
                               prefetch={false}
-                              aria-label={`Editar ${e.title}, ${e.date.split("-").reverse().join("/")} às ${e.time}, ${e.location}${compact && warnings.get(e.id) ? `. ${warnings.get(e.id)}` : ""}`}
+                              aria-label={`Editar ${isAltevitaGroupVisit(e, assisteds) ? "Atendimento ao grupo Altevita" : e.title}, ${e.date.split("-").reverse().join("/")}, ${eventTimeLabel(e)}, ${e.location}${compact && warnings.get(e.id) ? `. ${warnings.get(e.id)}` : ""}`}
                               key={e.id}
                               className={
                                 "calendar-event " +
                                 (e.kind === "VISIT"
                                   ? "calendar-event-visit"
-                                  : eventClassOf(e) === "FIXED"
-                                    ? "calendar-event-fixed"
-                                    : "calendar-event-extraordinary")
+                                  : e.kind === "WEDDING"
+                                    ? "calendar-event-wedding"
+                                    : e.kind === "ADORATION"
+                                      ? "calendar-event-adoration"
+                                      : eventClassOf(e) === "FIXED"
+                                        ? "calendar-event-fixed"
+                                        : "calendar-event-extraordinary")
                               }
                             >
-                              <time>{e.time}</time> {e.title}
+                              <time>{eventTimeLabel(e)}</time>{" "}
+                              {isAltevitaGroupVisit(e, assisteds)
+                                ? "Atendimento ao grupo Altevita"
+                                : e.title}
                               {!compact && (
                                 <>
                                   <small>

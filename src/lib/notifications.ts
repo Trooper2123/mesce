@@ -1,4 +1,9 @@
-import { eventInstant, latestPublished, type Data } from "./domain";
+import {
+  eventInstant,
+  eventTimeLabel,
+  latestPublished,
+  type Data,
+} from "./domain";
 import type { Identity } from "./access";
 export type Notification = {
   id: string;
@@ -41,8 +46,8 @@ export function notificationsFor(
           : "Compromisso remarcado",
       description:
         change.kind === "CANCEL"
-          ? `O compromisso de ${change.previousDate}, às ${change.previousTime}, foi cancelado. Consulte a coordenação.`
-          : `O compromisso de ${change.previousDate}, às ${change.previousTime}, foi remarcado para ${event.date}, às ${event.time}. Aguarde a escala revisada pela coordenação.`,
+          ? `O compromisso de ${change.previousDate}${event.kind === "VISIT" ? ", horário a combinar" : `, às ${change.previousTime}`}, foi cancelado. Consulte a coordenação.`
+          : `O compromisso de ${change.previousDate}${event.kind === "VISIT" ? ", horário a combinar" : `, às ${change.previousTime}`} foi remarcado para ${event.date}, ${eventTimeLabel(event)}. Aguarde a escala revisada pela coordenação.`,
       href: user.coordinator
         ? `/celebracoes?edit=${event.id}`
         : "/minhas-escalas",
@@ -96,7 +101,7 @@ export function notificationsFor(
         id: `reminder:${schedule.id}:${event.id}`,
         type: "REMINDER",
         title: "Lembrete de compromisso",
-        description: `Você tem um compromisso em ${event.date}, às ${event.time}. Consulte a escala autenticada.`,
+        description: `Você tem um compromisso em ${event.date}, ${eventTimeLabel(event)}. Consulte a escala autenticada.`,
       });
     }
   }

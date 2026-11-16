@@ -8,32 +8,179 @@ import {
 } from "lucide-react";
 import { actor } from "@/lib/auth";
 import { readData } from "@/lib/store";
-import { nextMonth } from "@/lib/domain";
+import {
+  currentMonth,
+  eventTimeLabel,
+  latestPublished,
+  nextMonth,
+} from "@/lib/domain";
+import { linkedMinister } from "@/lib/access";
+import { missingMinisterFields } from "@/lib/profile";
+import { isAltevitaGroupVisit } from "@/lib/visit-group";
 export const dynamic = "force-dynamic";
 export default async function Home() {
   const user = await actor();
-  if (!user.coordinator)
+  const data = await readData();
+  if (!user.coordinator) {
+    const minister = linkedMinister(user, data);
+    const thisMonth = currentMonth();
+    const publishedSchedules = minister
+      ? latestPublished(data)
+          .filter(
+            (schedule) =>
+              schedule.month >= thisMonth &&
+              schedule.assignments.some(
+                (assignment) => assignment.ministerId === minister.id,
+              ),
+          )
+          .sort((a, b) => a.month.localeCompare(b.month))
+      : [];
+    const schedule =
+      publishedSchedules.find((item) => item.month === thisMonth) ??
+      publishedSchedules[0];
+    const assignments =
+      schedule?.assignments.filter(
+        (assignment) => assignment.ministerId === minister?.id,
+      ) ?? [];
+    const events = assignments
+      .map((assignment) =>
+        schedule?.events.find((event) => event.id === assignment.eventId),
+      )
+      .filter((event): event is NonNullable<typeof event> => !!event)
+      .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+    const agendaHref = schedule
+      ? `/minhas-escalas#escala-${schedule.id}`
+      : "/minhas-escalas";
+    const agendaMonth = schedule?.month ?? thisMonth;
+    const agendaMonthLabel = new Intl.DateTimeFormat("pt-BR", {
+      month: "long",
+      year: "numeric",
+      timeZone: "UTC",
+    }).format(new Date(`${agendaMonth}-01T12:00:00Z`));
     return (
-      <section className="panel">
-        <h1>Bem-vindo ao ministério</h1>
-        <p>
-          Consulte suas designações e informe seus impedimentos para o próximo
-          mês.
-        </p>
-        <div className="hero-actions">
+      <>
+        <div className="hero minister-home-heading">
+          <div>
+            <span className="eyebrow">A serviço da comunidade</span>
+            <h1>Visão geral do ministro</h1>
+            <p className="subtitle">
+              Consulte sua agenda e acesse os recursos do ministério.
+            </p>
+          </div>
           <Link className="button secondary" href="/notificacoes">
             Central de notificações
           </Link>
-          <Link className="button" href="/minhas-escalas">
-            Minhas escalas
-          </Link>
+        </div>
+        <section
+          className="intro minister-reminder"
+          aria-labelledby="availability-title"
+        >
+          <div>
+            <span className="eyebrow">SUA DISPONIBILIDADE</span>
+            <h2 id="availability-title">
+              Uma escala justa começa com sua disponibilidade.
+            </h2>
+            <p>
+              Informe seus impedimentos até o dia 25 do mês anterior para a
+              coordenação preparar a próxima escala.
+            </p>
+          </div>
           <Link className="button secondary" href="/impedimentos">
             Informar impedimentos
           </Link>
+        </section>
+        <div className="grid minister-home-grid">
+          <section className="panel" aria-labelledby="minister-agenda">
+            <div className="panel-head">
+              <div>
+                <h2 id="minister-agenda">Agenda do mês</h2>
+                <small className="muted">{agendaMonthLabel}</small>
+              </div>
+              <Link className="action" href={agendaHref}>
+                Ver minha escala →
+              </Link>
+            </div>
+            {events.length ? (
+              events.map((event) => (
+                <div className="row" key={event.id}>
+                  <div className="datebox">
+                    {event.date.slice(8)}
+                    <small>{eventTimeLabel(event)}</small>
+                  </div>
+                  <div className="minister-agenda-details">
+                    <strong>
+                      {isAltevitaGroupVisit(event, data.assisted)
+                        ? "Atendimento ao grupo Altevita"
+                        : event.title}
+                    </strong>
+                    <div className="muted">
+                      {event.kind === "VISIT" ? "Visita" : "Celebração"} ·{" "}
+                      {event.location}
+                    </div>
+                  </div>
+                  <span className="tag">
+                    {event.kind === "VISIT" ? "Visita" : "Escala"}
+                  </span>
+                </div>
+              ))
+            ) : (
+              <div className="empty">
+                <CalendarDays size={30} />
+                <p>
+                  {minister
+                    ? "Não há designações publicadas para você neste mês."
+                    : "Seu e-mail ainda não está vinculado a um cadastro de ministro."}
+                </p>
+                <Link href="/minhas-escalas">Consultar minhas escalas</Link>
+              </div>
+            )}
+          </section>
+          <section className="panel" aria-labelledby="minister-features">
+            <div className="panel-head">
+              <h2 id="minister-features">Funcionalidades disponíveis</h2>
+            </div>
+            <ol className="steps minister-feature-list">
+              <li>
+                <Link href="/meus-dados">Meu cadastro e preferências</Link>
+                <small>
+                  Atualize seus contatos, comunidades e atividades preferidas.
+                  {minister &&
+                    missingMinisterFields(minister).length > 0 &&
+                    ` Pendências: ${missingMinisterFields(minister).join(", ")}.`}
+                </small>
+              </li>
+              <li>
+                <Link href="/impedimentos">Impedimentos</Link>
+                <small>
+                  Informe datas, períodos ou celebrações em que não poderá
+                  servir.
+                </small>
+              </li>
+              <li>
+                <Link href="/minhas-escalas">Minhas escalas</Link>
+                <small>
+                  Consulte compromissos publicados e os detalhes das visitas
+                  designadas a você.
+                </small>
+              </li>
+              <li>
+                <Link href="/minhas-escalas/calendario">Agenda pessoal</Link>
+                <small>
+                  Sincronize seus compromissos com o calendário do celular.
+                </small>
+              </li>
+              <li>
+                <Link href="/minhas-escalas/avisos">Notificações</Link>
+                <small>
+                  Configure avisos no aplicativo para publicações e mudanças.
+                </small>
+              </li>
+            </ol>
+          </section>
         </div>
-      </section>
+      </>
     );
-  const data = await readData();
+  }
   const month = nextMonth();
   const events = data.events
     .filter((e) => e.date.startsWith(month))
@@ -146,7 +293,7 @@ export default async function Home() {
               <div className="row" key={e.id}>
                 <div className="datebox">
                   {e.date.slice(8)}
-                  <small>{e.time}</small>
+                  <small>{eventTimeLabel(e)}</small>
                 </div>
                 <div style={{ flex: 1 }}>
                   <strong>{e.title}</strong>

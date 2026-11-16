@@ -27,8 +27,16 @@ import { actor } from "@/lib/auth";
 import { readData, transaction, audit } from "@/lib/store";
 import { save } from "@/app/actions";
 import { Field, Check, Notice } from "@/components/fields";
-import { impeded, Minister, Assisted, Event, Absence } from "@/lib/domain";
+import {
+  impeded,
+  eventTimeLabel,
+  Minister,
+  Assisted,
+  Event,
+  Absence,
+} from "@/lib/domain";
 import { Fragment } from "react";
+import { isAltevitaGroupVisit } from "@/lib/visit-group";
 export const dynamic = "force-dynamic";
 const sections = {
   ministros: [
@@ -127,7 +135,7 @@ export default async function Registry({
       : "SUMMARY";
   const nameOptions = eventNameOptions(data.events);
   const inclusionOrder = new Map(rows.map((row, index) => [row.id, index]));
-  const sortOrder = ["NAME", "STATUS", "OLDEST", "NEWEST"].includes(
+  const sortOrder = ["NAME", "STATUS", "OLDEST", "NEWEST", "GROUP"].includes(
     query.sort ?? "",
   )
     ? query.sort!
@@ -149,6 +157,16 @@ export default async function Registry({
                 : 1;
             const difference = status(a) - status(b);
             if (difference) return difference;
+          }
+          if (sortOrder === "GROUP") {
+            const group = (item: (typeof rows)[number]) =>
+              "groupVisit" in item && item.groupVisit
+                ? item.groupName?.trim() || "Grupo sem nome"
+                : "Sem grupo";
+            const groupOrder = group(a).localeCompare(group(b), "pt-BR", {
+              sensitivity: "base",
+            });
+            if (groupOrder) return groupOrder;
           }
           return ("name" in a ? a.name : "").localeCompare(
             "name" in b ? b.name : "",
@@ -209,6 +227,46 @@ export default async function Registry({
         <p role="status" className="notice">
           Cadastro excluído com sucesso.
         </p>
+      )}
+      {kind === "absence" && (
+        <section className="panel">
+          <h2>Visão geral dos impedimentos no calendário</h2>
+          <p className="muted">
+            Cada evento mostra os ministros com impedimento registrado para
+            aquela data ou celebração. Eventos sem impedimento continuam
+            visíveis.
+          </p>
+          <form className="toolbar">
+            <Field
+              name="month"
+              label="Mês do calendário"
+              type="month"
+              value={month}
+            />
+            <button className="secondary">Consultar</button>
+          </form>
+          <Calendar
+            month={month}
+            view="FULL"
+            assisteds={data.assisted}
+            agendaEvents={data.events}
+            impediments={Object.fromEntries(
+              data.events.map((calendarEvent) => [
+                calendarEvent.id,
+                ministers
+                  .filter((person) =>
+                    impeded(person.id, calendarEvent, data.absences),
+                  )
+                  .map((person) => person.name),
+              ]),
+            )}
+            events={data.events.filter(
+              (calendarEvent) =>
+                calendarEvent.date.startsWith(month) &&
+                !calendarEvent.cancelled,
+            )}
+          />
+        </section>
       )}
       {kind === "event" && (
         <Link
@@ -481,12 +539,6 @@ export default async function Registry({
                 )}
                 {kind === "event" && (
                   <>
-                    <Field
-                      name="title"
-                      label="Nome da celebração ou visita"
-                      value={event?.title}
-                      required
-                    />
                     <EventFields
                       catalog={locationCatalog(data)}
                       event={event}
@@ -506,17 +558,9 @@ export default async function Registry({
                         }))}
                     />
                     <Field
-                      name="time"
-                      label="Horário"
-                      type="time"
-                      value={event?.time ?? "08:00"}
-                      required
-                    />
-                    <Field
-                      name="duration"
-                      label="Duração em minutos"
-                      type="number"
-                      value={event?.duration ?? 60}
+                      name="title"
+                      label="Nome da celebração ou visita"
+                      value={event?.title}
                       required
                     />
                   </>
@@ -535,7 +579,7 @@ export default async function Registry({
                         absence={absence}
                         events={specificCelebrations(data.events).map((e) => ({
                           id: e.id,
-                          label: `${e.date} ${e.time} • ${e.title} • ${e.location}`,
+                          label: `${e.date} ${eventTimeLabel(e)} • ${e.title} • ${e.location}`,
                         }))}
                       />
                     </>
@@ -547,14 +591,19 @@ export default async function Registry({
                       }))}
                       events={specificCelebrations(data.events).map((e) => ({
                         id: e.id,
-                        label: `${e.date} ${e.time} • ${e.title} • ${e.location}`,
+                        label: `${e.date} ${eventTimeLabel(e)} • ${e.title} • ${e.location}`,
                       }))}
                     />
                   ))}
                 {kind !== "absence" && (
                   <Field
                     name="notes"
-                    label="Observações"
+                    label={
+                      kind === "event" &&
+                      (event?.kind === "VISIT" || query.type === "VISIT")
+                        ? "Observações (inclua o horário habitual, se houver)"
+                        : "Observações"
+                    }
                     type="textarea"
                     value={(minister ?? assisted ?? event)?.notes}
                   />
@@ -658,12 +707,22 @@ export default async function Registry({
                     type="date"
                     value={event.date}
                   />
-                  <Field
-                    name="time"
-                    label="Novo horário (remarcação)"
-                    type="time"
-                    value={event.time}
-                  />
+                  {event.kind === "VISIT" ? (
+                    <>
+                      <input type="hidden" name="time" value="12:00" />
+                      <p className="muted">
+                        O horário da visita será combinado com o assistido e
+                        registrado nas observações.
+                      </p>
+                    </>
+                  ) : (
+                    <Field
+                      name="time"
+                      label="Novo horário (remarcação)"
+                      type="time"
+                      value={event.time}
+                    />
+                  )}
                   <Field name="reason" label="Justificativa" required />
                 </div>
                 <p>
@@ -708,7 +767,7 @@ export default async function Registry({
               value={calendarView}
               options={[
                 ["SUMMARY", "Resumido · todos os eventos"],
-                ["SPLIT", "Separado · missas e visitas aos domingos"],
+                ["SPLIT", "Separado · celebrações e visitas"],
                 ["FULL", "Completo · todos os detalhes"],
               ]}
             />
@@ -723,6 +782,7 @@ export default async function Registry({
           </form>
           <Calendar
             eventName={query.eventName}
+            assisteds={data.assisted}
             view={calendarView}
             eventClass={query.eventClass ?? "ALL"}
             month={month}
@@ -765,6 +825,9 @@ export default async function Registry({
               value={sortOrder}
               options={[
                 ["NAME", "Nome (A–Z)"],
+                ...(kind === "assisted"
+                  ? ([["GROUP", "Grupo de visita (A–Z)"]] as const)
+                  : []),
                 ["STATUS", "Situação"],
                 ["OLDEST", "Data de inclusão (mais antigos)"],
                 ["NEWEST", "Data de inclusão (mais recentes)"],
@@ -842,7 +905,9 @@ export default async function Registry({
                         {"name" in r
                           ? r.name
                           : "title" in r
-                            ? r.title
+                            ? isAltevitaGroupVisit(r, data.assisted)
+                              ? "Atendimento ao grupo Altevita"
+                              : r.title
                             : data.ministers.find((m) => m.id === r.ministerId)
                                 ?.name}
                       </td>
@@ -873,7 +938,7 @@ export default async function Registry({
                           </>
                         ) : "time" in r ? (
                           <>
-                            {r.date} · {r.time}
+                            {r.date} · {eventTimeLabel(r)}
                             {eventOverlapNotice(r, data.events) && (
                               <small className="event-overlap">
                                 {eventOverlapNotice(r, data.events)}
@@ -951,7 +1016,7 @@ export default async function Registry({
                               "name" in r
                                 ? r.name
                                 : "title" in r
-                                  ? `${r.title} · ${r.date} ${r.time}`
+                                  ? `${r.title} · ${r.date} ${eventTimeLabel(r)}`
                                   : "Impedimento"
                             }
                           />

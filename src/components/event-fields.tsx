@@ -35,10 +35,16 @@ export function EventFields({
       timeZone: "America/Sao_Paulo",
     }).format(new Date());
   const [kind, setKind] = useState(event?.kind ?? (visit ? "VISIT" : "MASS"));
+  const [activityGroup, setActivityGroup] = useState<"CELEBRATIONS" | "VISITS">(
+    event?.kind === "VISIT" || visit ? "VISITS" : "CELEBRATIONS",
+  );
   const [category, setCategory] = useState<"FIXED" | "EXTRAORDINARY">(
     event ? eventClassOf(event) : visit ? "EXTRAORDINARY" : "FIXED",
   );
   const [assistedId, setAssistedId] = useState(event?.assistedId ?? "");
+  const [visitSite, setVisitSite] = useState<"HOME" | "ALTEVITA">(
+    event?.visitSite ?? "HOME",
+  );
   const [members, setMembers] = useState(
     event
       ? visitAssistedIds(event).filter((id) => id !== event.assistedId)
@@ -77,44 +83,65 @@ export function EventFields({
   return (
     <>
       <label className="field">
-        Tipo de atividade
+        O que deseja cadastrar?
         <select
-          name="eventKind"
-          value={kind}
+          name="activityGroup"
+          value={activityGroup}
           onChange={(e) => {
-            const value = e.target.value as Event["kind"];
-            setKind(value);
-            setCategory(
-              ["MASS", "ADORATION"].includes(value) ? "FIXED" : "EXTRAORDINARY",
-            );
+            const value = e.target.value as typeof activityGroup;
+            setActivityGroup(value);
+            setKind(value === "VISITS" ? "VISIT" : "MASS");
+            setCategory(value === "VISITS" ? "EXTRAORDINARY" : "FIXED");
           }}
         >
-          <option value="MASS">Missa</option>
-          <option value="ADORATION">Adoração</option>
-          <option value="WEDDING">Casamento</option>
-          <option value="SPECIAL">Evento especial</option>
-          <option value="VISIT">Visita dominical</option>
+          <option value="CELEBRATIONS">Celebração</option>
+          <option value="VISITS">Visita a assistidos</option>
         </select>
       </label>
       {kind === "VISIT" ? (
         <>
+          <input type="hidden" name="eventKind" value="VISIT" />
           <input type="hidden" name="eventClass" value="EXTRAORDINARY" />
           <p className="notice">
-            Cada visita é um evento extraordinário na data selecionada.
+            A visita tem campos próprios e pode ser agendada conforme a
+            disponibilidade do assistido.
           </p>
         </>
       ) : (
-        <label className="field">
-          Organização do evento
-          <select
-            name="eventClass"
-            value={category}
-            onChange={(e) => setCategory(e.target.value as typeof category)}
-          >
-            <option value="FIXED">Fixo recorrente</option>
-            <option value="EXTRAORDINARY">Extraordinário</option>
-          </select>
-        </label>
+        <>
+          <label className="field">
+            Tipo de celebração
+            <select
+              name="eventKind"
+              value={kind}
+              onChange={(e) => {
+                const value = e.target.value as Event["kind"];
+                setKind(value);
+                setCategory(
+                  ["MASS", "ADORATION"].includes(value)
+                    ? "FIXED"
+                    : "EXTRAORDINARY",
+                );
+              }}
+            >
+              <option value="MASS">Missa</option>
+              <option value="ADORATION">Adoração</option>
+              <option value="WEDDING">Casamento</option>
+              <option value="SPECIAL">Evento especial</option>
+            </select>
+          </label>
+          <label className="field">
+            Organização do evento
+            <select
+              name="eventClass"
+              value={category}
+              onChange={(e) => setCategory(e.target.value as typeof category)}
+            >
+              <option value="FIXED">Fixo recorrente</option>
+              <option value="EXTRAORDINARY">Extraordinário</option>
+            </select>
+          </label>
+        </>
       )}
       {!event ? (
         <label className="field">
@@ -149,9 +176,36 @@ export function EventFields({
       ) : (
         <Field
           name="date"
-          label="Data (visitas somente aos domingos)"
+          label={kind === "VISIT" ? "Data da visita" : "Data"}
           type="date"
           value={event?.date}
+          required
+        />
+      )}
+      {kind === "VISIT" ? (
+        <>
+          <input type="hidden" name="time" value="12:00" />
+          <input type="hidden" name="duration" value="60" />
+          <p className="muted">
+            A visita não tem horário fixo. Combine o horário conforme a
+            disponibilidade do assistido e registre o costume em Observações.
+          </p>
+        </>
+      ) : (
+        <Field
+          name="time"
+          label="Horário"
+          type="time"
+          value={event?.time}
+          required
+        />
+      )}
+      {kind !== "VISIT" && (
+        <Field
+          name="duration"
+          label="Duração em minutos"
+          type="number"
+          value={event?.duration ?? 60}
           required
         />
       )}
@@ -196,25 +250,47 @@ export function EventFields({
       {kind === "VISIT" ? (
         <>
           <label className="field">
+            Tipo de atendimento
+            <select
+              name="visitSite"
+              value={visitSite}
+              onChange={(e) => {
+                const value = e.target.value as typeof visitSite;
+                setVisitSite(value);
+                if (value === "ALTEVITA") {
+                  setAssistedId("");
+                  setMembers([]);
+                  setGroupRequired(event?.required ?? 3);
+                }
+              }}
+            >
+              <option value="HOME">Assistido ou grupo domiciliar</option>
+              <option value="ALTEVITA">Atendimento no Altevita</option>
+            </select>
+          </label>
+          <label className="field">
             Quantidade de ministros indicada
             <input
               name="required"
               type="number"
-              readOnly={members.length === 0}
+              readOnly={visitSite === "HOME" && members.length === 0}
               min={1}
               max={100}
               onChange={(e) => setGroupRequired(Number(e.target.value))}
               value={
-                members.length
+                visitSite === "ALTEVITA"
                   ? groupRequired
-                  : (options.find((a) => a.id === assistedId)
-                      ?.ministersRequired ?? 1)
+                  : members.length
+                    ? groupRequired
+                    : (options.find((a) => a.id === assistedId)
+                        ?.ministersRequired ?? 1)
               }
             />
           </label>
           <p className="muted">
-            Para visitas individuais, vale a quantidade do cadastro. Para
-            grupos, defina uma única equipe; as quantidades não são somadas.
+            {visitSite === "ALTEVITA"
+              ? "Informe quantos ministros serão designados para atender o grupo. A escala não identifica assistidos individuais."
+              : "Para visitas individuais, vale a quantidade do cadastro. Para grupos, defina uma única equipe; as quantidades não são somadas."}
           </p>
         </>
       ) : (
@@ -230,8 +306,18 @@ export function EventFields({
       {kind === "VISIT" ? (
         <Field
           name="location"
-          label="Local da visita (restrito)"
-          value={event?.kind === "VISIT" ? event.location : ""}
+          label={
+            visitSite === "ALTEVITA"
+              ? "Local do atendimento"
+              : "Local da visita (restrito)"
+          }
+          value={
+            visitSite === "ALTEVITA"
+              ? "Altevita"
+              : event?.kind === "VISIT"
+                ? event.location
+                : ""
+          }
           required
         />
       ) : (
@@ -255,11 +341,19 @@ export function EventFields({
           required
         />
       )}
-      {kind === "VISIT" ? (
+      {kind === "VISIT" && visitSite === "ALTEVITA" ? (
+        <div className="wide">
+          <input type="hidden" name="assistedId" value="" />
+          <p className="notice">
+            Os ministros serão designados para o atendimento no local. Nenhum
+            assistido individual será vinculado a esta escala.
+          </p>
+        </div>
+      ) : kind === "VISIT" ? (
         <div className="wide">
           <p>
-            Assistidos cadastra a pessoa; aqui você agenda sua visita de
-            domingo. A distribuição de ministros acontece em Escalas.
+            Assistidos cadastra a pessoa; aqui você agenda a visita na data
+            combinada. A distribuição de ministros acontece em Escalas.
           </p>
           {options.length ? (
             <label className="field">

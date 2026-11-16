@@ -11,14 +11,30 @@ export function parseEventForm(form: FormData, id: string, previous?: Event) {
   return eventSchema.parse({
     ...raw,
     id,
+    title:
+      raw.eventKind === "VISIT" && raw.visitSite === "ALTEVITA"
+        ? "Atendimento Altevita"
+        : raw.title,
+    location:
+      raw.eventKind === "VISIT" && raw.visitSite === "ALTEVITA"
+        ? "Altevita"
+        : raw.location,
     kind: raw.eventKind,
     eventClass: raw.eventClass ?? previous?.eventClass,
     seriesId: previous?.seriesId,
     seriesException: previous?.seriesId ? true : undefined,
     changeNotice: previous?.changeNotice,
     cancelled: previous?.cancelled,
-    visitSite: undefined,
-    assistedId: raw.eventKind === "VISIT" ? raw.assistedId : "",
+    visitSite:
+      raw.eventKind === "VISIT"
+        ? raw.visitSite === "ALTEVITA"
+          ? "ALTEVITA"
+          : "HOME"
+        : undefined,
+    assistedId:
+      raw.eventKind === "VISIT" && raw.visitSite !== "ALTEVITA"
+        ? raw.assistedId
+        : "",
     assistedIds:
       raw.eventKind === "VISIT"
         ? [...new Set(form.getAll("assistedIds").map(String))]
@@ -34,6 +50,14 @@ export function parseEventForm(form: FormData, id: string, previous?: Event) {
 
 export function applyVisitStaffing(event: Event, assisted: Assisted[]): Event {
   if (event.kind !== "VISIT") return event;
+  if (event.visitSite === "ALTEVITA")
+    return eventSchema.parse({
+      ...event,
+      assistedId: "",
+      assistedIds: [],
+      groupMinistersRequired: undefined,
+      required: event.required,
+    });
   const person = assisted.find((a) => a.id === event.assistedId && a.active);
   if (!person) throw new Error("Selecione um assistido ativo.");
   const ids = visitAssistedIds(event);
