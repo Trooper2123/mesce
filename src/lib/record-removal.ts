@@ -58,6 +58,22 @@ const scheduleEvents = (schedule: Data["schedules"][number]) => [
   ...schedule.events,
   ...(schedule.agendaEvents ?? []),
 ];
+export function locationInUse(data: Data, id: string, name: string) {
+  const uses = (event: Event) =>
+    event.kind !== "VISIT" &&
+    (event.locationId === id ||
+      locationKey(event.location) === locationKey(name));
+  return (
+    data.events.some(uses) ||
+    data.schedules.some((schedule) => scheduleEvents(schedule).some(uses)) ||
+    data.ministers.some(
+      (minister) =>
+        minister.locationIds?.includes(id) ||
+        (!minister.locationIds?.length &&
+          locationKey(minister.location) === locationKey(name)),
+    )
+  );
+}
 export function planRecordRemoval(form: FormData, data: Data) {
   const kind = z.enum(removalKinds).parse(form.get("kind"));
   const id = z.string().uuid().parse(form.get("id"));
@@ -210,46 +226,6 @@ export function planRecordRemoval(form: FormData, data: Data) {
         [scheduleLink(schedule.month)],
       );
   }
-  if (kind === "location") {
-    const l = locationCatalog(data).find((l) => l.id === id)!;
-    const usesLocation = (e: Event) =>
-      e.kind !== "VISIT" &&
-      (e.locationId === id || locationKey(e.location) === locationKey(l.name));
-    const registryEvents = data.events.filter(usesLocation);
-    const historicalUses = data.schedules.flatMap((s) =>
-      scheduleEvents(s)
-        .filter(usesLocation)
-        .map((event) => ({ schedule: s, event })),
-    );
-    const ministers = data.ministers.filter(
-      (m) =>
-        m.locationIds?.includes(id) ||
-        (!m.locationIds?.length &&
-          locationKey(m.location) === locationKey(l.name)),
-    );
-    if (registryEvents.length || historicalUses.length || ministers.length) {
-      const reasons = [
-        (registryEvents.length || historicalUses.length) &&
-          `${registryEvents.length + historicalUses.length} referência(s) em celebrações/escala(s)`,
-        ministers.length && `${ministers.length} preferência(s) de ministro`,
-      ].filter(Boolean);
-      const remediation = uniqueLinks([
-        ...registryEvents.map((e) =>
-          eventEditLink(e, `Ajustar local: ${e.title} (${e.date})`),
-        ),
-        ...historicalUses.map(({ schedule }) => scheduleLink(schedule.month)),
-        ...ministers.map((m) => ministerEditLink(m.id)),
-        {
-          href: `/locais#local-${id}`,
-          label: "Inativar o local e preservar o histórico",
-        },
-      ]);
-      throw new RemediationError(
-        `Não é possível excluir “${l.name}”: o local ainda possui ${reasons.join(" e ")}. Abra os registros listados e troque o local ou remova a preferência; depois tente novamente. Se o local não deve ser usado em novos cadastros, inative-o para preservar o histórico.`,
-        remediation,
-      );
-    }
-  }
   return { kind, id, reason, before };
 }
 
@@ -322,6 +298,22 @@ export async function executeRecordRemoval(
       );
   }
   if (plan.kind === "location") {
+    const location = locationCatalog(data).find((item) => item.id === plan.id)!;
+    if (locationInUse(data, location.id, location.name)) {
+      const locations = locationCatalog(data).map((item) =>
+        item.id === plan.id ? { ...item, active: false } : item,
+      );
+      await client.query(
+        "INSERT INTO mesce_settings(id,payload) VALUES(1,$1) ON CONFLICT(id) DO UPDATE SET payload=EXCLUDED.payload",
+        [encrypt({ ...defaultSettings, ...data.settings, locations })],
+      );
+      await audit(client, user.id, "location:deactivate", plan.id, {
+        before: plan.before,
+        reason: plan.reason,
+        referencesPreserved: true,
+      });
+      return { ...plan, deactivated: true };
+    }
     await client.query(
       "INSERT INTO mesce_settings(id,payload) VALUES(1,$1) ON CONFLICT(id) DO UPDATE SET payload=EXCLUDED.payload",
       [

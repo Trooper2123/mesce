@@ -8,11 +8,11 @@ import {
 } from "@/lib/preview-session";
 import { previewLogout, switchPreviewProfile } from "@/app/onboarding-actions";
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
-import { Church } from "lucide-react";
 import "./globals.css";
 export const metadata: Metadata = {
-  title: "MESCE • Gestão pastoral",
+  title: "Paróquia Nossa Senhora do Rosário, Lago Sul • MESCE",
   description:
     "Gestão dos Ministros Extraordinários da Sagrada Comunhão Eucarística",
 };
@@ -32,12 +32,13 @@ export default async function RootLayout({
         </a>
         <aside>
           <Link href="/" className="brand">
-            <span className="brand-icon">
-              <Church size={28} />
-            </span>
-            <span>
-              MESCE<small>Gestão pastoral</small>
-            </span>
+            <Image
+              src="/mesce-brand.png"
+              alt="MESCE — Gestão pastoral"
+              width={297}
+              height={137}
+              priority
+            />
           </Link>
           <p className="nav-label">ORGANIZAÇÃO DO MINISTÉRIO</p>
           <MainNavigation minister={preview?.previewRole === "MINISTER"} />
@@ -58,7 +59,8 @@ export default async function RootLayout({
         <div className="workspace">
           <header>
             <span>
-              Ministros Extraordinários da Sagrada Comunhão Eucarística
+              Paróquia Nossa Senhora do Rosário, Lago Sul · Ministros
+              Extraordinários da Sagrada Comunhão Eucarística
             </span>
             <Link href="/">MESCE</Link>
           </header>
@@ -71,8 +73,9 @@ export default async function RootLayout({
                 Homologação · {previewProfiles[preview.previewProfile].label}
               </strong>
               <p>
-                As alterações usam o banco de testes. Perfil de ministro sem
-                acesso administrativo.
+                As alterações usam o banco de testes. O perfil de coordenador
+                também possui um cadastro de ministro para homologar escalas;
+                os demais perfis não têm acesso administrativo.
               </p>
               <form action={switchPreviewProfile} className="toolbar">
                 <PreviewProfileFields selected={preview.previewProfile} />
@@ -81,7 +84,7 @@ export default async function RootLayout({
             </section>
           )}
           <main id="conteudo">{children}</main>
-          <footer>MESCE · Organização a serviço da comunhão</footer>
+          <footer>Paróquia Nossa Senhora do Rosário · Lago Sul · MESCE</footer>
         </div>
       </body>
     </html>

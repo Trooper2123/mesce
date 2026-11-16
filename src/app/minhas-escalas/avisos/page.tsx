@@ -22,10 +22,10 @@ export default async function NoticeSettingsPage() {
       <Link href="/minhas-escalas" className="button secondary">
         Voltar às minhas escalas
       </Link>
-      <h1>Notificações</h1>
+      <h1>Lembretes e avisos</h1>
       <p className="subtitle">
         Escolha como deseja receber avisos sobre alterações nas suas escalas
-        publicadas.
+        publicadas e configure o envio por e-mail.
       </p>
       {!settings.canManage ? (
         <p className="notice">
@@ -75,6 +75,17 @@ export default async function NoticeSettingsPage() {
               <p>Este canal ainda não está habilitado neste ambiente.</p>
             </section>
           )}
+          <section className="panel" style={{ marginTop: 20 }}>
+            <h2>Sincronizar com sua agenda pessoal</h2>
+            <p>
+              Adicione as designações publicadas ao Google Agenda, Apple Calendar
+              ou outro aplicativo compatível. A configuração da assinatura fica
+              na página da agenda pessoal.
+            </p>
+            <Link className="button secondary" href="/minhas-escalas/calendario">
+              Configurar agenda pessoal
+            </Link>
+          </section>
         </>
       )}
     </>

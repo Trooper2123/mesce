@@ -18,11 +18,27 @@ export default async function Notifications({
   if (query.id && !selected) notFound();
   return (
     <>
-      <h1>Central de notificações</h1>
+      <h1>Central de lembretes e avisos</h1>
       <p className="subtitle">
         Publicações, revisões e lembretes dos próximos sete dias. Consultar um
         aviso não confirma disponibilidade nem aprova a escala.
       </p>
+      <section className="panel" aria-labelledby="delivery-settings-title">
+        <h2 id="delivery-settings-title">Como receber lembretes e avisos</h2>
+        <p>
+          Configure notificações push neste dispositivo e o recebimento de
+          atualizações por e-mail. Você também pode sincronizar a agenda MESCE
+          com seu calendário pessoal.
+        </p>
+        <div className="hero-actions">
+          <Link className="button" href="/minhas-escalas/avisos">
+            Configurar push e e-mail
+          </Link>
+          <Link className="button secondary" href="/minhas-escalas/calendario">
+            Sincronizar agenda pessoal
+          </Link>
+        </div>
+      </section>
       {selected ? (
         <article className="panel">
           <h2>{selected.title}</h2>
@@ -37,7 +53,7 @@ export default async function Notifications({
                 ? "Consultar compromisso"
                 : "Abrir escala relacionada"}
             </Link>
-            <Link href="/notificacoes">Voltar às notificações</Link>
+            <Link href="/notificacoes">Voltar aos lembretes e avisos</Link>
           </div>
         </article>
       ) : (

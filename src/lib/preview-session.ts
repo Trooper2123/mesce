@@ -35,7 +35,7 @@ export const previewProfiles = {
     label: "Coordenador",
     sub: "mesce-preview-coordinator",
     email: "coordenacao@mesce.example",
-    ministerId: undefined,
+    ministerId: "9b6de502-6aa9-4c5d-9a6b-fb79c2614c03",
   },
   MINISTER_A: {
     label: "Ministro de teste A",

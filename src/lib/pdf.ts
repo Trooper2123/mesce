@@ -1,4 +1,4 @@
-import { visitAssistedIds } from "@/lib/visit-group";
+import { isAltevitaGroupVisit, visitAssistedIds } from "@/lib/visit-group";
 import {
   PDFDocument,
   StandardFonts,
@@ -398,11 +398,15 @@ async function render(
           String(Number(e.date.slice(8))),
           namesFor(schedule, e),
           restricted
-            ? (schedule.assistedSnapshot
-                ?.filter((p) => visitAssistedIds(e).includes(p.id))
-                .map((p) => p.name)
-                .join(", ") ?? "Assistido não informado")
-            : visitCodes.get(e.assistedId)!,
+            ? isAltevitaGroupVisit(e, schedule.assistedSnapshot ?? [])
+              ? "Atendimento ao grupo Altevita"
+              : (schedule.assistedSnapshot
+                  ?.filter((p) => visitAssistedIds(e).includes(p.id))
+                  .map((p) => p.name)
+                  .join(", ") ?? "Assistido não informado")
+            : isAltevitaGroupVisit(e, schedule.assistedSnapshot ?? [])
+              ? "Atendimento ao grupo Altevita"
+              : visitCodes.get(e.assistedId)!,
         ],
       })),
       rightWidths,

@@ -3,14 +3,26 @@ import { calendarReturn } from "@/lib/calendar-navigation";
 import { revalidatePath } from "next/cache";
 import { coordinator, assertCurrentActor } from "@/lib/auth";
 import { transaction, audit } from "@/lib/store";
-import { executeRecordRemoval, removalPages } from "@/lib/record-removal";
+import {
+  executeRecordRemoval,
+  locationInUse,
+  removalPages,
+} from "@/lib/record-removal";
+import { locationCatalog } from "@/lib/locations";
 import { RemediationError } from "@/lib/remediation";
 export async function removeRecord(form: FormData) {
   const user = await coordinator();
   let page = "";
+  let locationWasDeactivated = false;
   try {
     await transaction(async (client, data) => {
       await assertCurrentActor(client, user, true);
+      if (form.get("kind") === "location") {
+        const id = String(form.get("id") ?? "");
+        const location = locationCatalog(data).find((item) => item.id === id);
+        if (location)
+          locationWasDeactivated = locationInUse(data, id, location.name);
+      }
       const plan = await executeRecordRemoval(client, data, user, form);
       page = removalPages[plan.kind];
     });
@@ -43,7 +55,9 @@ export async function removeRecord(form: FormData) {
     redirectTo:
       page === "celebracoes"
         ? calendarReturn(form, "deleted")
-        : `/${page}?deleted=1`,
+        : page === "locais" && locationWasDeactivated
+          ? "/locais?deactivated=1"
+          : `/${page}?deleted=1`,
   };
 }
 

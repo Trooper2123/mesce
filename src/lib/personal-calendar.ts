@@ -204,6 +204,8 @@ export function personalCalendarIcs(
   for (const entry of entries) {
     const start = localDateTimeToUtc(entry.event.date, entry.event.time);
     const end = new Date(start.getTime() + entry.event.duration * 60000);
+    const visitEnd = new Date(`${entry.event.date}T12:00:00Z`);
+    visitEnd.setUTCDate(visitEnd.getUTCDate() + 1);
     const modified = new Date(entry.modifiedAt);
     const safeModified = Number.isNaN(modified.getTime()) ? now : modified;
     lines.push(
@@ -212,8 +214,12 @@ export function personalCalendarIcs(
       `DTSTAMP:${dateTime(safeModified)}`,
       `LAST-MODIFIED:${dateTime(safeModified)}`,
       `SEQUENCE:${entry.sequence}`,
-      `DTSTART:${dateTime(start)}`,
-      `DTEND:${dateTime(end)}`,
+      ...(entry.event.kind === "VISIT"
+        ? [
+            `DTSTART;VALUE=DATE:${entry.event.date.replaceAll("-", "")}`,
+            `DTEND;VALUE=DATE:${visitEnd.toISOString().slice(0, 10).replaceAll("-", "")}`,
+          ]
+        : [`DTSTART:${dateTime(start)}`, `DTEND:${dateTime(end)}`]),
       `SUMMARY:${escapeCalendarText(publicCalendarSummary(entry.event))}`,
       ...(entry.cancelled ? ["STATUS:CANCELLED"] : []),
       ...(entry.event.kind !== "VISIT" && entry.event.location

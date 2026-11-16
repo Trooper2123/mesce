@@ -1,4 +1,5 @@
-import { visitAssistedIds } from "@/lib/visit-group";
+import { isAltevitaGroupVisit, visitAssistedIds } from "@/lib/visit-group";
+import { eventTimeLabel } from "@/lib/domain";
 import Link from "next/link";
 import { linkedMinister } from "@/lib/access";
 import { actor } from "@/lib/auth";
@@ -48,7 +49,7 @@ export default async function Mine() {
           href="/minhas-escalas/avisos"
           style={{ marginInlineStart: 8 }}
         >
-          Configurar notificações
+          Configurar lembretes e avisos
         </Link>
       )}
       {!minister ? (
@@ -98,26 +99,33 @@ export default async function Mine() {
                         visitAssistedIds(e).includes(p.id),
                       )
                     : [];
+                const altevitaGroup = isAltevitaGroupVisit(e, data.assisted);
                 return (
                   <article className="schedule-event" key={e.id}>
-                    <h3>{e.title}</h3>
+                    <h3>
+                      {altevitaGroup
+                        ? "Atendimento ao grupo Altevita"
+                        : e.title}
+                    </h3>
                     <p>
-                      {e.date} · {e.time} · {e.location}
+                      {e.date} · {eventTimeLabel(e)} · {e.location}
                     </p>
-                    {assisted.map((assisted) => (
-                      <div key={assisted.id}>
-                        <strong>{assisted.name}</strong>
-                        <p>
-                          {assisted.address}, {assisted.neighborhood} ·{" "}
-                          {assisted.city}/{assisted.state}
-                        </p>
-                        <p>
-                          Contato: {assisted.mobile || assisted.landline} ·
-                          Familiar: {assisted.familyName} {assisted.familyPhone}
-                        </p>
-                      </div>
-                    ))}
-                    <p>{e.notes}</p>
+                    {!altevitaGroup &&
+                      assisted.map((assisted) => (
+                        <div key={assisted.id}>
+                          <strong>{assisted.name}</strong>
+                          <p>
+                            {assisted.address}, {assisted.neighborhood} ·{" "}
+                            {assisted.city}/{assisted.state}
+                          </p>
+                          <p>
+                            Contato: {assisted.mobile || assisted.landline} ·
+                            Familiar: {assisted.familyName}{" "}
+                            {assisted.familyPhone}
+                          </p>
+                        </div>
+                      ))}
+                    {e.notes && <p>{e.notes}</p>}
                   </article>
                 );
               })}

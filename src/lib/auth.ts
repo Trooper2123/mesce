@@ -5,7 +5,11 @@ import type { PoolClient } from "pg";
 import { decrypt } from "./crypto";
 import { pool } from "./store";
 import { findAccess, SessionIdentity } from "./registration";
-import { previewEnabled, readPreviewSession } from "./preview-session";
+import {
+  previewEnabled,
+  previewProfiles,
+  readPreviewSession,
+} from "./preview-session";
 export const configured = () =>
   !!(
     process.env.AUTH0_DOMAIN &&
@@ -50,7 +54,13 @@ export async function resolveActor(
   if (user.preview) {
     if (!previewEnabled()) return null;
     if (user.previewRole === "COORDINATOR")
-      return { ...user, coordinator: true };
+      return {
+        ...user,
+        coordinator: true,
+        ministerId: user.previewProfile
+          ? previewProfiles[user.previewProfile].ministerId
+          : undefined,
+      };
     if (user.previewRole !== "MINISTER") return null;
   }
   const legacyTable = user.preview

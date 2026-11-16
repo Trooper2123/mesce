@@ -1,0 +1,476 @@
+openapi: 3.1.0
+info:
+  title: MESCE — API e rotas do aplicativo
+  version: 1.0.0
+  description: |
+    Contrato das rotas HTTP explícitas implementadas pelo aplicativo MESCE.
+    A aplicação também usa páginas renderizadas pelo Next.js App Router e
+    Server Actions para formulários. Essas ações internas não são uma API
+    pública estável e, por isso, estão relacionadas em `x-mesce-web-routes`,
+    sem inventar contratos REST para elas.
+
+    Autorização é verificada no servidor. A sessão normal é mantida pelo SDK
+    Auth0; em Preview existe uma sessão própria, isolada e indisponível em
+    Production. O identificador do ministro nunca é aceito como seletor livre
+    nas operações pessoais: o vínculo vem da sessão autenticada.
+  contact:
+    name: Projeto MESCE
+    url: https://github.com/Trooper2123/mesce
+  license:
+    name: Proprietário do projeto
+servers:
+  - url: https://{host}
+    description: Ambiente publicado (substitua pelo domínio configurado)
+    variables:
+      host:
+        default: mesce.example.invalid
+  - url: http://localhost:3000
+    description: Desenvolvimento local
+tags:
+  - name: Autenticação
+  - name: Coordenação
+  - name: Escalas
+  - name: Agenda pessoal
+  - name: Entregas
+  - name: Modelos CSV
+  - name: Dados pessoais
+security:
+  - Auth0Session: []
+  - PreviewSession: []
+paths:
+  /auth/login:
+    get:
+      tags: [Autenticação]
+      operationId: iniciarLogin
+      summary: Inicia login pelo Auth0
+      description: |
+        Rota gerenciada pelo SDK Auth0. Em ambiente sem configuração, o
+        aplicativo direciona para `/setup`. Em Preview com bypass habilitado,
+        direciona para `/acesso-dev`.
+      security: []
+      responses:
+        '302':
+          description: Redirecionamento para o provedor de autenticação ou para a configuração local.
+        '307':
+          description: Redirecionamento interno para a página de homologação.
+  /auth/logout:
+    get:
+      tags: [Autenticação]
+      operationId: encerrarSessao
+      summary: Encerra a sessão Auth0
+      description: Rota gerenciada pelo SDK Auth0; o destino de logout usa as URLs permitidas configuradas no provedor.
+      security:
+        - Auth0Session: []
+      responses:
+        '302':
+          description: Sessão encerrada e navegador redirecionado.
+  /api/auth/callback:
+    get:
+      tags: [Autenticação]
+      operationId: callbackAuth0
+      summary: Recebe o retorno do Auth0
+      description: |
+        Callback gerenciado pelo SDK Auth0. O caminho pode ser alterado por
+        `MESCE_AUTH0_CALLBACK_PATH`; o padrão do código é `/api/auth/callback`.
+      security: []
+      parameters:
+        - name: code
+          in: query
+          required: false
+          schema: { type: string }
+          description: Código de autorização OAuth devolvido pelo Auth0.
+        - name: state
+          in: query
+          required: false
+          schema: { type: string }
+          description: Estado OAuth validado pelo SDK.
+      responses:
+        '302':
+          description: Login concluído e redirecionamento para o aplicativo.
+        '400':
+          description: Retorno OAuth inválido ou expirado.
+  /api/assisted-options:
+    get:
+      tags: [Coordenação, Dados pessoais]
+      operationId: listarAssistidosAtivos
+      summary: Lista assistidos ativos para formulários da coordenação
+      description: |
+        Requer papel de coordenação. Retorna campos cadastrais dos assistidos
+        ativos, incluindo endereço e contatos, portanto a resposta é dado
+        pessoal e não deve ser compartilhada. Registra auditoria e envia
+        `Cache-Control: no-store`.
+      responses:
+        '200':
+          description: Lista de assistidos ativos.
+          headers:
+            Cache-Control:
+              schema: { type: string, const: no-store }
+              description: Impede armazenamento da resposta em cache.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Assisted' }
+        '302':
+          description: Redirecionamento ao fluxo de autenticação quando não há sessão.
+        '307':
+          description: Perfil autenticado sem papel de coordenação é direcionado para a área de ministro.
+        '500':
+          $ref: '#/components/responses/UnexpectedError'
+      security:
+        - Auth0Session: []
+        - PreviewSession: []
+  /api/assisted/template:
+    get:
+      tags: [Modelos CSV, Coordenação]
+      operationId: baixarModeloAssistidos
+      summary: Baixa modelo CSV de assistidos
+      description: Requer papel de coordenação. O arquivo é UTF-8 com BOM, separado por ponto e vírgula e contém apenas exemplos fictícios.
+      responses:
+        '200':
+          description: Modelo CSV para importação de assistidos.
+          headers:
+            Content-Disposition:
+              schema: { type: string, example: 'attachment; filename=mesce-assistidos-exemplo.csv' }
+            Cache-Control:
+              schema: { type: string, const: no-store }
+          content:
+            text/csv:
+              schema: { type: string }
+        '302':
+          description: Redirecionamento ao fluxo de autenticação quando não há sessão.
+        '307':
+          description: Perfil sem papel de coordenação é redirecionado.
+      security:
+        - Auth0Session: []
+        - PreviewSession: []
+  /api/ministers/template:
+    get:
+      tags: [Modelos CSV, Coordenação]
+      operationId: baixarModeloMinistros
+      summary: Baixa modelo CSV de ministros
+      description: Requer papel de coordenação. O arquivo é UTF-8 com BOM, separado por ponto e vírgula e contém apenas exemplos fictícios.
+      responses:
+        '200':
+          description: Modelo CSV para importação de ministros.
+          headers:
+            Content-Disposition:
+              schema: { type: string, example: 'attachment; filename=mesce-ministros-modelo.csv' }
+            Cache-Control:
+              schema: { type: string, const: no-store }
+          content:
+            text/csv:
+              schema: { type: string }
+        '302':
+          description: Redirecionamento ao fluxo de autenticação quando não há sessão.
+        '307':
+          description: Perfil sem papel de coordenação é redirecionado.
+      security:
+        - Auth0Session: []
+        - PreviewSession: []
+  /api/calendars/{token}:
+    get:
+      tags: [Agenda pessoal, Dados pessoais]
+      operationId: consultarAgendaPessoal
+      summary: Consulta feed ICS pessoal do ministro
+      description: |
+        O token opaco no caminho funciona como credencial bearer da assinatura;
+        não exige cookie de sessão. O feed só inclui compromissos publicados
+        atribuídos ao titular ativo, mais atualizações/cancelamentos necessários.
+        Não inclui RSVP, contatos de assistidos ou atividades de outros ministros.
+        As visitas são minimizadas. A URL pode ser compartilhada como uma senha;
+        a aplicação guarda apenas hash do token e permite revogar/rotacionar a
+        assinatura autenticando em Minhas escalas.
+
+        Respostas válidas usam `private, no-store`, desativam cache de CDN,
+        impedem indexação e definem `Referrer-Policy: no-referrer`. A atualização
+        depende da frequência de consulta do aplicativo de calendário.
+      security: []
+      parameters:
+        - name: token
+          in: path
+          required: true
+          description: Token aleatório de 256 bits codificado em base64url (43 caracteres); trate como segredo.
+          schema:
+            type: string
+            pattern: '^[A-Za-z0-9_-]{43}$'
+      responses:
+        '200':
+          description: Agenda pessoal no formato iCalendar.
+          headers:
+            Cache-Control:
+              schema: { type: string }
+              description: 'private, no-store, no-cache, max-age=0, must-revalidate.'
+            Referrer-Policy:
+              schema: { type: string, const: no-referrer }
+            X-Robots-Tag:
+              schema: { type: string, const: 'noindex, nofollow, noarchive' }
+          content:
+            text/calendar:
+              schema:
+                type: string
+                description: Conteúdo VCALENDAR/VEVENT; horários são normalizados para a agenda do titular.
+        '404':
+          description: Assinatura desabilitada, token inválido/revogado, vínculo inativo ou cadastro indisponível. A resposta não distingue esses casos.
+          content:
+            text/plain:
+              schema: { type: string, example: Calendário indisponível. }
+  /api/jobs/outbox:
+    get:
+      tags: [Entregas]
+      operationId: processarOutboxGet
+      summary: Processa um lote da fila de entregas (GET)
+      description: |
+        Endpoint de worker/cron protegido por segredo. Envia no máximo 25 itens
+        pendentes de e-mail ou push, de acordo com as flags e credenciais do
+        ambiente. Em produção, o cron configurado chama esta rota diariamente;
+        publicação e cancelamento também tentam processar após o commit.
+      security:
+        - OutboxBearer: []
+      responses:
+        '200':
+          $ref: '#/components/responses/OutboxProcessed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          description: Falha ao processar o lote; detalhe interno não é exposto.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    post:
+      tags: [Entregas]
+      operationId: processarOutboxPost
+      summary: Processa um lote da fila de entregas (POST)
+      description: Mesmo processamento e autenticação da operação GET; sem corpo de requisição.
+      security:
+        - OutboxBearer: []
+      responses:
+        '200':
+          $ref: '#/components/responses/OutboxProcessed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          description: Falha ao processar o lote; detalhe interno não é exposto.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /api/schedules/{id}/pdf:
+    get:
+      tags: [Escalas, Dados pessoais]
+      operationId: baixarPdfEscala
+      summary: Baixa PDF de versão aprovada ou publicada
+      description: |
+        Requer sessão autenticada. A coordenação pode baixar versões aprovadas
+        ou publicadas; ministro só pode baixar versão publicada em que esteja
+        designado. O PDF geral não inclui informações identificáveis dos
+        assistidos. A operação registra auditoria e responde sem cache.
+      parameters:
+        - $ref: '#/components/parameters/UuidPath'
+      responses:
+        '200':
+          description: PDF da escala.
+          headers:
+            Cache-Control:
+              schema: { type: string, const: 'private, no-store' }
+            Content-Disposition:
+              schema: { type: string, example: 'attachment; filename="mesce-escala-2030-11-v1.pdf"' }
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+        '302':
+          description: Redirecionamento ao fluxo de autenticação quando não há sessão.
+        '403':
+          description: Usuário autenticado sem permissão para esta escala.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '404':
+          description: Escala inexistente ou ainda não aprovada.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+      security:
+        - Auth0Session: []
+        - PreviewSession: []
+  /api/schedules/{id}/visitas:
+    get:
+      tags: [Escalas, Dados pessoais]
+      operationId: baixarGuiaRestritoVisitas
+      summary: Baixa guia restrito de visitas
+      description: |
+        Requer sessão autenticada. A coordenação tem acesso administrativo;
+        ministro só pode baixar o guia de uma versão publicada vigente na qual
+        tenha ao menos uma visita designada. O PDF limita os assistidos aos
+        eventos atribuídos ao ministro. A operação registra auditoria.
+      parameters:
+        - $ref: '#/components/parameters/UuidPath'
+      responses:
+        '200':
+          description: PDF restrito com dados necessários às visitas autorizadas.
+          headers:
+            Cache-Control:
+              schema: { type: string, const: 'private, no-store' }
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+        '302':
+          description: Redirecionamento ao fluxo de autenticação quando não há sessão.
+        '403':
+          description: Guia indisponível, usuário sem permissão ou ministro sem visita designada na versão vigente.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+      security:
+        - Auth0Session: []
+        - PreviewSession: []
+components:
+  securitySchemes:
+    Auth0Session:
+      type: apiKey
+      in: cookie
+      name: __session
+      description: Cookie de sessão padrão do SDK Auth0. O navegador obtém e envia o cookie pelo fluxo de login do aplicativo.
+    PreviewSession:
+      type: apiKey
+      in: cookie
+      name: mesce_preview
+      description: Cookie cifrado exclusivo de Preview, válido por uma hora; nunca é aceito em Production.
+    OutboxBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: CRON_SECRET
+      description: Valor de `CRON_SECRET` ou, como alternativa, `MESCE_OUTBOX_SECRET`; enviado no cabeçalho Authorization.
+  parameters:
+    UuidPath:
+      name: id
+      in: path
+      required: true
+      description: UUID da versão da escala.
+      schema:
+        type: string
+        format: uuid
+  responses:
+    Unauthorized:
+      description: Segredo ausente ou incorreto.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    UnexpectedError:
+      description: Erro inesperado no processamento.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    OutboxProcessed:
+      description: Lote processado.
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [processed]
+            properties:
+              processed:
+                type: integer
+                minimum: 0
+                maximum: 25
+                description: Quantidade de itens processados nesta chamada.
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+    Assisted:
+      type: object
+      description: Cadastro pessoal retornado somente à coordenação autorizada.
+      required: [id, name, address, neighborhood, city, state, postalCode, landline, mobile, familyName, familyPhone, notes, active]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        address: { type: string }
+        neighborhood: { type: string }
+        city: { type: string }
+        state: { type: string, maxLength: 2 }
+        postalCode: { type: string }
+        landline: { type: string }
+        mobile: { type: string }
+        familyName: { type: string }
+        familyPhone: { type: string }
+        ministersRequired: { type: integer, minimum: 1, maximum: 100, default: 1 }
+        groupVisit: { type: boolean }
+        groupName: { type: string, maxLength: 120 }
+        notes: { type: string }
+        active: { type: boolean }
+x-mesce-web-routes:
+  description: Páginas HTML do App Router. Operações de formulário usam Server Actions internas, não garantidas como API externa.
+  authentication:
+    public: [/setup]
+    preview-entry: [/acesso-dev]
+    authenticated: Auth0 ou perfil de homologação Preview, conforme ambiente.
+  routes:
+    - path: /
+      access: ministro ou coordenação
+      behavior: painel inicial e próximos passos adequados ao perfil.
+    - path: /notificacoes
+      access: ministro ou coordenação
+      behavior: central autenticada de publicações, revisões, mudanças e lembretes.
+    - path: /minhas-escalas
+      access: ministro vinculado; coordenação também pode consultar seu perfil de ministro quando vinculado
+      behavior: lista somente escalas publicadas e designações do titular.
+    - path: /minhas-escalas/avisos
+      access: ministro vinculado
+      behavior: preferência de e-mail e ativação/revogação de push por dispositivo.
+    - path: /minhas-escalas/calendario
+      access: ministro ativo vinculado
+      behavior: ativa, rotaciona ou revoga assinatura ICS pessoal.
+    - path: /meus-dados
+      access: usuário autenticado
+      behavior: edição do próprio cadastro; a coordenação também mantém perfil de contato próprio.
+    - path: /respostas
+      access: ministro autenticado
+      behavior: envio e consulta da resposta mensal de impedimentos.
+    - path: /ministros
+      access: coordenação
+      behavior: cadastro, edição, situação e consulta de ministros.
+    - path: /ministros/importar
+      access: coordenação
+      behavior: prévia, validação e importação de ministros por CSV.
+    - path: /assistidos
+      access: coordenação
+      behavior: cadastro, edição, situação e consulta de assistidos.
+    - path: /assistidos/importar
+      access: coordenação
+      behavior: prévia, validação e importação de assistidos por CSV.
+    - path: /celebracoes
+      access: coordenação
+      behavior: cadastro e consulta de celebrações, visitas e recorrências.
+    - path: /impedimentos
+      access: ministro para os próprios impedimentos; coordenação para gestão
+      behavior: registro por evento, dia ou período e visão do calendário.
+    - path: /locais
+      access: coordenação
+      behavior: cadastro e manutenção de locais e comunidades.
+    - path: /visitas
+      access: coordenação
+      behavior: calendário e organização de visitas dominicais.
+    - path: /escalas
+      access: coordenação
+      behavior: geração, sincronização, revisão, atribuição manual, aprovação, publicação e cancelamento de versões.
+    - path: /relatorios
+      access: coordenação
+      behavior: relatórios operacionais e histórico de escalas.
+    - path: /configuracao
+      access: coordenação
+      behavior: regras gerais, perfil de coordenação e importação legada compatível.
+    - path: /pre-cadastros
+      access: coordenação
+      behavior: gestão de e-mails autorizados e vínculos de acesso.
+    - path: /acesso-dev
+      access: Preview habilitado
+      behavior: autenticação e seleção de perfil sintético de homologação; indisponível em Production.
+    - path: /setup
+      access: público quando Auth0 não está configurado
+      behavior: instruções de configuração; não apresenta dados de cadastros.
+    - path: /cadastro
+      access: sessão Auth0 válida, mas sem vínculo ativo de ministro ou coordenação
+      behavior: conclusão/vinculação do cadastro autorizado; não concede papel administrativo por entrada do navegador.

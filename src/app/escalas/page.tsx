@@ -7,6 +7,7 @@ import {
   validateSchedule,
   agendaChanged,
   overlappingAgenda,
+  eventTimeLabel,
 } from "@/lib/domain";
 import { coordinator } from "@/lib/auth";
 import { readData } from "@/lib/store";
@@ -15,6 +16,7 @@ import { Field, Notice } from "@/components/fields";
 import { nextMonth } from "@/lib/domain";
 import { matchesEventSearch, sortEvents } from "@/lib/event-agenda";
 import type { Event } from "@/lib/domain";
+import { isAltevitaGroupVisit } from "@/lib/visit-group";
 export const dynamic = "force-dynamic";
 export default async function Schedules({
   searchParams,
@@ -206,7 +208,12 @@ export default async function Schedules({
           </div>
           {warnings.length > 0 && (
             <section className="notice error">
-              <strong>Pendências para aprovação</strong>
+              <strong>Pendências: corrigir antes de aprovar</strong>
+              <p>
+                A lista informa a quantidade necessária e quantos ministros
+                estão designados. Conflitos de horário aparecem separados em
+                Atenção.
+              </p>
               <ul>
                 {warnings.map((w) => (
                   <li key={w}>{w}</li>
@@ -319,9 +326,14 @@ export default async function Schedules({
                         >
                           <div className="panel-head">
                             <div>
-                              <h3>{event.title}</h3>
+                              <h3>
+                                {isAltevitaGroupVisit(event, data.assisted)
+                                  ? "Atendimento ao grupo Altevita"
+                                  : event.title}
+                              </h3>
                               <span>
-                                {event.date} · {event.time} · {event.location}
+                                {event.date} · {eventTimeLabel(event)} ·{" "}
+                                {event.location}
                               </span>
                             </div>
                             <span className="tag">
