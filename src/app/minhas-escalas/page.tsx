@@ -49,7 +49,7 @@ export default async function Mine() {
           href="/minhas-escalas/avisos"
           style={{ marginInlineStart: 8 }}
         >
-          Configurar notificações
+          Configurar lembretes e avisos
         </Link>
       )}
       {!minister ? (

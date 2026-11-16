@@ -170,9 +170,10 @@ export default async function Home() {
                 </small>
               </li>
               <li>
-                <Link href="/minhas-escalas/avisos">Notificações</Link>
+                <Link href="/minhas-escalas/avisos">Lembretes e avisos</Link>
                 <small>
-                  Configure avisos no aplicativo para publicações e mudanças.
+                  Configure avisos por push e e-mail sobre publicações e
+                  mudanças.
                 </small>
               </li>
             </ol>

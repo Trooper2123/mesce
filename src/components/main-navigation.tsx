@@ -18,7 +18,7 @@ import {
 
 const links = [
   ["/", "Visão geral", LayoutDashboard],
-  ["/notificacoes", "Notificações", Bell],
+  ["/notificacoes", "Lembretes e Avisos", Bell],
   ["/meus-dados", "Meus dados", UserRound],
   ["/pre-cadastros", "Pré-cadastros", UsersRound],
   ["/ministros", "Ministros", UsersRound],

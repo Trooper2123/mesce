@@ -85,8 +85,13 @@ test("sessão cifra o perfil e rejeita adulteração, expiração e uso em produ
 test("perfis de ministro usam cadastro e acesso persistidos sem promover papel", () =>
   setup(() =>
     database(async (client) => {
+      await ensurePreviewMinister(client, "COORDINATOR");
       await ensurePreviewMinister(client, "MINISTER_A");
       await ensurePreviewMinister(client, "MINISTER_B");
+      const coordinatorSession = readPreviewSession(
+        createPreviewSession(Date.now(), "COORDINATOR"),
+      )!;
+      const coordinator = (await resolveActor(client, coordinatorSession))!;
       const a = readPreviewSession(
         createPreviewSession(Date.now(), "MINISTER_A"),
       )!;
@@ -95,6 +100,11 @@ test("perfis de ministro usam cadastro e acesso persistidos sem promover papel",
       )!;
       const actorA = (await resolveActor(client, a))!,
         actorB = (await resolveActor(client, b))!;
+      assert.equal(coordinator.coordinator, true);
+      assert.equal(
+        coordinator.ministerId,
+        previewProfiles.COORDINATOR.ministerId,
+      );
       assert.equal(actorA.coordinator, false);
       assert.equal(actorB.coordinator, false);
       assert.notEqual(actorA.ministerId, actorB.ministerId);
@@ -103,7 +113,7 @@ test("perfis de ministro usam cadastro e acesso persistidos sem promover papel",
         /não autorizado/,
       );
       const data = await readData(client);
-      assert.equal(data.ministers.length, 2);
+      assert.equal(data.ministers.length, 3);
       assert.ok(
         data.ministers.every((m) => m.registrationStatus === "COMPLETE"),
       );

@@ -2,6 +2,10 @@
 
 Aplicação em **Next.js (App Router), React, TypeScript e PostgreSQL**, com Auth0 para autenticação. A interface é em português e o backend roda no próprio Next.js; não depende de Go nem KofLang.
 
+## Rotas e contrato OpenAPI
+
+A especificação [OpenAPI 3.1](docs/openapi.yaml) documenta os Route Handlers HTTP, autenticação, respostas, permissões e comportamentos principais. O catálogo `x-mesce-web-routes` registra as páginas do App Router. Formulários usam Server Actions internas do Next.js; seus endpoints gerados não são contrato público estável.
+
 ## Funcionalidades implementadas
 
 - Painel mensal com indicadores e agenda.
