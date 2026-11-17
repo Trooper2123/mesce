@@ -23,5 +23,9 @@ export function calendarReturn(
     : monthPattern.test(fallback)
       ? fallback
       : preparationMonth(now);
-  return `/celebracoes?${result}=1&month=${month}`;
+  const requested = String(form.get("returnTo") ?? "");
+  const destination = ["/visitas", "/agenda/celebracoes"].includes(requested)
+    ? requested
+    : "/celebracoes";
+  return `${destination}?${result}=1&month=${month}`;
 }

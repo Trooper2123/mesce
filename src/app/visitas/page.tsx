@@ -41,7 +41,7 @@ export default async function Visits({
       <form className="toolbar">
         <Field name="month" label="Mês" type="month" value={month} />
         <button className="secondary">Consultar</button>
-        <Link className="button" href="/celebracoes?new=1&type=VISIT">
+        <Link className="button" href="/visitas/agendar">
           Agendar visita
         </Link>
       </form>
@@ -64,7 +64,9 @@ export default async function Visits({
                   · {event.required} ministros
                   {event.notes && <small>{event.notes}</small>}
                 </span>
-                <Link href={`/celebracoes?edit=${event.id}`}>Editar</Link>
+                <Link href={`/visitas/agendar?edit=${event.id}&month=${month}`}>
+                  Editar
+                </Link>
               </div>
             );
           })}

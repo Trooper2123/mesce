@@ -49,9 +49,26 @@ aside {
 .nav-toggle {
   display: none;
 }
+
+.nav-group[data-active="true"] > a {
+  font-weight: 700;
+}
+.nav-children {
+  display: grid;
+}
+.nav-children a {
+  min-height: 44px;
+  padding-left: 3.25rem;
+  font-size: 0.94rem;
+}
 nav {
   display: grid;
   gap: 7px;
+  overflow-y: auto;
+}
+.nav-group {
+  display: grid;
+  gap: 2px;
 }
 nav a {
   display: flex;

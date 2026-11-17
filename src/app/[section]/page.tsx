@@ -83,6 +83,7 @@ export default async function Registry({
     page?: string;
     eventId?: string;
     redesign?: string;
+    returnTo?: string;
   }>;
 }) {
   const { section } = await params;
@@ -363,6 +364,16 @@ export default async function Registry({
               <input type="hidden" name="kind" value={kind} />
               <input type="hidden" name="id" value={editing?.id ?? ""} />
               <input type="hidden" name="returnMonth" value={month} />
+              {query.type === "VISIT" && (
+                <input type="hidden" name="returnTo" value="/visitas" />
+              )}
+              {query.returnTo === "/agenda/celebracoes" && (
+                <input
+                  type="hidden"
+                  name="returnTo"
+                  value="/agenda/celebracoes"
+                />
+              )}
               <div className="form-grid">
                 {(kind === "minister" || kind === "assisted") && (
                   <>
@@ -581,6 +592,7 @@ export default async function Registry({
                       event={event}
                       initialMonth={month}
                       visit={query.type === "VISIT"}
+                      visitOnly={query.type === "VISIT"}
                       assisted={data.assisted
                         .filter(
                           (a) =>

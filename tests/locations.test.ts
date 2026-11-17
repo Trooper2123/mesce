@@ -1,25 +1,26 @@
 import { PGlite } from "@electric-sql/pglite";
 import { readFile } from "node:fs/promises";
 import type { PoolClient } from "pg";
-import { readData, write } from "../src/lib/store";
-import { encrypt } from "../src/lib/crypto";
+import { readData, write } from "@/lib/store";
+import { encrypt } from "@/lib/crypto";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { emptyData, blocked, generate, type Event } from "../src/lib/domain";
-import { blankMinister } from "../src/lib/profile";
-import { defaultLocations, matchesLocation } from "../src/lib/location-rules";
+import { emptyData, blocked, generate, type Event } from "@/lib/domain";
+import { blankMinister } from "@/lib/profile";
+import { defaultLocations, matchesLocation } from "@/lib/location-rules";
 import {
   locationCatalog,
   bindLocationRecords,
   ministerLocations,
   eventLocation,
   planLocationChange,
-} from "../src/lib/locations";
-import { ServicePreferences } from "../src/components/service-preferences";
-import { EventFields } from "../src/components/event-fields";
+  normalizePostalCode,
+} from "@/lib/locations";
+import { ServicePreferences } from "@/components/service-preferences";
+import { EventFields } from "@/components/event-fields";
 const event = (locationId: string, location: string): Event => ({
   id: randomUUID(),
   title: "Missa teste",
@@ -32,6 +33,11 @@ const event = (locationId: string, location: string): Event => ({
   locationId,
   location,
   notes: "",
+});
+
+test("normaliza CEP sem aceitar comprimento inválido", () => {
+  assert.equal(normalizePostalCode("70000-123"), "70000123");
+  assert.throws(() => normalizePostalCode("7000"), /oito dígitos/);
 });
 const person = () => ({
   ...blankMinister(randomUUID(), "test@example.invalid"),

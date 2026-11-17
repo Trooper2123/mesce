@@ -15,12 +15,14 @@ export function EventFields({
   event,
   assisted,
   visit = false,
+  visitOnly = false,
   initialMonth,
   catalog = defaultLocations,
 }: {
   event?: Event;
   assisted: Assisted[];
   visit?: boolean;
+  visitOnly?: boolean;
   initialMonth?: string;
   catalog?: Location[];
 }) {
@@ -82,22 +84,26 @@ export function EventFields({
   }
   return (
     <>
-      <label className="field">
-        O que deseja cadastrar?
-        <select
-          name="activityGroup"
-          value={activityGroup}
-          onChange={(e) => {
-            const value = e.target.value as typeof activityGroup;
-            setActivityGroup(value);
-            setKind(value === "VISITS" ? "VISIT" : "MASS");
-            setCategory(value === "VISITS" ? "EXTRAORDINARY" : "FIXED");
-          }}
-        >
-          <option value="CELEBRATIONS">Celebração</option>
-          <option value="VISITS">Visita a assistidos</option>
-        </select>
-      </label>
+      {visitOnly ? (
+        <input type="hidden" name="activityGroup" value="VISITS" />
+      ) : (
+        <label className="field">
+          O que deseja cadastrar?
+          <select
+            name="activityGroup"
+            value={activityGroup}
+            onChange={(e) => {
+              const value = e.target.value as typeof activityGroup;
+              setActivityGroup(value);
+              setKind(value === "VISITS" ? "VISIT" : "MASS");
+              setCategory(value === "VISITS" ? "EXTRAORDINARY" : "FIXED");
+            }}
+          >
+            <option value="CELEBRATIONS">Celebração</option>
+            <option value="VISITS">Visita a assistidos</option>
+          </select>
+        </label>
+      )}
       {kind === "VISIT" ? (
         <>
           <input type="hidden" name="eventKind" value="VISIT" />

@@ -60,6 +60,36 @@ export async function audit(
     ],
   );
 }
+
+export type AuditEntry = {
+  id: string;
+  actor: string;
+  action: string;
+  recordId?: string;
+  details?: unknown;
+  createdAt: string;
+};
+
+export async function readEventAudit(
+  offset = 0,
+  limit = 50,
+): Promise<AuditEntry[]> {
+  const result = await pool().query(
+    `SELECT id,actor,action,record_id,details,created_at
+       FROM mesce_audit
+      WHERE action IN ('event:reschedule','event:cancel','event:exclude','event:delete')
+      ORDER BY created_at DESC,id DESC OFFSET $1 LIMIT $2`,
+    [offset, Math.min(limit, 50)],
+  );
+  return result.rows.map((row) => ({
+    id: String(row.id),
+    actor: row.actor,
+    action: row.action,
+    recordId: row.record_id ?? undefined,
+    details: row.details ? decrypt(row.details) : undefined,
+    createdAt: new Date(row.created_at).toISOString(),
+  }));
+}
 export async function write<T extends { id: string }>(
   client: PoolClient,
   kind: Kind,
