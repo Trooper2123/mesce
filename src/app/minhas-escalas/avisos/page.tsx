@@ -10,7 +10,28 @@ export const dynamic = "force-dynamic";
 
 export default async function NoticeSettingsPage() {
   const user = await actor();
-  const settings = await notificationSettings();
+  let settings;
+  try {
+    settings = await notificationSettings();
+  } catch {
+    return (
+      <>
+        <Link href="/minhas-escalas" className="button secondary">
+          Voltar às minhas escalas
+        </Link>
+        <h1>Lembretes e avisos</h1>
+        <div className="notice error" role="alert">
+          <p>
+            Não foi possível carregar suas configurações. Tente novamente. Se
+            continuar, procure a coordenação.
+          </p>
+          <Link className="button secondary" href="/minhas-escalas/avisos">
+            Tentar novamente
+          </Link>
+        </div>
+      </>
+    );
+  }
   const emailAvailable =
     process.env.MESCE_DELIVERY_OUTBOX_ENABLED === "true" &&
     process.env.MESCE_EMAIL_SEND_ENABLED === "true";
@@ -78,11 +99,14 @@ export default async function NoticeSettingsPage() {
           <section className="panel" style={{ marginTop: 20 }}>
             <h2>Sincronizar com sua agenda pessoal</h2>
             <p>
-              Adicione as designações publicadas ao Google Agenda, Apple Calendar
-              ou outro aplicativo compatível. A configuração da assinatura fica
-              na página da agenda pessoal.
+              Adicione as designações publicadas ao Google Agenda, Apple
+              Calendar ou outro aplicativo compatível. A configuração da
+              assinatura fica na página da agenda pessoal.
             </p>
-            <Link className="button secondary" href="/minhas-escalas/calendario">
+            <Link
+              className="button secondary"
+              href="/minhas-escalas/calendario"
+            >
               Configurar agenda pessoal
             </Link>
           </section>

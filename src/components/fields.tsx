@@ -20,7 +20,12 @@ export function Field({
 }: Props) {
   return (
     <label className="field">
-      {label}
+      <span>
+        {label}{" "}
+        <span className="field-requirement">
+          {required ? "(obrigatório)" : "(opcional)"}
+        </span>
+      </span>
       {options ? (
         <select name={name} defaultValue={value} required={required}>
           {options.map(([v, l]) => (
@@ -30,7 +35,12 @@ export function Field({
           ))}
         </select>
       ) : type === "textarea" ? (
-        <textarea name={name} defaultValue={value} maxLength={maxLength} />
+        <textarea
+          name={name}
+          defaultValue={value}
+          maxLength={maxLength}
+          required={required}
+        />
       ) : (
         <input
           name={name}

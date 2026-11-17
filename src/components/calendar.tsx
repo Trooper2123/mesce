@@ -6,6 +6,7 @@ import {
 } from "@/lib/event-agenda";
 import { eventTimeLabel, type Assisted, type Event } from "@/lib/domain";
 import { isAltevitaGroupVisit } from "@/lib/visit-group";
+import { displayDate, displayMonth } from "@/lib/display-date";
 export function Calendar({
   month,
   events,
@@ -15,6 +16,7 @@ export function Calendar({
   view = "FULL",
   eventClass = "ALL",
   eventName = "",
+  eventAction = "EDIT",
 }: {
   month: string;
   events: Event[];
@@ -24,6 +26,7 @@ export function Calendar({
   view?: "FULL" | "SUMMARY" | "SPLIT" | "MASSES" | "VISITS";
   eventClass?: string;
   eventName?: string;
+  eventAction?: "EDIT" | "ABSENCE";
 }) {
   if (view === "SPLIT")
     return (
@@ -37,6 +40,7 @@ export function Calendar({
             agendaEvents,
             eventClass,
             eventName,
+            eventAction,
           }}
           view="MASSES"
         />
@@ -49,6 +53,7 @@ export function Calendar({
             agendaEvents,
             eventClass,
             eventName,
+            eventAction,
           }}
           view="VISITS"
         />
@@ -94,10 +99,16 @@ export function Calendar({
     "Sexta",
     "Sábado",
   ];
+  const eventHref = (event: Event) =>
+    eventAction === "ABSENCE"
+      ? `/impedimentos?new=1&eventId=${encodeURIComponent(event.id)}#cadastro`
+      : `/celebracoes?edit=${encodeURIComponent(event.id)}&month=${month}&calendarView=${view === "MASSES" || view === "VISITS" ? "SPLIT" : view}&eventClass=${encodeURIComponent(eventClass)}${eventName ? `&eventName=${encodeURIComponent(eventName)}` : ""}#cadastro`;
+  const eventLabel = (event: Event) =>
+    `${eventAction === "ABSENCE" ? "Informar impedimento para" : "Editar"} ${isAltevitaGroupVisit(event, assisteds) ? "Atendimento ao grupo Altevita" : event.title}, ${displayDate(event.date)}, ${eventTimeLabel(event)}, ${event.location}`;
   return (
     <section className="panel">
       <h2>
-        {heading} · {month}
+        {heading} · {displayMonth(month)}
       </h2>
       <p className="calendar-legend">
         {!visitsOnly && (
@@ -117,7 +128,7 @@ export function Calendar({
       <div
         className="table-scroll"
         role="region"
-        aria-label={`${heading} · ${month}`}
+        aria-label={`${heading} · ${displayMonth(month)}`}
         tabIndex={0}
       >
         <table
@@ -149,7 +160,7 @@ export function Calendar({
                           )
                           .map((e) => (
                             <Link
-                              href={`/celebracoes?edit=${encodeURIComponent(e.id)}&month=${month}&calendarView=${view === "MASSES" || view === "VISITS" ? "SPLIT" : view}&eventClass=${encodeURIComponent(eventClass)}${eventName ? `&eventName=${encodeURIComponent(eventName)}` : ""}#cadastro`}
+                              href={eventHref(e)}
                               title={
                                 compact
                                   ? [
@@ -161,7 +172,7 @@ export function Calendar({
                                   : undefined
                               }
                               prefetch={false}
-                              aria-label={`Editar ${isAltevitaGroupVisit(e, assisteds) ? "Atendimento ao grupo Altevita" : e.title}, ${e.date.split("-").reverse().join("/")}, ${eventTimeLabel(e)}, ${e.location}${compact && warnings.get(e.id) ? `. ${warnings.get(e.id)}` : ""}`}
+                              aria-label={`${eventLabel(e)}${compact && warnings.get(e.id) ? `. ${warnings.get(e.id)}` : ""}`}
                               key={e.id}
                               className={
                                 "calendar-event " +
@@ -223,6 +234,34 @@ export function Calendar({
             ))}
           </tbody>
         </table>
+      </div>
+      <div
+        className="calendar-agenda"
+        aria-label={`Agenda em lista · ${displayMonth(month)}`}
+      >
+        {ordered.length ? (
+          ordered.map((event) => (
+            <article className="calendar-agenda-event" key={event.id}>
+              <h3>
+                {isAltevitaGroupVisit(event, assisteds)
+                  ? "Atendimento ao grupo Altevita"
+                  : event.title}
+              </h3>
+              <p>
+                <strong>{displayDate(event.date, true)}</strong>
+                <br />
+                {eventTimeLabel(event)} · {event.location}
+              </p>
+              <Link href={eventHref(event)} aria-label={eventLabel(event)}>
+                {eventAction === "ABSENCE"
+                  ? "Informar impedimento"
+                  : "Editar evento"}
+              </Link>
+            </article>
+          ))
+        ) : (
+          <p className="empty">Nenhum evento neste mês.</p>
+        )}
       </div>
     </section>
   );

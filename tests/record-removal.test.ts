@@ -11,6 +11,7 @@ import {
   recordVersion,
   removalSeries,
   executeRecordRemoval,
+  removeMinisterFromEditableSchedule,
   type RemovalKind,
 } from "../src/lib/record-removal";
 import { write, readData } from "../src/lib/store";
@@ -132,6 +133,40 @@ test("assistido em visita agrupada, ministro com cônjuge e local legado não s�
     () => planRecordRemoval(form("location", location), data),
     /preferência.*ministro/,
   );
+});
+test("ministro pode ser excluído de escala não final e deixa eventos para redesignar", () => {
+  const data = emptyData();
+  const minister = blankMinister(randomUUID(), "ministro@example.invalid");
+  const appointment = event();
+  const draft = {
+    ...schedule(appointment),
+    ministers: [{ id: minister.id, name: minister.name }],
+    assignments: [{ eventId: appointment.id, ministerId: minister.id }],
+  };
+  data.ministers = [minister];
+  data.schedules = [draft];
+  assert.equal(
+    planRecordRemoval(form("minister", minister), data).id,
+    minister.id,
+  );
+  const removal = removeMinisterFromEditableSchedule(draft, minister.id);
+  assert.deepEqual(removal.affectedEventIds, [appointment.id]);
+  assert.equal(removal.schedule.assignments.length, 0);
+  assert.match(removal.schedule.warnings.at(-1)!, /Redesignar evento/);
+  for (const status of ["APPROVED", "PUBLISHED"] as const) {
+    data.schedules = [{ ...draft, status }];
+    assert.throws(
+      () => planRecordRemoval(form("minister", minister), data),
+      /finalizada|histórico/,
+    );
+  }
+  const cancelled = { ...draft, status: "CANCELLED" as const };
+  data.schedules = [cancelled];
+  assert.equal(
+    planRecordRemoval(form("minister", minister), data).id,
+    minister.id,
+  );
+  assert.deepEqual(data.schedules[0], cancelled);
 });
 test("somente rascunho ou revisão sem aprovação pode ser excluído", () => {
   const data = emptyData(),

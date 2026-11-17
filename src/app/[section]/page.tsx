@@ -1,4 +1,5 @@
 import { preparationMonth } from "@/lib/calendar-navigation";
+import { displayDate, displayMonth } from "@/lib/display-date";
 import { EventScopeFields } from "@/components/event-scope-fields";
 import { seriesCandidates } from "@/lib/operational-changes";
 import { RemoveRecord } from "@/components/remove-record";
@@ -79,6 +80,9 @@ export default async function Registry({
     deleted?: string;
     showCancelled?: string;
     sort?: string;
+    page?: string;
+    eventId?: string;
+    redesign?: string;
   }>;
 }) {
   const { section } = await params;
@@ -189,6 +193,23 @@ export default async function Registry({
             .toLowerCase()
             .includes(query.q.toLowerCase())),
   );
+  const pageSize = 50;
+  const requestedPage = /^\d+$/.test(query.page ?? "") ? Number(query.page) : 1;
+  const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const page = Math.min(Math.max(requestedPage, 1), pageCount);
+  const pagedRows = filtered.slice((page - 1) * pageSize, page * pageSize);
+  const draftAssignmentsFor = (ministerId: string) =>
+    data.schedules
+      .filter((schedule) => ["DRAFT", "IN_REVIEW"].includes(schedule.status))
+      .flatMap((schedule) => schedule.assignments)
+      .filter((assignment) => assignment.ministerId === ministerId).length;
+  const pageHref = (target: number) => {
+    const values = new URLSearchParams();
+    for (const [key, value] of Object.entries(query))
+      if (value && key !== "page") values.set(key, value);
+    values.set("page", String(target));
+    return `/${section}?${values}`;
+  };
   return (
     <>
       <span className="eyebrow">Organização pastoral</span>
@@ -207,6 +228,14 @@ export default async function Registry({
         </p>
       )}
       <Notice error={query.error} saved={query.saved} />
+      {kind === "minister" && Number(query.redesign) > 0 && (
+        <p className="notice" role="status">
+          Ministro atualizado. Há {Number(query.redesign)} designação(ões) em
+          escalas ainda não finalizadas. Abra as escalas relacionadas e designe
+          outro ministro para esses eventos.{" "}
+          <Link href="/escalas">Abrir escalas</Link>
+        </p>
+      )}
       {kind === "minister" && user.coordinator && (
         <div className="cards">
           <article className="card">
@@ -230,6 +259,13 @@ export default async function Registry({
       )}
       {kind === "absence" && (
         <section className="panel">
+          {!user.coordinator && (
+            <p>
+              <Link className="button" href="/impedimentos?new=1#cadastro">
+                Informar impedimento
+              </Link>
+            </p>
+          )}
           <h2>Visão geral dos impedimentos no calendário</h2>
           <p className="muted">
             Cada evento mostra os ministros com impedimento registrado para
@@ -246,6 +282,7 @@ export default async function Registry({
             <button className="secondary">Consultar</button>
           </form>
           <Calendar
+            eventAction={user.coordinator ? "EDIT" : "ABSENCE"}
             month={month}
             view="FULL"
             assisteds={data.assisted}
@@ -585,6 +622,13 @@ export default async function Registry({
                     </>
                   ) : (
                     <AbsenceBatch
+                      initialEventId={
+                        specificCelebrations(data.events).some(
+                          (event) => event.id === query.eventId,
+                        )
+                          ? query.eventId
+                          : undefined
+                      }
                       ministers={ministers.map((m) => ({
                         id: m.id,
                         name: m.name,
@@ -656,6 +700,9 @@ export default async function Registry({
               kind={kind}
               returnMonth={month}
               events={data.events}
+              ministerDraftAssignments={
+                minister ? draftAssignmentsFor(minister.id) : 0
+              }
               record={minister ?? assisted ?? event ?? absence!}
               label={
                 minister?.name ??
@@ -817,6 +864,12 @@ export default async function Registry({
             {filtered.length} de {rows.length} registros
           </span>
         </div>
+        {kind === "absence" && (
+          <p className="muted">
+            O calendário mostra {displayMonth(month)}. A lista abaixo reúne
+            todos os impedimentos disponíveis para este perfil.
+          </p>
+        )}
         <form className="toolbar" role="search">
           {(kind === "minister" || kind === "assisted") && (
             <Field
@@ -880,13 +933,13 @@ export default async function Registry({
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((r, index) => (
+                {pagedRows.map((r, index) => (
                   <Fragment key={r.id}>
                     {kind === "event" &&
                       "date" in r &&
                       (index === 0 ||
-                        !("date" in filtered[index - 1]) ||
-                        (filtered[index - 1] as Event).date.slice(0, 7) !==
+                        !("date" in pagedRows[index - 1]) ||
+                        (pagedRows[index - 1] as Event).date.slice(0, 7) !==
                           r.date.slice(0, 7)) && (
                         <tr>
                           <th colSpan={4} scope="rowgroup">
@@ -938,7 +991,7 @@ export default async function Registry({
                           </>
                         ) : "time" in r ? (
                           <>
-                            {r.date} · {eventTimeLabel(r)}
+                            {displayDate(r.date)} · {eventTimeLabel(r)}
                             {eventOverlapNotice(r, data.events) && (
                               <small className="event-overlap">
                                 {eventOverlapNotice(r, data.events)}
@@ -959,9 +1012,17 @@ export default async function Registry({
                         ) : (
                           <>
                             {r.scope === "CELEBRATION"
-                              ? data.events.find((e) => e.id === r.eventId)
-                                  ?.title
-                              : `${r.start} a ${r.end}`}
+                              ? (() => {
+                                  const event = data.events.find(
+                                    (e) => e.id === r.eventId,
+                                  );
+                                  return event
+                                    ? `${event.title} · ${displayDate(event.date)} · ${eventTimeLabel(event)} · ${event.location}`
+                                    : "Celebração não encontrada";
+                                })()
+                              : r.scope === "DAY"
+                                ? displayDate(r.start)
+                                : `${displayDate(r.start)} a ${displayDate(r.end)}`}
                             <small>
                               {r.scope === "CELEBRATION"
                                 ? "Somente esta celebração"
@@ -1011,6 +1072,11 @@ export default async function Registry({
                             kind={kind}
                             returnMonth={month}
                             events={data.events}
+                            ministerDraftAssignments={
+                              kind === "minister"
+                                ? draftAssignmentsFor(r.id)
+                                : 0
+                            }
                             record={r}
                             label={
                               "name" in r
@@ -1028,6 +1094,17 @@ export default async function Registry({
               </tbody>
             </table>
           </div>
+        )}
+        {pageCount > 1 && (
+          <nav className="pagination" aria-label="Páginas de resultados">
+            {page > 1 && <Link href={pageHref(page - 1)}>Página anterior</Link>}
+            <span>
+              Página {page} de {pageCount}
+            </span>
+            {page < pageCount && (
+              <Link href={pageHref(page + 1)}>Próxima página</Link>
+            )}
+          </nav>
         )}
       </section>
     </>

@@ -2,7 +2,6 @@ import { pool, readData } from "@/lib/store";
 import { settingsAction } from "@/app/operations";
 import { Field } from "@/components/fields";
 import { coordinator } from "@/lib/auth";
-import { legacyImportAction } from "@/app/operations";
 import { Notice } from "@/components/fields";
 import Link from "next/link";
 export const dynamic = "force-dynamic";
@@ -74,22 +73,6 @@ export default async function Configuration({
           </div>
         </form>
       </section>
-      <details className="panel">
-        <summary>Importação técnica do sistema anterior</summary>
-        <h2>Importar cadastros legados</h2>
-        <p>
-          A importação copia os cadastros legados mantendo identificadores e
-          vínculos. O banco original não é apagado. Execute primeiro em
-          homologação, usando a chave original dos dados.
-        </p>
-        <p>
-          Quando houver visitas, impedimentos ou designações legadas ainda não
-          mapeadas, a importação será interrompida sem alterações.
-        </p>
-        <form action={legacyImportAction}>
-          <button>Importar cadastros legados neste ambiente</button>
-        </form>
-      </details>
     </>
   );
 }

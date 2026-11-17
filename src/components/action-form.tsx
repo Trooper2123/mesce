@@ -1,7 +1,14 @@
 "use client";
 import { unstable_rethrow, useRouter } from "next/navigation";
 import Link from "next/link";
-import { useState, useTransition, type ReactNode, type FormEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+  type ReactNode,
+  type FormEvent,
+} from "react";
 import type { RemediationLink } from "@/lib/remediation";
 export type SaveResult =
   | { error: string; remediation?: RemediationLink[] }
@@ -20,6 +27,10 @@ export function ActionForm({
     remediation?: RemediationLink[];
   } | null>(null);
   const [pending, startTransition] = useTransition();
+  const failureRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (failure) failureRef.current?.focus();
+  }, [failure]);
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (pending) return;
@@ -55,7 +66,12 @@ export function ActionForm({
       aria-busy={pending}
     >
       {failure && (
-        <div role="alert" className="notice error">
+        <div
+          ref={failureRef}
+          role="alert"
+          tabIndex={-1}
+          className="notice error"
+        >
           <p>{failure.message}</p>
           {!!failure.remediation?.length && (
             <ul className="error-remediation">

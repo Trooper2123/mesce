@@ -36,6 +36,12 @@ export default async function PersonalCalendarPage() {
         Configure uma assinatura atualizada com as atividades publicadas para
         você.
       </p>
+      {!enabled && (
+        <p className="notice">
+          Esta integração não está disponível neste ambiente. Você ainda pode
+          consultar normalmente seus compromissos em Minhas escalas.
+        </p>
+      )}
       {!minister ? (
         <p className="notice">
           A assinatura exige um cadastro ativo de ministro vinculado à sua

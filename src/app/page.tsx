@@ -17,6 +17,8 @@ import {
 import { linkedMinister } from "@/lib/access";
 import { missingMinisterFields } from "@/lib/profile";
 import { isAltevitaGroupVisit } from "@/lib/visit-group";
+import { nextScheduleMonth } from "@/lib/celebration-options";
+import { displayMonth } from "@/lib/display-date";
 export const dynamic = "force-dynamic";
 export default async function Home() {
   const user = await actor();
@@ -52,6 +54,15 @@ export default async function Home() {
       ? `/minhas-escalas#escala-${schedule.id}`
       : "/minhas-escalas";
     const agendaMonth = schedule?.month ?? thisMonth;
+    const preparation = nextScheduleMonth();
+    const [preparationYear, preparationNumber] = preparation
+      .split("-")
+      .map(Number);
+    const deadlineMonth = new Date(
+      Date.UTC(preparationYear, preparationNumber - 2, 1),
+    )
+      .toISOString()
+      .slice(0, 7);
     const agendaMonthLabel = new Intl.DateTimeFormat("pt-BR", {
       month: "long",
       year: "numeric",
@@ -81,8 +92,8 @@ export default async function Home() {
               Uma escala justa começa com sua disponibilidade.
             </h2>
             <p>
-              Informe seus impedimentos até o dia 25 do mês anterior para a
-              coordenação preparar a próxima escala.
+              Para a escala de {displayMonth(preparation)}, informe os dias em
+              que não poderá servir até 25 de {displayMonth(deadlineMonth)}.
             </p>
           </div>
           <Link className="button secondary" href="/impedimentos">

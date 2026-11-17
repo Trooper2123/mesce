@@ -363,6 +363,11 @@ button {
   font-size: 16px;
   font-weight: bold;
 }
+.field-requirement {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: normal;
+}
 .field input,
 .field select,
 .field textarea,
@@ -519,7 +524,18 @@ td small {
   margin: 20px 0;
 }
 .toolbar .field {
-  max-width: 240px;
+  flex: 1 1 240px;
+  max-width: 360px;
+}
+.toolbar select {
+  text-overflow: ellipsis;
+}
+.pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-top: 20px;
 }
 .inline-form {
   display: flex;
@@ -682,6 +698,20 @@ a.action {
 .calendar {
   min-width: 850px;
   table-layout: fixed;
+}
+.calendar-agenda {
+  display: none;
+}
+.calendar-agenda-event {
+  border-top: 1px solid var(--line);
+  padding: 18px 0;
+}
+.calendar-agenda-event:first-child {
+  border-top: 0;
+}
+.calendar-agenda-event h3,
+.calendar-agenda-event p {
+  margin-top: 0;
 }
 .calendar td {
   height: 110px;
@@ -861,4 +891,13 @@ aside {
   width: 1.2rem;
   height: 1.2rem;
   flex: 0 0 auto;
+}
+
+@media (max-width: 760px) {
+  .calendar-agenda {
+    display: block;
+  }
+  .panel > .table-scroll:has(.calendar) {
+    display: none;
+  }
 }

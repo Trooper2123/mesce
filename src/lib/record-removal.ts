@@ -1,9 +1,9 @@
 import { encrypt } from "./crypto";
-import { audit } from "./store";
+import { audit, write } from "./store";
 import { defaultSettings } from "./domain";
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import type { Data, Event } from "./domain";
+import type { Data, Event, Schedule } from "./domain";
 import { locationCatalog } from "./locations";
 import { locationKey } from "./location-rules";
 import { RemediationError, type RemediationLink } from "./remediation";
@@ -58,6 +58,36 @@ const scheduleEvents = (schedule: Data["schedules"][number]) => [
   ...schedule.events,
   ...(schedule.agendaEvents ?? []),
 ];
+export function removeMinisterFromEditableSchedule(
+  schedule: Schedule,
+  ministerId: string,
+) {
+  const affectedEventIds = schedule.assignments
+    .filter((assignment) => assignment.ministerId === ministerId)
+    .map((assignment) => assignment.eventId);
+  return {
+    affectedEventIds,
+    schedule: {
+      ...schedule,
+      editVersion: (schedule.editVersion ?? 1) + 1,
+      ministers: schedule.ministers.filter(
+        (minister) => minister.id !== ministerId,
+      ),
+      assignments: schedule.assignments.filter(
+        (assignment) => assignment.ministerId !== ministerId,
+      ),
+      warnings: [
+        ...schedule.warnings.filter(
+          (warning) => !warning.startsWith("Redesignar "),
+        ),
+        ...affectedEventIds.map((eventId) => {
+          const event = schedule.events.find((item) => item.id === eventId);
+          return `Redesignar ${event ? `${event.title} de ${event.date}` : "evento pendente"}: ministro excluído antes da versão final.`;
+        }),
+      ],
+    },
+  };
+}
 export function locationInUse(data: Data, id: string, name: string) {
   const uses = (event: Event) =>
     event.kind !== "VISIT" &&
@@ -171,16 +201,19 @@ export function planRecordRemoval(form: FormData, data: Data) {
         s.ministers.some((m) => m.id === id) ||
         s.assignments.some((a) => a.ministerId === id),
     );
+    const finalSchedules = schedules.filter((schedule) =>
+      ["APPROVED", "PUBLISHED"].includes(schedule.status),
+    );
     if (
       absences.length ||
       responses.length ||
       spouseLinks.length ||
-      schedules.length
+      finalSchedules.length
     ) {
       const remediation = uniqueLinks([
         ...absences.map((a) => absenceEditLink(a.id)),
         ...spouseLinks.map((m) => ministerEditLink(m.id)),
-        ...schedules.map((s) => scheduleLink(s.month)),
+        ...finalSchedules.map((s) => scheduleLink(s.month)),
         {
           href: `/ministros?${new URLSearchParams({ edit: id })}#cadastro`,
           label: "Abrir cadastro para inativar o ministro",
@@ -190,7 +223,8 @@ export function planRecordRemoval(form: FormData, data: Data) {
         absences.length && `${absences.length} impedimento(s)`,
         responses.length && `${responses.length} resposta(s) mensal(is)`,
         spouseLinks.length && "vínculo conjugal",
-        schedules.length && `${schedules.length} escala(s) ou histórico(s)`,
+        finalSchedules.length &&
+          `${finalSchedules.length} escala(s) finalizada(s) ou histórico(s)`,
       ].filter(Boolean);
       throw new RemediationError(
         `Não é possível excluir este ministro: o cadastro possui ${reasons.join(", ")}. Corrija os vínculos quando forem dados incorretos ou inative o ministro para preservar o histórico.`,
@@ -296,6 +330,23 @@ export async function executeRecordRemoval(
           },
         ],
       );
+    const editableSchedules = data.schedules.filter(
+      (schedule) =>
+        ["DRAFT", "IN_REVIEW"].includes(schedule.status) &&
+        (schedule.ministers.some((minister) => minister.id === plan.id) ||
+          schedule.assignments.some(
+            (assignment) => assignment.ministerId === plan.id,
+          )),
+    );
+    for (const schedule of editableSchedules) {
+      const removal = removeMinisterFromEditableSchedule(schedule, plan.id);
+      await write(client, "schedule", removal.schedule);
+      await audit(client, user.id, "schedule:minister-removed", schedule.id, {
+        ministerId: plan.id,
+        affectedEventIds: removal.affectedEventIds,
+        reason: plan.reason,
+      });
+    }
   }
   if (plan.kind === "location") {
     const location = locationCatalog(data).find((item) => item.id === plan.id)!;
