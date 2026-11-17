@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Bell,
   CalendarDays,
   CalendarOff,
+  ChevronDown,
   Church,
   ClipboardList,
   HeartHandshake,
@@ -75,10 +76,33 @@ const ministerGroups = [
 const current = (pathname: string, href: string) =>
   pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
 
+type NavigationGroup = {
+  href: string;
+  children?: readonly (readonly [string, string])[];
+};
+
+export const navigationGroupIsCurrent = (
+  pathname: string,
+  group: NavigationGroup,
+) =>
+  current(pathname, group.href) ||
+  Boolean(group.children?.some(([href]) => current(pathname, href)));
+
 export function MainNavigation({ minister }: { minister: boolean }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const groups = minister ? ministerGroups : coordinatorGroups;
+  const [openGroup, setOpenGroup] = useState<string | null>(null);
+
+  useEffect(() => {
+    setOpenGroup(
+      groups.find(
+        (group) =>
+          "children" in group && navigationGroupIsCurrent(pathname, group),
+      )?.href ?? null,
+    );
+  }, [groups, pathname]);
+
   return (
     <>
       <button
@@ -92,21 +116,42 @@ export function MainNavigation({ minister }: { minister: boolean }) {
       </button>
       <nav id="main-navigation" aria-label="Principal" data-open={open}>
         {groups.map(({ href, label, icon: Icon, ...group }) => {
-          const active = current(pathname, href);
+          const active = navigationGroupIsCurrent(pathname, { href, ...group });
+          const hasChildren = "children" in group && group.children;
+          const expanded = openGroup === href;
+          const childrenId = `nav-children-${href.slice(1)}`;
           return (
             <div className="nav-group" data-active={active} key={href}>
-              <Link
-                href={href}
-                aria-current={
-                  pathname === href ? "page" : active ? "location" : undefined
-                }
-                onClick={() => setOpen(false)}
-              >
-                <Icon size={21} aria-hidden="true" />
-                {label}
-              </Link>
-              {"children" in group && group.children && (
-                <div className="nav-children">
+              <div className="nav-parent">
+                <Link
+                  href={href}
+                  aria-current={
+                    pathname === href ? "page" : active ? "location" : undefined
+                  }
+                  onClick={() => setOpen(false)}
+                >
+                  <Icon size={21} aria-hidden="true" />
+                  {label}
+                </Link>
+                {hasChildren && (
+                  <button
+                    type="button"
+                    className="nav-expand"
+                    aria-label={`${expanded ? "Recolher" : "Expandir"} ${label}`}
+                    aria-controls={childrenId}
+                    aria-expanded={expanded}
+                    onClick={() => setOpenGroup(expanded ? null : href)}
+                  >
+                    <ChevronDown size={19} aria-hidden="true" />
+                  </button>
+                )}
+              </div>
+              {hasChildren && (
+                <div
+                  className="nav-children"
+                  data-open={expanded}
+                  id={childrenId}
+                >
                   {group.children.map(([childHref, childLabel]) => (
                     <Link
                       key={childHref}
