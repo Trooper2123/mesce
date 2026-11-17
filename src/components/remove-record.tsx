@@ -14,6 +14,7 @@ export function RemoveRecord({
   returnMonth,
   events,
   locationLinked = false,
+  ministerDraftAssignments = 0,
 }: {
   kind: RemovalKind;
   record: { id: string };
@@ -21,14 +22,17 @@ export function RemoveRecord({
   returnMonth?: string;
   events?: Event[];
   locationLinked?: boolean;
+  ministerDraftAssignments?: number;
 }) {
   return (
     <details className="removal-action">
       <summary>Excluir cadastro incorreto</summary>
       <p>
-        {kind === "location" && locationLinked
-          ? `“${label}” está vinculado a eventos, escalas ou preferências. Após sua confirmação, o local será inativado e o histórico será preservado.`
-          : `Excluir “${label}” remove o registro da lista e do calendário. Se houver vínculos ou histórico, a exclusão será impedida. Para um evento que não vai acontecer, use Cancelar evento.`}
+        {kind === "minister" && ministerDraftAssignments > 0
+          ? `Este ministro possui ${ministerDraftAssignments} designação(ões) em escalas ainda não finalizadas. Ao excluir o cadastro, essas designações serão removidas e os eventos deverão receber outro ministro antes da aprovação.`
+          : kind === "location" && locationLinked
+            ? `“${label}” está vinculado a eventos, escalas ou preferências. Após sua confirmação, o local será inativado e o histórico será preservado.`
+            : `Excluir “${label}” remove o registro da lista e do calendário. Se houver vínculos ou histórico, a exclusão será impedida. Para um evento que não vai acontecer, use Cancelar evento.`}
       </p>
       <ActionForm action={removeRecord}>
         <input type="hidden" name="kind" value={kind} />
@@ -69,7 +73,9 @@ export function RemoveRecord({
           <input type="checkbox" name="confirm" value="yes" required />
           {kind === "location" && locationLinked
             ? `Confirmo a inativação de “${label}” e a preservação dos vínculos.`
-            : `Confirmo a exclusão de “${label}”.`}
+            : kind === "minister" && ministerDraftAssignments > 0
+              ? `Confirmo a exclusão de “${label}” e que os eventos indicados precisarão ser redesignados.`
+              : `Confirmo a exclusão de “${label}”.`}
         </label>
         <button className="secondary">
           {kind === "location" && locationLinked

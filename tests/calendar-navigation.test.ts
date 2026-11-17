@@ -4,6 +4,7 @@ import {
   preparationMonth,
   calendarReturn,
 } from "../src/lib/calendar-navigation";
+import { displayDate, displayMonth } from "../src/lib/display-date";
 test("calendário abre no próximo mês em Brasília, inclusive na virada de ano", () => {
   assert.equal(preparationMonth(new Date("2026-11-12T12:00:00Z")), "2026-12");
   assert.equal(preparationMonth(new Date("2027-01-01T01:00:00Z")), "2027-01");
@@ -24,4 +25,12 @@ test("salvar, cancelar e excluir preservam o mês escolhido sem aceitar destinos
     calendarReturn(f, "saved", "", new Date("2026-11-12T12:00:00Z")),
     "/celebracoes?saved=1&month=2026-12",
   );
+});
+test("datas de exibição usam formato brasileiro legível", () => {
+  assert.equal(displayDate("2026-12-04"), "04/12/2026");
+  assert.match(
+    displayDate("2026-12-04", true),
+    /sexta-feira.*4 de dezembro de 2026/i,
+  );
+  assert.equal(displayMonth("2026-12"), "Dezembro de 2026");
 });
