@@ -2,8 +2,9 @@
 import { revalidatePath } from "next/cache";
 import { coordinator, assertCurrentActor } from "@/lib/auth";
 import { transaction, write, audit } from "@/lib/store";
-import { csvState } from "@/lib/minister-csv";
+import { csvPreviewFingerprint, csvState } from "@/lib/minister-csv";
 import { planAssistedCsv } from "@/lib/assisted-csv";
+import { assistedCsvChanges } from "@/lib/csv-diff";
 const errorMessage = (e: unknown) =>
   e instanceof Error && !("code" in e)
     ? e.message
@@ -13,22 +14,31 @@ export async function previewAssistedCsv(form: FormData) {
   try {
     return await transaction(async (client, data) => {
       await assertCurrentActor(client, user, true);
-      const plan = planAssistedCsv(
-        String(form.get("source") ?? ""),
-        data.assisted,
-        form.get("update") === "true",
-      );
+      const source = String(form.get("source") ?? "");
+      const update = form.get("update") === "true";
+      const state = csvState(data.assisted);
+      const plan = planAssistedCsv(source, data.assisted, update);
       await audit(client, user.id, "assisted:csv-preview", undefined, {
         rows: plan.summary.length,
       });
       return {
         summary: plan.summary,
-        expectedState: csvState(data.assisted),
+        changes: assistedCsvChanges(data.assisted, plan.assisted),
+        plannedCount: plan.assisted.length,
+        expectedState: state,
+        expectedPreview: csvPreviewFingerprint(source, update, state),
         error: "",
       };
     });
   } catch (e) {
-    return { summary: [], expectedState: "", error: errorMessage(e) };
+    return {
+      summary: [],
+      changes: [],
+      plannedCount: 0,
+      expectedState: "",
+      expectedPreview: "",
+      error: errorMessage(e),
+    };
   }
 }
 export async function importAssistedCsv(form: FormData) {
@@ -40,11 +50,15 @@ export async function importAssistedCsv(form: FormData) {
       await assertCurrentActor(client, user, true);
       if (csvState(data.assisted) !== form.get("expectedState"))
         throw new Error("Os cadastros mudaram. Gere uma nova prévia.");
-      const plan = planAssistedCsv(
-        String(form.get("source") ?? ""),
-        data.assisted,
-        form.get("update") === "true",
-      );
+      const source = String(form.get("source") ?? "");
+      const update = form.get("update") === "true";
+      const state = csvState(data.assisted);
+      const plan = planAssistedCsv(source, data.assisted, update);
+      if (
+        csvPreviewFingerprint(source, update, state) !==
+        form.get("expectedPreview")
+      )
+        throw new Error("A prévia não corresponde ao arquivo. Gere novamente.");
       for (const next of plan.assisted) {
         await write(client, "assisted", next);
         await audit(client, user.id, "assisted:csv", next.id, {

@@ -4,8 +4,8 @@ import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { PGlite } from "@electric-sql/pglite";
 import type { PoolClient } from "pg";
-import { emptyData, type Event, type Schedule } from "../src/lib/domain";
-import { blankMinister } from "../src/lib/profile";
+import { emptyData, type Event, type Schedule } from "@/lib/domain";
+import { blankMinister } from "@/lib/profile";
 import {
   planRecordRemoval,
   recordVersion,
@@ -13,8 +13,8 @@ import {
   executeRecordRemoval,
   removeMinisterFromEditableSchedule,
   type RemovalKind,
-} from "../src/lib/record-removal";
-import { write, readData } from "../src/lib/store";
+} from "@/lib/record-removal";
+import { write, readData } from "@/lib/store";
 const event = (): Event => ({
   id: randomUUID(),
   title: "Registro errado",

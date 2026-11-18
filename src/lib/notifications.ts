@@ -130,7 +130,10 @@ export function notificationsFor(
   for (const s of data.schedules.filter((s) => s.status === "CANCELLED")) {
     if (
       data.schedules.some(
-        (other) => other.month === s.month && other.revision > s.revision,
+        (other) =>
+          other.month === s.month &&
+          other.revision > s.revision &&
+          ["PUBLISHED", "CANCELLED"].includes(other.status),
       )
     )
       continue;

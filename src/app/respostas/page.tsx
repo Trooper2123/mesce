@@ -2,7 +2,7 @@ import { actor } from "@/lib/auth";
 import { readData } from "@/lib/store";
 import { monthlyResponse } from "@/app/operations";
 import { Notice, Field } from "@/components/fields";
-import { nextMonth } from "@/lib/domain";
+import { absenceCountForMonth, nextMonth } from "@/lib/domain";
 import Link from "next/link";
 export const dynamic = "force-dynamic";
 export default async function Responses({
@@ -47,7 +47,12 @@ export default async function Responses({
         <h2>
           {user.coordinator ? "Consolidação do mês" : "Minha resposta mensal"}
         </h2>
-        <div className="table-scroll">
+        <div
+          className="table-scroll"
+          role="region"
+          aria-label="Respostas mensais"
+          tabIndex={0}
+        >
           <table>
             <thead>
               <tr>
@@ -62,15 +67,7 @@ export default async function Responses({
                 const submitted = data.responses?.find(
                   (r) => r.ministerId === m.id && r.month === month,
                 );
-                const count = data.absences.filter(
-                  (a) =>
-                    a.ministerId === m.id &&
-                    (a.scope === "CELEBRATION"
-                      ? data.events.some(
-                          (e) => e.id === a.eventId && e.date.startsWith(month),
-                        )
-                      : a.start <= month + "-31" && a.end >= month + "-01"),
-                ).length;
+                const count = absenceCountForMonth(data, m.id, month);
                 return (
                   <tr key={m.id}>
                     <td>{m.name}</td>

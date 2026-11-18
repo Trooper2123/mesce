@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { authEntryRedirect } from "../src/lib/auth-routing";
+import { authEntryRedirect } from "@/lib/auth-routing";
 const prod = {
   NODE_ENV: "production" as const,
   VERCEL_ENV: "production",

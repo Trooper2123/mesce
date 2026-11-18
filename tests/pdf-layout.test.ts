@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { PDFDocument, PDFRawStream, decodePDFRawStream } from "pdf-lib";
-import { schedulePdf, visitGuidePdf } from "../src/lib/pdf";
-import type { Schedule, Assisted, Event } from "../src/lib/domain";
+import { schedulePdf, visitGuidePdf } from "@/lib/pdf";
+import type { Schedule, Assisted, Event } from "@/lib/domain";
 const event = (id: string, extra: Partial<Event> = {}): Event => ({
   id,
   date: "2026-11-01",

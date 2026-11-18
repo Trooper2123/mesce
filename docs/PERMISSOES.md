@@ -22,6 +22,13 @@ do ministro continua exigindo autorização do e-mail em Pré-cadastros e identi
 verificada pelo Auth0. Ao autorizar o mesmo e-mail, o sistema reutiliza o cadastro
 existente.
 
+Ao alterar o e-mail de um ministro vinculado, o MESCE atualiza o vínculo e o
+destinatário das notificações na mesma transação e revoga a assinatura pessoal de
+calendário anterior. A pessoa mantém o mesmo `sub` do Auth0 e só volta a acessar
+quando esse endereço novo estiver verificado na conta Auth0. Um coordenador não
+pode alterar o próprio e-mail vinculado por esse cadastro; outro coordenador deve
+fazer a mudança.
+
 Autonomia administrativa preserva as validações de integridade: UUIDs e vínculos
 válidos, ausência de duplicidades, agendamentos futuros e revalidação da escala.
 Mudanças são autorizadas no servidor e auditadas; versões já publicadas não são

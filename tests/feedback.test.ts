@@ -6,7 +6,7 @@ import {
   requireCompleteMinister,
   missingMinisterFields,
   ownProfile,
-} from "../src/lib/profile";
+} from "@/lib/profile";
 import {
   blocked,
   assistedSchema,
@@ -14,18 +14,19 @@ import {
   defaultSettings,
   emptyData,
   type Event,
-} from "../src/lib/domain";
-import { parseEventForm, applyVisitStaffing } from "../src/lib/event-input";
+  absenceCountForMonth,
+} from "@/lib/domain";
+import { parseEventForm, applyVisitStaffing } from "@/lib/event-input";
 import {
   parseAbsenceBatch,
   validateAbsenceSubmission,
-} from "../src/lib/absence-input";
+} from "@/lib/absence-input";
 import {
   parseMinisterCsv,
   planMinisterCsv,
   csvState,
   csvTemplate,
-} from "../src/lib/minister-csv";
+} from "@/lib/minister-csv";
 const minister = () => ({
   ...blankMinister(randomUUID(), "pessoa@example.invalid"),
   name: "Pessoa Sintética",
@@ -173,6 +174,55 @@ test("lote suporta dias avulsos, período inclusivo e deduplica equivalentes", (
   f.set("row.1.scope", "DAY");
   f.set("row.1.start", "2030-11-03");
   assert.equal(parseAbsenceBatch(f).length, 1);
+});
+test("resposta mensal conta apenas impedimentos ativos e celebrações não canceladas", () => {
+  const m = minister();
+  const celebration = event({ date: "2030-11-03" });
+  const cancelled = event({ date: "2030-11-10", cancelled: true });
+  const data = {
+    ...emptyData(),
+    events: [celebration, cancelled],
+    absences: [
+      {
+        id: randomUUID(),
+        ministerId: m.id,
+        scope: "DAY" as const,
+        start: "2030-11-03",
+        end: "2030-11-03",
+        eventId: "",
+        reason: "",
+      },
+      {
+        id: randomUUID(),
+        ministerId: m.id,
+        scope: "DAY" as const,
+        start: "2030-11-04",
+        end: "2030-11-04",
+        eventId: "",
+        reason: "",
+        revokedAt: "2030-10-01T00:00:00.000Z",
+      },
+      {
+        id: randomUUID(),
+        ministerId: m.id,
+        scope: "CELEBRATION" as const,
+        start: "",
+        end: "",
+        eventId: celebration.id,
+        reason: "",
+      },
+      {
+        id: randomUUID(),
+        ministerId: m.id,
+        scope: "CELEBRATION" as const,
+        start: "",
+        end: "",
+        eventId: cancelled.id,
+        reason: "",
+      },
+    ],
+  };
+  assert.equal(absenceCountForMonth(data, m.id, "2030-11"), 2);
 });
 test("linha inválida rejeita o lote e ministro não consegue trocar destinatário nem prazo", () => {
   const f = batch();

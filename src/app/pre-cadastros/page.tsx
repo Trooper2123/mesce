@@ -53,7 +53,12 @@ export default async function Allowlist({
       <section className="panel">
         <h2>E-mails autorizados</h2>
         {entries.length ? (
-          <div className="table-scroll">
+          <div
+            className="table-scroll"
+            role="region"
+            aria-label="E-mails autorizados"
+            tabIndex={0}
+          >
             <table>
               <thead>
                 <tr>

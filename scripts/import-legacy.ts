@@ -1,5 +1,5 @@
-import { pool, transaction } from "../src/lib/store";
-import { importLegacy } from "../src/lib/legacy";
+import { pool, transaction } from "@/lib/store";
+import { importLegacy } from "@/lib/legacy";
 
 // Explicit, one-off Preview operation. Never execute implicitly on app startup.
 const expectedHost = process.argv[2];

@@ -12,6 +12,15 @@ export function csvState<T extends { id: string }>(ministers: T[]) {
     )
     .digest("hex");
 }
+export function csvPreviewFingerprint(
+  source: string,
+  update: boolean,
+  expectedState: string,
+) {
+  return createHash("sha256")
+    .update(JSON.stringify([source, update, expectedState]))
+    .digest("hex");
+}
 export function parseCsv(
   source: string,
   columns: string[],

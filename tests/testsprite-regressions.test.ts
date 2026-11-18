@@ -100,6 +100,12 @@ test("aviso de revisão preserva publicação anterior e só revela rascunho à 
 test("cancelamento deixa aviso e desativação remove feed pessoal", () => {
   const { data, s, user } = fixture();
   s.status = "CANCELLED";
+  data.schedules.push({
+    ...structuredClone(s),
+    id: randomUUID(),
+    revision: s.revision + 1,
+    status: "DRAFT",
+  });
   assert.deepEqual(
     notificationsFor(data, user).map((n) => n.type),
     ["CANCELLATION"],

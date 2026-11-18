@@ -12,7 +12,7 @@ import {
   Event,
   Data,
   Absence,
-} from "../src/lib/domain";
+} from "@/lib/domain";
 const m = (extra: Partial<Minister> = {}): Minister => ({
   id: randomUUID(),
   name: "Ministro Sintético",

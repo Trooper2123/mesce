@@ -235,6 +235,26 @@ export function impeded(ministerId: string, event: Event, absences: Absence[]) {
   );
 }
 
+export function absenceCountForMonth(
+  data: Pick<Data, "absences" | "events">,
+  ministerId: string,
+  month: string,
+) {
+  return data.absences.filter(
+    (absence) =>
+      !absence.revokedAt &&
+      absence.ministerId === ministerId &&
+      (absence.scope === "CELEBRATION"
+        ? data.events.some(
+            (event) =>
+              event.id === absence.eventId &&
+              !event.cancelled &&
+              event.date.startsWith(month),
+          )
+        : absence.start <= month + "-31" && absence.end >= month + "-01"),
+  ).length;
+}
+
 export function assignmentConflict(
   ministerId: string,
   event: Event,
