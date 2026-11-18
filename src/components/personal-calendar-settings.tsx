@@ -79,13 +79,11 @@ export function PersonalCalendarSettings({
         revogá-lo ou gerar outro quando quiser.
       </p>
       {!enabled ? (
-        <p className="notice">
-          A assinatura ainda não está habilitada neste ambiente.
-        </p>
+        <p>Não há nenhuma ação necessária neste dispositivo.</p>
       ) : !migrationReady ? (
         <p className="notice error">
-          O banco ainda não recebeu a migração de agenda. Solicite a aplicação
-          da migração à administração do sistema.
+          Não foi possível preparar a agenda pessoal. Tente novamente mais
+          tarde. Se continuar, procure a coordenação.
         </p>
       ) : (
         <>

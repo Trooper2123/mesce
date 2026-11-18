@@ -6,17 +6,21 @@ export function AbsenceFields({
   absence,
   prefix = "",
   events,
+  initialEventId,
 }: {
   absence?: Absence;
   prefix?: string;
   events: { id: string; label: string }[];
+  initialEventId?: string;
 }) {
-  const [scope, setScope] = useState(absence?.scope ?? "DAY");
+  const [scope, setScope] = useState(
+    absence?.scope ?? (initialEventId ? "CELEBRATION" : "DAY"),
+  );
   const name = (s: string) => prefix + s;
   return (
     <>
       <label className="field">
-        Abrangência
+        Quando você não poderá servir?
         <select
           name={name("scope")}
           value={scope}
@@ -40,7 +44,7 @@ export function AbsenceFields({
           <Field
             name={name("eventId")}
             label="Celebração"
-            value={absence?.eventId}
+            value={absence?.eventId ?? initialEventId}
             required
             options={[
               ["", "Selecione"],
@@ -75,7 +79,7 @@ export function AbsenceFields({
       )}
       <Field
         name={name("reason")}
-        label="Motivo opcional"
+        label="Motivo"
         type="textarea"
         value={absence?.reason}
       />
@@ -85,9 +89,11 @@ export function AbsenceFields({
 export function AbsenceBatch({
   ministers,
   events,
+  initialEventId,
 }: {
   ministers: { id: string; name: string }[];
   events: { id: string; label: string }[];
+  initialEventId?: string;
 }) {
   const [rows, setRows] = useState([0]);
   const [next, setNext] = useState(1);
@@ -100,20 +106,23 @@ export function AbsenceBatch({
         options={ministers.map((m) => [m.id, m.name] as const)}
       />
       <p>
-        Inclua dias não consecutivos, períodos ou celebrações. O lote inteiro
-        será validado antes de salvar; uma falha não grava parte dos
-        impedimentos.
+        Inclua dias não consecutivos, períodos ou celebrações. Se algum item
+        precisar de correção, nenhum impedimento desta lista será salvo.
       </p>
       <p className="muted">
-        Dias repetidos são deduplicados; períodos sobrepostos permanecem
-        separados para preservar a informação.
+        Datas repetidas contam uma vez. Períodos sobrepostos continuam separados
+        para preservar a informação informada.
       </p>
       {rows.map((id, index) => (
         <section className="panel" key={id}>
           <h3>Impedimento {index + 1}</h3>
           <input type="hidden" name="rows" value={id} />
           <div className="form-grid">
-            <AbsenceFields prefix={`row.${id}.`} events={events} />
+            <AbsenceFields
+              prefix={`row.${id}.`}
+              events={events}
+              initialEventId={index === 0 ? initialEventId : undefined}
+            />
           </div>
           {rows.length > 1 && (
             <button

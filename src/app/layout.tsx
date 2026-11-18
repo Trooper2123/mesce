@@ -74,8 +74,8 @@ export default async function RootLayout({
               </strong>
               <p>
                 As alterações usam o banco de testes. O perfil de coordenador
-                também possui um cadastro de ministro para homologar escalas;
-                os demais perfis não têm acesso administrativo.
+                também possui um cadastro de ministro para homologar escalas; os
+                demais perfis não têm acesso administrativo.
               </p>
               <form action={switchPreviewProfile} className="toolbar">
                 <PreviewProfileFields selected={preview.previewProfile} />

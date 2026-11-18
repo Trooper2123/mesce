@@ -2,6 +2,12 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import type { Data, Minister, Event } from "./domain";
 import { defaultLocations, locationKey, type Location } from "./location-rules";
+export const normalizePostalCode = (value: string) => {
+  const digits = value.replace(/\D/g, "");
+  if (digits && digits.length !== 8)
+    throw new Error("Informe um CEP com oito dígitos.");
+  return digits;
+};
 export function locationCatalog(data: Data): Location[] {
   const catalog = (data.settings?.locations ?? defaultLocations).map((l) => ({
     ...l,
@@ -117,6 +123,39 @@ export function planLocationChange(form: FormData, data: Data) {
     id: previous?.id ?? crypto.randomUUID(),
     name,
     active: form.get("active") === "on",
+    address: form.has("postalCode")
+      ? {
+          postalCode: normalizePostalCode(String(form.get("postalCode") ?? "")),
+          street: z.string().trim().min(2).max(160).parse(form.get("street")),
+          number: z.string().trim().min(1).max(30).parse(form.get("number")),
+          complement: String(form.get("complement") ?? "").trim() || undefined,
+          neighborhood: z
+            .string()
+            .trim()
+            .min(2)
+            .max(100)
+            .parse(form.get("neighborhood")),
+          city: z.string().trim().min(2).max(100).parse(form.get("city")),
+          state: z
+            .string()
+            .trim()
+            .length(2)
+            .parse(form.get("state"))
+            .toUpperCase(),
+          latitude: form.get("latitude")
+            ? z.coerce.number().min(-90).max(90).parse(form.get("latitude"))
+            : undefined,
+          longitude: form.get("longitude")
+            ? z.coerce.number().min(-180).max(180).parse(form.get("longitude"))
+            : undefined,
+          geocodedAt: form.get("geocodedAt")
+            ? String(form.get("geocodedAt"))
+            : undefined,
+          geocodePrecision: form.get("latitude")
+            ? ("POSTAL_CODE" as const)
+            : undefined,
+        }
+      : previous?.address,
   };
   return {
     before: previous,

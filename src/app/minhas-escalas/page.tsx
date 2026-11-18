@@ -4,6 +4,7 @@ import Link from "next/link";
 import { linkedMinister } from "@/lib/access";
 import { actor } from "@/lib/auth";
 import { readData, transaction, audit } from "@/lib/store";
+import { displayDate, displayMonth } from "@/lib/display-date";
 export const dynamic = "force-dynamic";
 export default async function Mine() {
   const user = await actor();
@@ -31,27 +32,27 @@ export default async function Mine() {
       <p className="subtitle">
         Seus compromissos nas versões publicadas pela coordenação.
       </p>
-      <Link className="button secondary" href="/impedimentos">
-        Informar impedimento
-      </Link>
-      {minister && (
-        <Link
-          className="button secondary"
-          href="/minhas-escalas/calendario"
-          style={{ marginInlineStart: 8 }}
-        >
-          Configurar agenda pessoal
-        </Link>
-      )}
-      {minister && (
-        <Link
-          className="button secondary"
-          href="/minhas-escalas/avisos"
-          style={{ marginInlineStart: 8 }}
-        >
-          Configurar lembretes e avisos
-        </Link>
-      )}
+      <div className="schedule-actions">
+        <div className="schedule-primary-actions">
+          <Link className="button" href="/impedimentos">
+            Informar impedimento
+          </Link>
+        </div>
+        {minister && (
+          <div className="schedule-support-actions">
+            <span className="schedule-actions-label">Configurações</span>
+            <Link
+              className="button secondary"
+              href="/minhas-escalas/calendario"
+            >
+              Agenda pessoal
+            </Link>
+            <Link className="button secondary" href="/minhas-escalas/avisos">
+              Lembretes e avisos
+            </Link>
+          </div>
+        )}
+      </div>
       {!minister ? (
         <p className="notice">
           Procure a coordenação para vincular seu e-mail verificado ao cadastro
@@ -60,7 +61,10 @@ export default async function Mine() {
       ) : !schedules.some((s) =>
           s.assignments.some((a) => a.ministerId === minister.id),
         ) ? (
-        <p className="empty">Você ainda não possui designações publicadas.</p>
+        <p className="empty">
+          Seus compromissos aparecerão aqui quando a coordenação publicar sua
+          escala. Enquanto isso, você pode informar seus impedimentos.
+        </p>
       ) : (
         schedules.map((s) => {
           const own = s.assignments.filter((a) => a.ministerId === minister.id);
@@ -74,7 +78,7 @@ export default async function Mine() {
             >
               <div className="panel-head">
                 <h2>
-                  {s.month} · Revisão {s.revision}
+                  {displayMonth(s.month)} · Revisão {s.revision}
                 </h2>
                 <Link href={`/api/schedules/${s.id}/pdf`}>PDF da escala</Link>
               </div>
@@ -108,7 +112,8 @@ export default async function Mine() {
                         : e.title}
                     </h3>
                     <p>
-                      {e.date} · {eventTimeLabel(e)} · {e.location}
+                      {displayDate(e.date, true)} · {eventTimeLabel(e)} ·{" "}
+                      {e.location}
                     </p>
                     {!altevitaGroup &&
                       assisted.map((assisted) => (

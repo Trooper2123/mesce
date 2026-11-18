@@ -1,9 +1,10 @@
 import { encrypt } from "./crypto";
-import { audit } from "./store";
+import { audit, write } from "./store";
 import { defaultSettings } from "./domain";
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import type { Data, Event } from "./domain";
+import type { Data, Event, Schedule } from "./domain";
+import { visitAssistedIds } from "./visit-group";
 import { locationCatalog } from "./locations";
 import { locationKey } from "./location-rules";
 import { RemediationError, type RemediationLink } from "./remediation";
@@ -28,8 +29,7 @@ export function recordVersion(record: unknown) {
   return createHash("sha256").update(JSON.stringify(record)).digest("hex");
 }
 const visitHas = (e: Event, id: string) =>
-  e.assistedId === id ||
-  (e as Event & { assistedIds?: string[] }).assistedIds?.includes(id);
+  e.kind === "VISIT" && visitAssistedIds(e).includes(id);
 const eventEditLink = (event: Event, label: string): RemediationLink => ({
   href: `/celebracoes?${new URLSearchParams({
     edit: event.id,
@@ -58,6 +58,36 @@ const scheduleEvents = (schedule: Data["schedules"][number]) => [
   ...schedule.events,
   ...(schedule.agendaEvents ?? []),
 ];
+export function removeMinisterFromEditableSchedule(
+  schedule: Schedule,
+  ministerId: string,
+) {
+  const affectedEventIds = schedule.assignments
+    .filter((assignment) => assignment.ministerId === ministerId)
+    .map((assignment) => assignment.eventId);
+  return {
+    affectedEventIds,
+    schedule: {
+      ...schedule,
+      editVersion: (schedule.editVersion ?? 1) + 1,
+      ministers: schedule.ministers.filter(
+        (minister) => minister.id !== ministerId,
+      ),
+      assignments: schedule.assignments.filter(
+        (assignment) => assignment.ministerId !== ministerId,
+      ),
+      warnings: [
+        ...schedule.warnings.filter(
+          (warning) => !warning.startsWith("Redesignar "),
+        ),
+        ...affectedEventIds.map((eventId) => {
+          const event = schedule.events.find((item) => item.id === eventId);
+          return `Redesignar evento ${event ? `${event.title} de ${event.date}` : "pendente"}: ministro excluído antes da versão final.`;
+        }),
+      ],
+    },
+  };
+}
 export function locationInUse(data: Data, id: string, name: string) {
   const uses = (event: Event) =>
     event.kind !== "VISIT" &&
@@ -166,21 +196,29 @@ export function planRecordRemoval(form: FormData, data: Data) {
     const absences = data.absences.filter((a) => a.ministerId === id);
     const responses = data.responses?.filter((r) => r.ministerId === id) ?? [];
     const spouseLinks = data.ministers.filter((m) => m.spouseId === id);
+    const legacyLocationLinks = data.ministers.filter(
+      (m) => !m.locationIds?.length && m.location === id,
+    );
     const schedules = data.schedules.filter(
       (s) =>
         s.ministers.some((m) => m.id === id) ||
         s.assignments.some((a) => a.ministerId === id),
     );
+    const finalSchedules = schedules.filter((schedule) =>
+      ["APPROVED", "PUBLISHED"].includes(schedule.status),
+    );
     if (
       absences.length ||
       responses.length ||
       spouseLinks.length ||
-      schedules.length
+      legacyLocationLinks.length ||
+      finalSchedules.length
     ) {
       const remediation = uniqueLinks([
         ...absences.map((a) => absenceEditLink(a.id)),
         ...spouseLinks.map((m) => ministerEditLink(m.id)),
-        ...schedules.map((s) => scheduleLink(s.month)),
+        ...legacyLocationLinks.map((m) => ministerEditLink(m.id)),
+        ...finalSchedules.map((s) => scheduleLink(s.month)),
         {
           href: `/ministros?${new URLSearchParams({ edit: id })}#cadastro`,
           label: "Abrir cadastro para inativar o ministro",
@@ -190,7 +228,8 @@ export function planRecordRemoval(form: FormData, data: Data) {
         absences.length && `${absences.length} impedimento(s)`,
         responses.length && `${responses.length} resposta(s) mensal(is)`,
         spouseLinks.length && "vínculo conjugal",
-        schedules.length && `${schedules.length} escala(s) ou histórico(s)`,
+        finalSchedules.length &&
+          `${finalSchedules.length} escala(s) finalizada(s) ou histórico(s)`,
       ].filter(Boolean);
       throw new RemediationError(
         `Não é possível excluir este ministro: o cadastro possui ${reasons.join(", ")}. Corrija os vínculos quando forem dados incorretos ou inative o ministro para preservar o histórico.`,
@@ -224,6 +263,24 @@ export function planRecordRemoval(form: FormData, data: Data) {
       throw new RemediationError(
         "Esta escala já foi aprovada ou publicada e precisa ter seu cancelamento registrado. Abra a escala do mês para cancelar; ela não pode ser removida como rascunho.",
         [scheduleLink(schedule.month)],
+      );
+  }
+  if (kind === "location") {
+    const location = locationCatalog(data).find((item) => item.id === id)!;
+    const legacyPreferences = data.ministers.some((minister) =>
+      minister.location
+        .split(";")
+        .some((name) => locationKey(name) === locationKey(location.name)),
+    );
+    const legacyUsers = data.ministers.filter(
+      (minister) =>
+        !minister.locationIds?.length &&
+        locationKey(minister.location) === locationKey(location.name),
+    );
+    if (legacyUsers.length || legacyPreferences)
+      throw new RemediationError(
+        "Este local está vinculado à preferência de ministro e não pode ser excluído.",
+        legacyUsers.map((minister) => ministerEditLink(minister.id)),
       );
   }
   return { kind, id, reason, before };
@@ -296,6 +353,23 @@ export async function executeRecordRemoval(
           },
         ],
       );
+    const editableSchedules = data.schedules.filter(
+      (schedule) =>
+        ["DRAFT", "IN_REVIEW"].includes(schedule.status) &&
+        (schedule.ministers.some((minister) => minister.id === plan.id) ||
+          schedule.assignments.some(
+            (assignment) => assignment.ministerId === plan.id,
+          )),
+    );
+    for (const schedule of editableSchedules) {
+      const removal = removeMinisterFromEditableSchedule(schedule, plan.id);
+      await write(client, "schedule", removal.schedule);
+      await audit(client, user.id, "schedule:minister-removed", schedule.id, {
+        ministerId: plan.id,
+        affectedEventIds: removal.affectedEventIds,
+        reason: plan.reason,
+      });
+    }
   }
   if (plan.kind === "location") {
     const location = locationCatalog(data).find((item) => item.id === plan.id)!;

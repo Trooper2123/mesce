@@ -58,6 +58,7 @@ export async function save(form: FormData) {
   const user = await actor();
   const kind = value(form, "kind");
   let eventMonth = "";
+  let redesignCount = 0;
   const page =
     kind === "minister"
       ? "ministros"
@@ -132,7 +133,7 @@ export async function save(form: FormData) {
               : "COMPLETE",
         });
         const minister =
-          parsed.registrationStatus === "DRAFT"
+          parsed.registrationStatus === "DRAFT" || parsed.former
             ? parsed
             : requireCompleteMinister(parsed);
         if (
@@ -170,6 +171,13 @@ export async function save(form: FormData) {
             spouseId: id,
             couplePreference: minister.couplePreference,
           } as Minister);
+        if (!minister.active || minister.former)
+          redesignCount = current.schedules
+            .filter((schedule) =>
+              ["DRAFT", "IN_REVIEW"].includes(schedule.status),
+            )
+            .flatMap((schedule) => schedule.assignments)
+            .filter((assignment) => assignment.ministerId === id).length;
         await write(client, "minister", minister);
         await syncMinisterEmail(client, minister.id, minister.email, user.id);
       } else if (kind === "assisted") {
@@ -281,7 +289,7 @@ export async function save(form: FormData) {
     redirectTo:
       kind === "event"
         ? calendarReturn(form, "saved", eventMonth)
-        : `/${page}?saved=1`,
+        : `/${page}?saved=1${redesignCount ? `&redesign=${redesignCount}` : ""}`,
   };
 }
 export async function scheduleAction(form: FormData) {

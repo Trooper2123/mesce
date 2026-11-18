@@ -1,4 +1,22 @@
-export type Location = { id: string; name: string; active: boolean };
+export type LocationAddress = {
+  postalCode: string;
+  street: string;
+  number: string;
+  complement?: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+  latitude?: number;
+  longitude?: number;
+  geocodedAt?: string;
+  geocodePrecision?: "ROOFTOP" | "STREET" | "POSTAL_CODE" | "CITY";
+};
+export type Location = {
+  id: string;
+  name: string;
+  active: boolean;
+  address?: LocationAddress;
+};
 export const defaultLocations: Location[] = [
   { id: "46c10000-0000-4000-8000-000000000001", name: "Matriz", active: true },
   {

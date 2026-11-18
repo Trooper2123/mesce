@@ -6,6 +6,7 @@ import { saveLocation } from "@/app/location-actions";
 import { ActionForm } from "@/components/action-form";
 import { Field, Check, Notice } from "@/components/fields";
 import { locationInUse } from "@/lib/record-removal";
+import { LocationAddressFields } from "@/components/location-address-fields";
 export const dynamic = "force-dynamic";
 export default async function Locations({
   searchParams,
@@ -40,6 +41,7 @@ export default async function Locations({
         <ActionForm action={saveLocation}>
           <Field name="name" label="Nome do local" required maxLength={120} />
           <Check name="active" label="Local ativo" checked />
+          <LocationAddressFields />
           <button>Adicionar local</button>
         </ActionForm>
       </section>
@@ -61,6 +63,7 @@ export default async function Locations({
                 maxLength={120}
               />
               <Check name="active" label="Local ativo" checked={l.active} />
+              <LocationAddressFields address={l.address} />
               <button>Salvar local</button>
             </ActionForm>
             <RemoveRecord

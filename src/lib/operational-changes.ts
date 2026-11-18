@@ -117,6 +117,12 @@ export function planEventChange(form: FormData, data: Data, now = Date.now()) {
       : anchor;
   if (
     operation === "RESCHEDULE" &&
+    anchor.kind === "VISIT" &&
+    new Date(`${replacement.date}T12:00:00Z`).getUTCDay() !== 0
+  )
+    throw new Error("Visitas devem ocorrer aos domingos.");
+  if (
+    operation === "RESCHEDULE" &&
     replacement.date === anchor.date &&
     replacement.time === anchor.time
   )
@@ -141,6 +147,11 @@ export function planEventChange(form: FormData, data: Data, now = Date.now()) {
       seriesException:
         scope === "ONE" && !!before.seriesId ? true : before.seriesException,
     });
+    if (
+      after.kind === "VISIT" &&
+      new Date(`${after.date}T12:00:00Z`).getUTCDay() !== 0
+    )
+      throw new Error("Visitas devem ocorrer aos domingos.");
     requireFuture(after, now);
     return eventChangeNotice(before, after, data, now);
   });

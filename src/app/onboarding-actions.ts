@@ -234,6 +234,11 @@ export async function switchPreviewProfile(form: FormData) {
     profile = previewProfileSchema.parse(form.get("profile"));
     await rateLimit(pool(), "preview-switch:" + session.id, 30);
     await transaction(async (client) => {
+      await client.query(
+        `UPDATE mesce_push_subscriptions SET revoked_at=now(),updated_at=now()
+         WHERE auth0_sub=$1 AND revoked_at IS NULL`,
+        [session.id],
+      );
       await ensurePreviewMinister(client, profile);
       await audit(client, session.id, "preview:switch-profile", undefined, {
         from: session.previewProfile,
@@ -254,6 +259,16 @@ export async function switchPreviewProfile(form: FormData) {
   redirect(profile! === "COORDINATOR" ? "/" : "/minhas-escalas");
 }
 export async function previewLogout() {
-  (await cookies()).delete("mesce_preview");
+  const store = await cookies();
+  const session = readPreviewSession(store.get("mesce_preview")?.value ?? "");
+  if (session)
+    await transaction(async (client) => {
+      await client.query(
+        `UPDATE mesce_push_subscriptions SET revoked_at=now(),updated_at=now()
+         WHERE auth0_sub=$1 AND revoked_at IS NULL`,
+        [session.id],
+      );
+    });
+  store.delete("mesce_preview");
   redirect("/acesso-dev");
 }

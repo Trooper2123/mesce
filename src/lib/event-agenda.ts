@@ -24,7 +24,7 @@ export function sortEvents(events: Event[]) {
       a.id.localeCompare(b.id),
   );
 }
-/** Within each day, celebrations by time, followed by assisted visits by time. */
+/** Order celebrations by time, then visits by time. */
 export function sortCalendarEvents(events: Event[]) {
   return sortEvents(events).sort(
     (a, b) =>
@@ -110,6 +110,7 @@ export function planEventSave(
         )
       : weeklyOccurrences(event, count, data.events);
   for (const occurrence of occurrences) requireFuture(occurrence, now);
+  for (const occurrence of occurrences) eventSchema.parse(occurrence);
   return occurrences;
 }
 

@@ -17,6 +17,7 @@ import {
   ministerLocations,
   eventLocation,
   planLocationChange,
+  normalizePostalCode,
 } from "@/lib/locations";
 import { ServicePreferences } from "@/components/service-preferences";
 import { EventFields } from "@/components/event-fields";
@@ -32,6 +33,11 @@ const event = (locationId: string, location: string): Event => ({
   locationId,
   location,
   notes: "",
+});
+
+test("normaliza CEP sem aceitar comprimento inválido", () => {
+  assert.equal(normalizePostalCode("70000-123"), "70000123");
+  assert.throws(() => normalizePostalCode("7000"), /oito dígitos/);
 });
 const person = () => ({
   ...blankMinister(randomUUID(), "test@example.invalid"),

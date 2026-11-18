@@ -36,22 +36,68 @@ aside {
 }
 .brand img {
   display: block;
-  width: 100%;
+  width: 75%;
   height: auto;
 }
 .nav-label {
-  font-size: 12px;
+  font-size: 18px;
   letter-spacing: 1.3px;
   font-weight: bold;
   color: var(--muted);
-  margin: 48px 8px 14px;
+  margin: 24px 8px 14px;
 }
 .nav-toggle {
   display: none;
 }
+
+.nav-group[data-active="true"] .nav-parent > a {
+  font-weight: 700;
+}
+.nav-parent {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px;
+  align-items: center;
+}
+.nav-parent > a {
+  min-width: 0;
+}
+.nav-expand {
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+}
+.nav-expand:hover,
+.nav-expand:focus-visible {
+  background: #eaf1e9;
+  color: var(--green);
+}
+.nav-expand svg {
+  transition: transform 200ms ease-out;
+}
+.nav-expand[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+.nav-children {
+  display: none;
+}
+.nav-children[data-open="true"] {
+  display: grid;
+}
+.nav-children a {
+  min-height: 44px;
+  padding-left: 3.25rem;
+  font-size: 0.94rem;
+}
 nav {
   display: grid;
   gap: 7px;
+  overflow-y: auto;
+}
+.nav-group {
+  display: grid;
+  gap: 2px;
 }
 nav a {
   display: flex;
@@ -62,7 +108,7 @@ nav a {
   color: var(--muted);
   border-radius: 8px;
   padding: 10px 12px;
-  font-size: 17px;
+  font-size: 18px;
 }
 nav a:hover {
   background: #eaf1e9;
@@ -374,6 +420,11 @@ button {
   font-size: 16px;
   font-weight: bold;
 }
+.field-requirement {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: normal;
+}
 .field input,
 .field select,
 .field textarea,
@@ -530,7 +581,18 @@ td small {
   margin: 20px 0;
 }
 .toolbar .field {
-  max-width: 240px;
+  flex: 1 1 240px;
+  max-width: 360px;
+}
+.toolbar select {
+  text-overflow: ellipsis;
+}
+.pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-top: 20px;
 }
 .inline-form {
   display: flex;
@@ -619,7 +681,10 @@ a.action {
     border-right: 0;
   }
   .brand {
-    font-size: 24px;
+    width: 25%;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
   }
   .nav-label,
   .aside-note {
@@ -720,6 +785,20 @@ a.action {
 .calendar {
   min-width: 850px;
   table-layout: fixed;
+}
+.calendar-agenda {
+  display: none;
+}
+.calendar-agenda-event {
+  border-top: 1px solid var(--line);
+  padding: 18px 0;
+}
+.calendar-agenda-event:first-child {
+  border-top: 0;
+}
+.calendar-agenda-event h3,
+.calendar-agenda-event p {
+  margin-top: 0;
 }
 .calendar td {
   height: 110px;
@@ -908,4 +987,13 @@ aside {
   width: 1.2rem;
   height: 1.2rem;
   flex: 0 0 auto;
+}
+
+@media (max-width: 760px) {
+  .calendar-agenda {
+    display: block;
+  }
+  .panel > .table-scroll:has(.calendar) {
+    display: none;
+  }
 }
