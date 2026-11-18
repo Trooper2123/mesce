@@ -447,6 +447,43 @@ export function endpointHash(endpoint: string) {
     .digest("hex");
 }
 
+export async function savePushSubscription(
+  client: PoolClient,
+  input: {
+    id: string;
+    ministerId: string;
+    auth0Sub: string;
+    subscription: PushSubscription;
+  },
+) {
+  const hash = endpointHash(input.subscription.endpoint);
+  await client.query(
+    `INSERT INTO mesce_push_subscriptions(id,minister_id,auth0_sub,endpoint_hash,payload)
+     VALUES($1,$2,$3,$4,$5)
+     ON CONFLICT(endpoint_hash) DO UPDATE SET
+       minister_id=EXCLUDED.minister_id,auth0_sub=EXCLUDED.auth0_sub,
+       payload=EXCLUDED.payload,revoked_at=NULL,updated_at=now()
+     WHERE mesce_push_subscriptions.revoked_at IS NOT NULL
+        OR (mesce_push_subscriptions.minister_id=EXCLUDED.minister_id
+            AND mesce_push_subscriptions.auth0_sub=EXCLUDED.auth0_sub)`,
+    [
+      input.id,
+      input.ministerId,
+      input.auth0Sub,
+      hash,
+      encrypt(input.subscription),
+    ],
+  );
+  const saved = await client.query<{ id: string }>(
+    `SELECT id FROM mesce_push_subscriptions
+     WHERE endpoint_hash=$1 AND minister_id=$2 AND auth0_sub=$3 AND revoked_at IS NULL`,
+    [hash, input.ministerId, input.auth0Sub],
+  );
+  if (!saved.rowCount)
+    throw new Error("Esta inscrição já está vinculada a outra conta.");
+  return String(saved.rows[0].id);
+}
+
 type OutboxRow = {
   id: string;
   channel: "EMAIL" | "PUSH";
