@@ -2,6 +2,8 @@
   box-sizing: border-box;
 }
 :root {
+  --sidebar-width: 278px;
+  --sidebar-width-medium: 235px;
   --ink: #172e2a;
   --muted: #52645e;
   --green: #164d3f;
@@ -20,7 +22,7 @@ a {
   color: var(--green);
 }
 aside {
-  width: 278px;
+  width: var(--sidebar-width);
   background: white;
   border-right: 1px solid var(--line);
   position: fixed;
@@ -30,14 +32,17 @@ aside {
   padding: 32px 22px;
 }
 .brand {
-  display: block;
+  display: flex;
+  justify-content: center;
+  width: 100%;
   text-decoration: none;
   line-height: 0;
 }
 .brand img {
   display: block;
-  width: 75%;
+  width: min(100%, 210px);
   height: auto;
+  object-fit: contain;
 }
 .nav-label {
   font-size: 18px;
@@ -139,7 +144,7 @@ nav a[aria-current="page"] {
   margin-right: 6px;
 }
 .workspace {
-  margin-left: 278px;
+  margin-left: var(--sidebar-width);
 }
 header {
   background: #fff;
@@ -663,11 +668,11 @@ a.action {
     flex-direction: column;
   }
   aside {
-    width: 235px;
+    width: var(--sidebar-width-medium);
     padding: 24px 14px;
   }
   .workspace {
-    margin-left: 235px;
+    margin-left: var(--sidebar-width-medium);
   }
   main {
     padding: 28px;
@@ -681,10 +686,15 @@ a.action {
     border-right: 0;
   }
   .brand {
-    width: 25%;
+    width: 100%;
     min-height: 44px;
+    justify-content: flex-start;
     display: flex;
     align-items: center;
+  }
+  .brand img {
+    width: min(100%, 180px);
+    max-height: 72px;
   }
   .nav-label,
   .aside-note {
