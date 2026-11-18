@@ -6,6 +6,7 @@ import { decrypt, encrypt } from "./crypto";
 import { calendarUid } from "./personal-calendar";
 import type { InviteEvent, InviteMethod } from "./calendar-invite";
 import { buildCalendarInvite } from "./calendar-invite";
+import { preparationMonth } from "./calendar-navigation";
 import nodemailer from "nodemailer";
 import { sendNotification, setVapidDetails } from "web-push";
 import type { PushSubscription } from "web-push";
@@ -55,7 +56,7 @@ async function enqueue(
     channel: "EMAIL" | "PUSH";
     method?: InviteMethod;
     ministerId: string;
-    scheduleId: string;
+    scheduleId?: string;
     sequence: number;
     deliveryKey: string;
     dedupeKey: string;
@@ -363,12 +364,115 @@ async function enqueuePushDelta(
           ministerId,
           scheduleId,
           month,
-          title: "Atualização do MESCE",
-          body: "Há uma atualização nas suas atividades. Abra o MESCE para consultar.",
+          title: previous ? "Escala atualizada" : "Nova escala disponível",
+          body: previous
+            ? "Sua escala foi atualizada. Abra o MESCE para consultar."
+            : "Uma nova escala está disponível. Abra o MESCE para consultar.",
           url: "/minhas-escalas",
         },
       });
     }
+  }
+}
+
+function saoPauloDate(now: Date) {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Sao_Paulo",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    })
+      .formatToParts(now)
+      .map((part) => [part.type, part.value]),
+  );
+  return { date: `${parts.year}-${parts.month}-${parts.day}`, day: parts.day };
+}
+
+export async function enqueueScheduledPushNotifications(
+  client: PoolClient,
+  data: Data,
+  now = new Date(),
+) {
+  if (
+    !enabled("MESCE_DELIVERY_OUTBOX_ENABLED") ||
+    !enabled("MESCE_PUSH_ENABLED")
+  )
+    return;
+  const { date, day } = saoPauloDate(now);
+  const activeMinisters = new Set(
+    data.ministers
+      .filter((minister) => minister.active && !minister.former)
+      .map((minister) => minister.id),
+  );
+  const subscriptions = await client.query(
+    `SELECT s.id,s.minister_id FROM mesce_push_subscriptions s
+     JOIN mesce_access a ON a.minister_id=s.minister_id AND a.auth0_sub=s.auth0_sub
+     WHERE s.revoked_at IS NULL AND a.status='ACTIVE'`,
+  );
+  for (const subscription of subscriptions.rows) {
+    const ministerId = String(subscription.minister_id);
+    if (!activeMinisters.has(ministerId)) continue;
+    const subscriptionId = String(subscription.id);
+    const deliveryKey = hash(`push-device:${subscriptionId}`);
+    if (["20", "24"].includes(day)) {
+      const month = preparationMonth(now);
+      if (
+        !data.responses?.some(
+          (response) =>
+            response.ministerId === ministerId && response.month === month,
+        )
+      )
+        await enqueue(client, {
+          channel: "PUSH",
+          ministerId,
+          sequence: 0,
+          deliveryKey,
+          dedupeKey: hash(
+            `push:absence-deadline:${subscriptionId}:${month}:${day}`,
+          ),
+          payload: {
+            subscriptionId,
+            ministerId,
+            month,
+            title: "Prazo para informar impedimentos",
+            body:
+              day === "24"
+                ? "O prazo termina amanhã. Informe seus impedimentos no MESCE."
+                : "Informe seus impedimentos até o dia 25.",
+            url: "/impedimentos",
+          },
+        });
+    }
+    const eventsToday = latestPublished(data).flatMap((schedule) =>
+      schedule.assignments
+        .filter((assignment) => assignment.ministerId === ministerId)
+        .map((assignment) =>
+          schedule.events.find((event) => event.id === assignment.eventId),
+        )
+        .filter(
+          (event): event is Event =>
+            !!event && !event.cancelled && event.date === date,
+        ),
+    );
+    if (eventsToday.length)
+      await enqueue(client, {
+        channel: "PUSH",
+        ministerId,
+        sequence: 0,
+        deliveryKey,
+        dedupeKey: hash(`push:event-day:${subscriptionId}:${date}`),
+        payload: {
+          subscriptionId,
+          ministerId,
+          title: "Você tem atividades hoje",
+          body:
+            eventsToday.length === 1
+              ? "Consulte no MESCE os detalhes da sua atividade de hoje."
+              : `Você tem ${eventsToday.length} atividades hoje. Consulte os detalhes no MESCE.`,
+          url: "/minhas-escalas",
+        },
+      });
   }
 }
 
@@ -629,7 +733,11 @@ async function sendOutbox(row: OutboxRow) {
     [payload.subscriptionId, row.minister_id],
   );
   if (!result.rows[0]) return "OBSOLETE" as const;
-  setVapidDetails(vapidSubject, vapidPublic, vapidPrivate);
+  setVapidDetails(
+    vapidSubject.includes(":") ? vapidSubject : `mailto:${vapidSubject}`,
+    vapidPublic,
+    vapidPrivate,
+  );
   const subscription = decrypt(result.rows[0].payload) as PushSubscription;
   await sendNotification(
     subscription,

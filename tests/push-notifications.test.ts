@@ -7,6 +7,7 @@ import type { PoolClient } from "pg";
 import {
   endpointHash,
   enqueuePublishedAgenda,
+  enqueueScheduledPushNotifications,
   savePushSubscription,
 } from "../src/lib/agenda-delivery";
 import { decrypt, encrypt } from "../src/lib/crypto";
@@ -121,6 +122,70 @@ test("push enfileira somente o titular afetado e não duplica republicação", a
     assert.equal(payload.url, "/minhas-escalas");
     assert.ok(!JSON.stringify(payload).includes(occurrence.title));
     assert.ok(!JSON.stringify(payload).includes(ministerB.name));
+  } finally {
+    await db.close();
+  }
+});
+
+test("push diário lembra prazo pendente e atividades do ministro sem duplicar", async () => {
+  process.env.MESCE_DELIVERY_OUTBOX_ENABLED = "true";
+  process.env.MESCE_PUSH_ENABLED = "true";
+  const db = new PGlite();
+  try {
+    for (const file of [
+      "001_initial.sql",
+      "002_access.sql",
+      "005_delivery_outbox.sql",
+      "006_scheduled_push.sql",
+    ])
+      await db.exec(await readFile(`migrations/${file}`, "utf8"));
+    const client = {
+      query: (sql: string, params?: unknown[]) => db.query(sql, params),
+    } as unknown as PoolClient;
+    const owner = minister(randomUUID(), "Ministro A");
+    const occurrence = { ...event(), date: "2099-01-24" };
+    const subscriptionId = randomUUID();
+    await client.query(
+      `INSERT INTO mesce_access(id,auth0_sub,minister_id,status)
+       VALUES($1,$2,$3,'ACTIVE')`,
+      [randomUUID(), `auth0|${owner.id}`, owner.id],
+    );
+    await client.query(
+      `INSERT INTO mesce_push_subscriptions
+         (id,minister_id,auth0_sub,endpoint_hash,payload)
+       VALUES($1,$2,$3,$4,$5)`,
+      [
+        subscriptionId,
+        owner.id,
+        `auth0|${owner.id}`,
+        endpointHash(`https://push.example/${owner.id}`),
+        encrypt({ endpoint: `https://push.example/${owner.id}` }),
+      ],
+    );
+    const data: Data = {
+      ministers: [owner],
+      assisted: [],
+      events: [occurrence],
+      absences: [],
+      schedules: [schedule(randomUUID(), occurrence, owner.id)],
+      responses: [],
+    };
+    const now = new Date("2099-01-24T12:00:00-03:00");
+
+    await enqueueScheduledPushNotifications(client, data, now);
+    await enqueueScheduledPushNotifications(client, data, now);
+
+    const queued = await db.query<{ payload: string }>(
+      "SELECT payload FROM mesce_outbox ORDER BY created_at,id",
+    );
+    assert.equal(queued.rows.length, 2);
+    const payloads = queued.rows.map(
+      (row) => decrypt(row.payload) as { title: string },
+    );
+    assert.deepEqual(
+      payloads.map((payload) => payload.title).sort(),
+      ["Prazo para informar impedimentos", "Você tem atividades hoje"].sort(),
+    );
   } finally {
     await db.close();
   }

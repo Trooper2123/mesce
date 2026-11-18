@@ -1,6 +1,10 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
-import { processOutboxBatch } from "@/lib/agenda-delivery";
+import {
+  enqueueScheduledPushNotifications,
+  processOutboxBatch,
+} from "@/lib/agenda-delivery";
+import { transaction } from "@/lib/store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,7 +28,15 @@ async function run(request: Request) {
   if (!authorized(request))
     return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
   try {
-    const processed = await processOutboxBatch(25);
+    await transaction((client, data) =>
+      enqueueScheduledPushNotifications(client, data),
+    );
+    let processed = 0;
+    let batch = 0;
+    do {
+      batch = await processOutboxBatch(25);
+      processed += batch;
+    } while (batch === 25 && processed < 250);
     return NextResponse.json({ processed });
   } catch {
     return NextResponse.json(
