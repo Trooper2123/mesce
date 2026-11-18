@@ -94,6 +94,11 @@ export const eventSchema = z
         code: "custom",
         message: "Visitas são eventos extraordinários.",
       });
+    if (
+      v.kind === "VISIT" &&
+      new Date(`${v.date}T12:00:00Z`).getUTCDay() !== 0
+    )
+      ctx.addIssue({ code: "custom", message: "Visitas devem ocorrer aos domingos." });
     if (v.kind === "VISIT" && !v.assistedId && v.visitSite !== "ALTEVITA")
       ctx.addIssue({
         code: "custom",
@@ -240,13 +245,11 @@ export function assignmentConflict(
     .filter((assignment) => assignment.ministerId === ministerId)
     .map((assignment) => events.find((item) => item.id === assignment.eventId))
     .filter((item): item is Event => !!item && !item.cancelled);
-  if (
-    event.kind !== "VISIT" &&
-    assignedEvents.some(
-      (assigned) => assigned.kind !== "VISIT" && overlaps(assigned, event),
-    )
-  )
-    return "Conflito de horário: o ministro já está designado para outro evento.";
+  const conflict = assignedEvents.find((assigned) => overlaps(assigned, event));
+  if (conflict)
+    return conflict.kind === "MASS" && event.kind === "VISIT"
+      ? "Conflito de horário com missa das 10h de domingo."
+      : "Conflito de horário: o ministro já está designado para outro evento.";
   return "";
 }
 
@@ -257,13 +260,6 @@ export function blocked(
   assignments: Assignment[],
   events: Event[],
 ) {
-  if (
-    data.settings?.unansweredPolicy === "REVIEW" &&
-    !data.responses?.some(
-      (r) => r.ministerId === m.id && r.month === e.date.slice(0, 7),
-    )
-  )
-    return "Resposta mensal pendente de consolidação";
   if (e.cancelled) return "Evento cancelado";
   if (m.former || !m.active) return "Ex-ministro";
   if (m.registrationStatus === "DRAFT") return "Cadastro pendente";
@@ -302,6 +298,13 @@ export function blocked(
     [...events, ...outside],
   );
   if (conflict) return conflict;
+  if (
+    data.settings?.unansweredPolicy === "REVIEW" &&
+    !data.responses?.some(
+      (r) => r.ministerId === m.id && r.month === e.date.slice(0, 7),
+    )
+  )
+    return "Resposta mensal pendente de consolidação";
   if (
     m.monthlyLimit != null &&
     ownEvents.filter((x) => x.date.slice(0, 7) === e.date.slice(0, 7)).length >=
@@ -695,8 +698,6 @@ export function overlappingAgenda(s: Schedule) {
         (other) =>
           !event.cancelled &&
           !other.cancelled &&
-          event.kind !== "VISIT" &&
-          other.kind !== "VISIT" &&
           overlaps(event, other),
       )
       .map(
