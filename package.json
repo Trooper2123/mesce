@@ -7,13 +7,13 @@
     "test": "tests"
   },
   "scripts": {
-    "test": "node --max-old-space-size=2048 --import tsx --test --test-concurrency=1 tests/*.test.ts",
+    "test": "node --require ./scripts/windows-user-info.cjs --max-old-space-size=2048 --import tsx --test --test-concurrency=1 tests/*.test.ts",
     "dev": "next dev --hostname 0.0.0.0",
     "build": "next build",
     "vercel": "pnpm dlx vercel@65.15.0",
     "start": "next start --hostname 0.0.0.0",
     "typecheck": "tsc --noEmit",
-    "db:migrate": "node --env-file=.env.local --import tsx scripts/migrate.ts",
+    "db:migrate": "node --require ./scripts/windows-user-info.cjs --env-file=.env.local --import tsx scripts/migrate.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
@@ -36,6 +36,7 @@
     "nodemailer": "10.5.0",
     "pdf-lib": "^1.17.1",
     "pg": "^8.23.1",
+    "prettier-plugin-organize-imports": "^4.3.0",
     "pretty-format": "^30.5.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
@@ -50,7 +51,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@types/web-push": "3.6.4",
-    "prettier": "^3.9.10",
+    "prettier": "^3.10.1",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"
   },

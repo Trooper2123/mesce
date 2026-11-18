@@ -20,6 +20,7 @@ export function parseEventForm(form: FormData, id: string, previous?: Event) {
         ? "Altevita"
         : raw.location,
     kind: raw.eventKind,
+    date: String(raw.date ?? ""),
     eventClass: raw.eventClass ?? previous?.eventClass,
     seriesId: previous?.seriesId,
     seriesException: previous?.seriesId ? true : undefined,
@@ -60,6 +61,8 @@ export function applyVisitStaffing(event: Event, assisted: Assisted[]): Event {
     });
   const person = assisted.find((a) => a.id === event.assistedId && a.active);
   if (!person) throw new Error("Selecione um assistido ativo.");
+  if (new Date(`${event.date}T12:00:00Z`).getUTCDay() !== 0)
+    throw new Error("Visitas devem ocorrer aos domingos.");
   const ids = visitAssistedIds(event);
   const people = ids.map((id) => assisted.find((a) => a.id === id && a.active));
   if (ids.length > 1 && people.some((a) => !a || !sameVisitAddress(person, a)))

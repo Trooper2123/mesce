@@ -2,11 +2,10 @@
 import { z } from "zod";
 import { actor, assertCurrentActor } from "@/lib/auth";
 import { linkedMinister } from "@/lib/access";
-import { encrypt } from "@/lib/crypto";
 import {
   enqueueCurrentPushSummaries,
-  endpointHash,
   processOutboxBatch,
+  savePushSubscription,
 } from "@/lib/agenda-delivery";
 import { pool, readData, transaction } from "@/lib/store";
 import { revalidatePath } from "next/cache";
@@ -72,28 +71,12 @@ export async function registerPushSubscription(raw: unknown) {
     const minister = linkedMinister(current, data);
     if (!minister)
       throw new Error("Cadastro de ministro ativo não localizado.");
-    await client.query(
-      `INSERT INTO mesce_push_subscriptions(id,minister_id,auth0_sub,endpoint_hash,payload)
-       VALUES($1,$2,$3,$4,$5)
-       ON CONFLICT(endpoint_hash) DO UPDATE SET
-       payload=EXCLUDED.payload,revoked_at=NULL,updated_at=now()
-       WHERE mesce_push_subscriptions.minister_id=EXCLUDED.minister_id
-         AND mesce_push_subscriptions.auth0_sub=EXCLUDED.auth0_sub`,
-      [
-        id,
-        minister.id,
-        user.id,
-        endpointHash(subscription.endpoint),
-        encrypt(subscription),
-      ],
-    );
-    const saved = await client.query(
-      `SELECT id FROM mesce_push_subscriptions WHERE endpoint_hash=$1 AND minister_id=$2 AND auth0_sub=$3 AND revoked_at IS NULL`,
-      [endpointHash(subscription.endpoint), minister.id, user.id],
-    );
-    if (!saved.rowCount)
-      throw new Error("Esta inscrição já está vinculada a outra conta.");
-    subscriptionId = String(saved.rows[0].id);
+    subscriptionId = await savePushSubscription(client, {
+      id,
+      ministerId: minister.id,
+      auth0Sub: user.id,
+      subscription,
+    });
     await enqueueCurrentPushSummaries(
       client,
       data,

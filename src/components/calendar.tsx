@@ -62,12 +62,14 @@ export function Calendar({
   const compact = view === "SUMMARY";
   const visitsOnly = view === "VISITS";
   const ordered = sortCalendarEvents(
-    events.filter((e) =>
-      view === "MASSES"
-        ? e.kind !== "VISIT"
-        : visitsOnly
-          ? e.kind === "VISIT"
-          : true,
+    events.filter(
+      (e) =>
+        e.date.startsWith(month) &&
+        (view === "MASSES"
+          ? e.kind !== "VISIT"
+          : visitsOnly
+            ? e.kind === "VISIT"
+            : true),
     ),
   );
   const warnings = new Map(
@@ -76,13 +78,18 @@ export function Calendar({
   const [year, number] = month.split("-").map(Number);
   const first = new Date(Date.UTC(year, number - 1, 1)).getUTCDay();
   const days = new Date(Date.UTC(year, number, 0)).getUTCDate();
+  const visitDates = Array.from({ length: days }, (_, i) => i + 1).filter(
+    (day) => new Date(Date.UTC(year, number - 1, day)).getUTCDay() === 0,
+  );
   const cells = Array.from(
     { length: Math.ceil((days + first) / 7) * 7 },
     (_, i) => i - first + 1,
   );
-  const weeks = Array.from({ length: cells.length / 7 }, (_, week) =>
-    cells.slice(week * 7, week * 7 + 7),
-  );
+  const weeks = visitsOnly
+    ? [visitDates]
+    : Array.from({ length: cells.length / 7 }, (_, week) =>
+        cells.slice(week * 7, week * 7 + 7),
+      );
   const heading = visitsOnly
     ? "Visitas aos assistidos"
     : view === "MASSES"
@@ -137,7 +144,9 @@ export function Calendar({
         >
           <thead>
             <tr>
-              {headers.map((day) => (
+              {(visitsOnly
+                ? visitDates.map((day) => `Domingo ${String(day).padStart(2, "0")}/${String(number).padStart(2, "0")}`)
+                : headers).map((day) => (
                 <th key={day} scope="col">
                   {day}
                 </th>
@@ -147,7 +156,7 @@ export function Calendar({
           <tbody>
             {weeks.map((week, weekIndex) => (
               <tr key={weekIndex}>
-                {week.map((day, index) => (
+                {(visitsOnly ? [...week, ...Array(Math.max(0, visitDates.length - week.length)).fill(0)] : week).map((day, index) => (
                   <td key={index}>
                     {day > 0 && day <= days && (
                       <>

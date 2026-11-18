@@ -4,6 +4,7 @@ import { defaultSettings } from "./domain";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import type { Data, Event, Schedule } from "./domain";
+import { visitAssistedIds } from "./visit-group";
 import { locationCatalog } from "./locations";
 import { locationKey } from "./location-rules";
 import { RemediationError, type RemediationLink } from "./remediation";
@@ -28,8 +29,7 @@ export function recordVersion(record: unknown) {
   return createHash("sha256").update(JSON.stringify(record)).digest("hex");
 }
 const visitHas = (e: Event, id: string) =>
-  e.assistedId === id ||
-  (e as Event & { assistedIds?: string[] }).assistedIds?.includes(id);
+  e.kind === "VISIT" && visitAssistedIds(e).includes(id);
 const eventEditLink = (event: Event, label: string): RemediationLink => ({
   href: `/celebracoes?${new URLSearchParams({
     edit: event.id,
@@ -82,7 +82,7 @@ export function removeMinisterFromEditableSchedule(
         ),
         ...affectedEventIds.map((eventId) => {
           const event = schedule.events.find((item) => item.id === eventId);
-          return `Redesignar ${event ? `${event.title} de ${event.date}` : "evento pendente"}: ministro excluído antes da versão final.`;
+          return `Redesignar evento ${event ? `${event.title} de ${event.date}` : "pendente"}: ministro excluído antes da versão final.`;
         }),
       ],
     },
@@ -196,6 +196,9 @@ export function planRecordRemoval(form: FormData, data: Data) {
     const absences = data.absences.filter((a) => a.ministerId === id);
     const responses = data.responses?.filter((r) => r.ministerId === id) ?? [];
     const spouseLinks = data.ministers.filter((m) => m.spouseId === id);
+    const legacyLocationLinks = data.ministers.filter(
+      (m) => !m.locationIds?.length && m.location === id,
+    );
     const schedules = data.schedules.filter(
       (s) =>
         s.ministers.some((m) => m.id === id) ||
@@ -208,11 +211,13 @@ export function planRecordRemoval(form: FormData, data: Data) {
       absences.length ||
       responses.length ||
       spouseLinks.length ||
+      legacyLocationLinks.length ||
       finalSchedules.length
     ) {
       const remediation = uniqueLinks([
         ...absences.map((a) => absenceEditLink(a.id)),
         ...spouseLinks.map((m) => ministerEditLink(m.id)),
+        ...legacyLocationLinks.map((m) => ministerEditLink(m.id)),
         ...finalSchedules.map((s) => scheduleLink(s.month)),
         {
           href: `/ministros?${new URLSearchParams({ edit: id })}#cadastro`,
@@ -258,6 +263,24 @@ export function planRecordRemoval(form: FormData, data: Data) {
       throw new RemediationError(
         "Esta escala já foi aprovada ou publicada e precisa ter seu cancelamento registrado. Abra a escala do mês para cancelar; ela não pode ser removida como rascunho.",
         [scheduleLink(schedule.month)],
+      );
+  }
+  if (kind === "location") {
+    const location = locationCatalog(data).find((item) => item.id === id)!;
+    const legacyPreferences = data.ministers.some((minister) =>
+      minister.location
+        .split(";")
+        .some((name) => locationKey(name) === locationKey(location.name)),
+    );
+    const legacyUsers = data.ministers.filter(
+      (minister) =>
+        !minister.locationIds?.length &&
+        locationKey(minister.location) === locationKey(location.name),
+    );
+    if (legacyUsers.length || legacyPreferences)
+      throw new RemediationError(
+        "Este local está vinculado à preferência de ministro e não pode ser excluído.",
+        legacyUsers.map((minister) => ministerEditLink(minister.id)),
       );
   }
   return { kind, id, reason, before };
