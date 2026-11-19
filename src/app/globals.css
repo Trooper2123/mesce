@@ -2,8 +2,8 @@
   box-sizing: border-box;
 }
 :root {
-  --sidebar-width: 278px;
-  --sidebar-width-medium: 235px;
+  --sidebar-width: 15%;
+  --sidebar-width-medium: 20%;
   --ink: #172e2a;
   --muted: #52645e;
   --green: #164d3f;
@@ -40,7 +40,7 @@ aside {
 }
 .brand img {
   display: block;
-  width: min(100%, 210px);
+  width: min(75%, 180px);
   height: auto;
   object-fit: contain;
 }
@@ -680,18 +680,24 @@ a.action {
 }
 @media (max-width: 760px) {
   aside {
-    position: static;
+    position: relative;
     width: auto;
     padding: 18px;
-    border-right: 0;
+    border-right: 0;display: grid;
+    grid-template-columns: repeat(3, 1fr); /* 3 equal-width columns */
+    gap: 16px;
+
   }
+
   .brand {
-    width: 100%;
+    width: auto;
     min-height: 44px;
+    flex: 0 1 35%;
     justify-content: flex-start;
     display: flex;
     align-items: center;
   }
+
   .brand img {
     width: min(100%, 180px);
     max-height: 72px;
@@ -739,10 +745,16 @@ a.action {
   }
   header {
     padding: 15px 20px;
+    display: grid;
+    grid-template-columns: repeat(1, 1fr); /* 3 equal-width columns */
+    gap: 16px;
   }
   header span {
     max-width: 85%;
-    font-size: 13px;
+    font-size: 14px;
+    display: grid;
+    grid-template-columns: repeat(1, 1fr);
+
   }
   main {
     padding: 24px 16px;
