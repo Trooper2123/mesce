@@ -17,6 +17,13 @@ import {
   UsersRound,
 } from "lucide-react";
 
+const absenceGroup = {
+  href: "/impedimentos",
+  label: "Impedimentos",
+  icon: CalendarOff,
+  children: [["/impedimentos?new=1#cadastro", "Registrar ausência"]],
+} as const;
+
 const coordinatorGroups = [
   { href: "/", label: "Visão geral", icon: LayoutDashboard },
   { href: "/meus-dados", label: "Meus dados", icon: UserRound },
@@ -26,10 +33,10 @@ const coordinatorGroups = [
     icon: UsersRound,
     children: [
       ["/pre-cadastros", "Pré-cadastros"],
-      ["/impedimentos", "Impedimentos"],
       ["/respostas", "Respostas mensais"],
     ],
   },
+  absenceGroup,
   {
     href: "/visitas",
     label: "Visitas dominicais",
@@ -68,7 +75,7 @@ const ministerGroups = [
   { href: "/", label: "Visão geral", icon: LayoutDashboard },
   { href: "/notificacoes", label: "Lembretes e avisos", icon: Bell },
   { href: "/meus-dados", label: "Meus dados", icon: UserRound },
-  { href: "/impedimentos", label: "Impedimentos", icon: CalendarOff },
+  absenceGroup,
   { href: "/respostas", label: "Respostas mensais", icon: ClipboardList },
   { href: "/minhas-escalas", label: "Minhas escalas", icon: UserRound },
 ] as const;
