@@ -7,6 +7,10 @@
 - `src/app/globals.css`: cabeçalho móvel com logo e botão Menu na primeira linha; navegação e saída em linhas de largura total. Links e expansores móveis com altura mínima de 48 px e textos sem corte horizontal.
 - Validação: tipos, build, teste de navegação e formatação do CSS aprovados. Execução direta da suíte: 154/155 testes passaram; falha preexistente no convite de calendário (espera horário, implementação gera data). `npm test` bloqueado pelo arquivo ausente `scripts/windows-user-info.cjs`.
 - Validação visual pendente: Chromium local sem executável; download do navegador bloqueado por HTTP 403. Node disponível 24.22.3, enquanto package.json exige 26.x. Ferramentas de auditoria não disponíveis; revisão manual do diff restrito a CSS, sem alterações de autenticação, dados ou dependências. PR de revisão solicitado explicitamente pelo usuário com as limitações acima; sem publicação em produção.
+## 2026-11-27 21:01 (Brasília) — chore
+
+- `.github/workflows/ci.yml`: atualiza `actions/checkout` e `actions/setup-node` de v4 para v5, cujo runtime é Node.js 24. Preserva Node 24 do projeto, cache npm, permissões somente leitura e credenciais não persistidas.
+- Validação: manifests oficiais das duas actions confirmam `runs.using: node24`; YAML e formatação verificados. Execução remota pendente. Revisão manual sem novos segredos, permissões ou comandos; ferramentas de auditoria especializadas indisponíveis. A falha de formatação no job indicado é anterior e independente desta atualização.
 
 ## 2026-11-14 21:05 (Brasília) — chore
 
