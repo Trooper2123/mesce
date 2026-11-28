@@ -23,7 +23,7 @@ export function Calendar({
   assisteds?: Assisted[];
   impediments?: Record<string, string[]>;
   agendaEvents?: Event[];
-  view?: "FULL" | "SUMMARY" | "SPLIT" | "MASSES" | "VISITS";
+  view?: "FULL" | "SUMMARY" | "SPLIT" | "MASSES" | "VISITS" | "LIST";
   eventClass?: string;
   eventName?: string;
   eventAction?: "EDIT" | "ABSENCE";
@@ -112,6 +112,56 @@ export function Calendar({
       : `/celebracoes?edit=${encodeURIComponent(event.id)}&month=${month}&calendarView=${view === "MASSES" || view === "VISITS" ? "SPLIT" : view}&eventClass=${encodeURIComponent(eventClass)}${eventName ? `&eventName=${encodeURIComponent(eventName)}` : ""}#cadastro`;
   const eventLabel = (event: Event) =>
     `${eventAction === "ABSENCE" ? "Informar impedimento para" : "Editar"} ${isAltevitaGroupVisit(event, assisteds) ? "Atendimento ao grupo Altevita" : event.title}, ${displayDate(event.date)}, ${eventTimeLabel(event)}, ${event.location}`;
+  if (view === "LIST")
+    return (
+      <section aria-label={`Impedimentos em lista · ${displayMonth(month)}`}>
+        <h3>{displayMonth(month)}</h3>
+        {ordered.length ? (
+          ordered.map((event) => (
+            <article className="row absence-agenda-row" key={event.id}>
+              <time
+                className="datebox"
+                dateTime={event.date}
+                aria-label={`${displayDate(event.date)}, ${eventTimeLabel(event)}`}
+              >
+                {event.date.slice(8)}
+                <small>{eventTimeLabel(event)}</small>
+              </time>
+              <div className="minister-agenda-details">
+                <h3>
+                  {isAltevitaGroupVisit(event, assisteds)
+                    ? "Atendimento ao grupo Altevita"
+                    : event.title}
+                </h3>
+                <div className="muted">{event.location}</div>
+                <span className="tag">
+                  {(impediments[event.id] ?? []).length
+                    ? `${impediments[event.id].length} ${impediments[event.id].length === 1 ? "impedimento" : "impedimentos"}`
+                    : "Sem impedimentos"}
+                </span>
+                {(impediments[event.id] ?? []).length > 0 && (
+                  <ul>
+                    {impediments[event.id].map((name, index) => (
+                      <li key={`${name}-${index}`}>{name}</li>
+                    ))}
+                  </ul>
+                )}
+                {warnings.get(event.id) && (
+                  <p className="event-overlap">{warnings.get(event.id)}</p>
+                )}
+                <Link href={eventHref(event)} aria-label={eventLabel(event)}>
+                  {eventAction === "ABSENCE"
+                    ? "Registrar ausência"
+                    : "Editar evento"}
+                </Link>
+              </div>
+            </article>
+          ))
+        ) : (
+          <p className="empty">Nenhum evento neste mês.</p>
+        )}
+      </section>
+    );
   return (
     <section className="panel">
       <h2>
@@ -145,8 +195,12 @@ export function Calendar({
           <thead>
             <tr>
               {(visitsOnly
-                ? visitDates.map((day) => `Domingo ${String(day).padStart(2, "0")}/${String(number).padStart(2, "0")}`)
-                : headers).map((day) => (
+                ? visitDates.map(
+                    (day) =>
+                      `Domingo ${String(day).padStart(2, "0")}/${String(number).padStart(2, "0")}`,
+                  )
+                : headers
+              ).map((day) => (
                 <th key={day} scope="col">
                   {day}
                 </th>
@@ -156,7 +210,15 @@ export function Calendar({
           <tbody>
             {weeks.map((week, weekIndex) => (
               <tr key={weekIndex}>
-                {(visitsOnly ? [...week, ...Array(Math.max(0, visitDates.length - week.length)).fill(0)] : week).map((day, index) => (
+                {(visitsOnly
+                  ? [
+                      ...week,
+                      ...Array(
+                        Math.max(0, visitDates.length - week.length),
+                      ).fill(0),
+                    ]
+                  : week
+                ).map((day, index) => (
                   <td key={index}>
                     {day > 0 && day <= days && (
                       <>
