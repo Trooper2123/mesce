@@ -259,15 +259,15 @@ export default async function Registry({
         </p>
       )}
       {kind === "absence" && (
+        <p>
+          <Link className="button" href="/impedimentos?new=1#cadastro">
+            Registrar ausência
+          </Link>
+        </p>
+      )}
+      {kind === "absence" && (
         <section className="panel">
-          {!user.coordinator && (
-            <p>
-              <Link className="button" href="/impedimentos?new=1#cadastro">
-                Informar impedimento
-              </Link>
-            </p>
-          )}
-          <h2>Visão geral dos impedimentos no calendário</h2>
+          <h2>Impedimentos do mês</h2>
           <p className="muted">
             Cada evento mostra os ministros com impedimento registrado para
             aquela data ou celebração. Eventos sem impedimento continuam
@@ -276,7 +276,7 @@ export default async function Registry({
           <form className="toolbar">
             <Field
               name="month"
-              label="Mês do calendário"
+              label="Mês dos impedimentos"
               type="month"
               value={month}
             />
@@ -285,7 +285,7 @@ export default async function Registry({
           <Calendar
             eventAction={user.coordinator ? "EDIT" : "ABSENCE"}
             month={month}
-            view="FULL"
+            view="LIST"
             assisteds={data.assisted}
             agendaEvents={data.events}
             impediments={Object.fromEntries(

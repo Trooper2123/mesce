@@ -683,16 +683,17 @@ a.action {
     position: relative;
     width: auto;
     padding: 18px;
-    border-right: 0;display: grid;
-    grid-template-columns: repeat(3, 1fr); /* 3 equal-width columns */
-    gap: 16px;
-
+    border-right: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
   }
 
   .brand {
-    width: auto;
-    min-height: 44px;
-    flex: 0 1 35%;
+    width: 100%;
+    min-width: 0;
+    min-height: 48px;
     justify-content: flex-start;
     display: flex;
     align-items: center;
@@ -707,7 +708,9 @@ a.action {
     display: none;
   }
   .aside-bottom {
-    margin-top: 12px;
+    grid-column: 1 / -1;
+    min-width: 0;
+    margin-top: 0;
     padding-top: 12px;
   }
   .aside-bottom form button,
@@ -720,19 +723,33 @@ a.action {
   }
   .nav-toggle {
     display: inline-flex;
-    margin-top: 18px;
-    width: 100%;
+    margin: 0;
+    width: auto;
+    min-height: 48px;
   }
   nav {
     display: none;
-    margin-top: 12px;
+    grid-column: 1 / -1;
+    min-width: 0;
+    margin-top: 0;
   }
   nav[data-open="true"] {
     display: grid;
   }
   nav a {
+    min-height: 48px;
+    overflow-wrap: anywhere;
     background: #f1f5ef;
-    font-size: 16px;
+    font-size: 18px;
+  }
+  nav a svg {
+    flex-shrink: 0;
+  }
+  .nav-parent {
+    grid-template-columns: minmax(0, 1fr) 48px;
+  }
+  .nav-expand {
+    min-height: 48px;
   }
   .schedule-primary-actions > form,
   .schedule-support-actions > form,
@@ -754,7 +771,6 @@ a.action {
     font-size: 14px;
     display: grid;
     grid-template-columns: repeat(1, 1fr);
-
   }
   main {
     padding: 24px 16px;
@@ -1018,4 +1034,24 @@ aside {
   .panel > .table-scroll:has(.calendar) {
     display: none;
   }
+}
+
+.absence-agenda-row {
+  align-items: flex-start;
+}
+.absence-agenda-row h3 {
+  margin: 0;
+  font-size: 18px;
+  overflow-wrap: anywhere;
+}
+.absence-agenda-row .minister-agenda-details {
+  overflow-wrap: anywhere;
+}
+.absence-agenda-row .datebox {
+  flex-shrink: 0;
+}
+.absence-agenda-row a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
 }
